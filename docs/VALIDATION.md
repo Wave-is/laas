@@ -21,11 +21,22 @@ from the packaged application's card. Services were exercised against local HTTP
 
 ## Installer release
 
-The release process must record actual installation/reinstallation/uninstallation,
-data preservation, shortcut targets, startup cleanup and running-app protection.
-See the release notes and BUILD.json for the published artifact's evidence and hashes.
-Local raw evidence is intentionally excluded from Git because it contains machine data.
-CI runs Windows/Linux logic tests and a Windows installer build.
+Source **ba850335d4b4bf34effccf641a05293edd51c083** passed 186 local Python tests
+and 10 compiled helper checks. The actual installer passed installation, same-version
+repair in EN/RU/UK, installed EXE diagnostics, active-GUI update refusal, uninstall,
+owned Startup cleanup and user-data preservation. Standard per-user installation,
+Start/Desktop links, AppData configuration preservation and the installed dashboard /
+startup settings were checked on the development PC.
+
+All five [CI jobs](https://github.com/Wave-is/laas/actions/runs/34756285739) passed:
+Windows/Linux logic tests on Python 3.11/3.13 and Windows installer build/lifecycle.
+The installer, source archive, build manifest, test record and checksums were uploaded
+to the private prerelease and downloaded again with matching SHA256 hashes.
+
+Same-version repair does not establish all future cross-version upgrades. Automated
+language execution passed; interactive Setup screenshot access timed out, so visual
+inspection of the Setup text is not claimed. Raw local evidence is excluded from Git
+because it contains machine details. BUILD.json and TESTING.json identify release scope.
 
 ## Not yet established
 

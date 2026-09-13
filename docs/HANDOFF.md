@@ -1,51 +1,57 @@
 # Development handoff
 
-Updated: 2026-09-13. Release being prepared: **3.0.0-alpha.1**.
-Read `AGENTS.md` first. Machine-specific progress and test evidence belong in ignored
-`handoff-local/`; historical development notes have been archived there locally.
+Updated: 2026-09-13. **3.0.0-alpha.1 released**.
+Read AGENTS.md, then this file and ignored handoff-local/README.md when available.
 
-## Current work
+## Current state
 
-Prepare the first Windows installer and publish an early release to `Wave-is/laas`,
-keeping repository visibility private. RU/UK/EN README, setup and quick-start documents
-are required. Migrate the development installation to standard per-user Windows paths,
-remove old Station launchers/startup entries, and confirm Hermes does not start at login.
-Do not remove models, agent installations or development source/history.
+The first early release is published at
+[Wave-is/laas](https://github.com/Wave-is/laas/releases/tag/v3.0.0-alpha.1).
+Repository visibility remains private. Setup, release notes, README and quick-start
+are available in English, Russian and Ukrainian; application UI is currently Russian.
 
-Implementation: version source, Windows metadata, running-app setup guard, per-user
-Inno installer, build/package scripts, translated presentation and release workflow.
-Completed locally: full build (186 Python tests + 10 compiled helper checks), installer
-installation, three-language repair, EXE doctor, running-app guard, uninstall, owned
-Startup removal and data preservation. Clean main is on the private repository.
-All four Windows/Linux Python CI jobs passed; Windows packaging job is still running.
-Machine data transfer verified; old GPU service removed. Next: final standard-path
-installation and visual check, legacy launcher cleanup, tag/release assets + CI verification.
+Release source: `ba850335d4b4bf34effccf641a05293edd51c083`.
+Later documentation-only commits do not change the built installer or executable.
+BUILD.json, TESTING.json and SHA256SUMS.txt accompany the installer and source archive.
+All five uploaded assets were downloaded and verified by SHA256.
 
-## Working rules
+Completed on the development machine: standard per-user installation, data transfer
+with verified backup, old Station launcher/build cleanup and old GPU-service removal.
+Hermes remains installed, without Windows startup entries. Machine-specific details
+and exact paths belong in handoff-local. Application and component startup are off.
+The normal application is now installed under LOCALAPPDATA/Programs; its data is in
+LOCALAPPDATA/LocalAgentAIStation. Models and external agents remain separate.
 
-- Follow the checkpoint protocol in AGENTS.md before long operations.
-- Compare executable hashes/source commit with BUILD.json; HEAD may include newer docs.
-- Preserve local development history; publish only the audited main history.
-- Use the normal installed EXE for user launches, AppData for persistent settings.
-- Windows startup and component startup are separate and opt-in.
-- Stop only owned processes. Do not contact a paused remote service automatically.
-- The installer must not silently install the optional privileged GPU helper.
+## Verified
 
-## Validation baseline and remaining work
+186 Python tests + 10 compiled C# helper protocol checks passed. Installer installation,
+EN/RU/UK repair, installed diagnostics, running-app update refusal, normal exit,
+uninstall, owned Startup cleanup and data preservation passed. Standard Start/Desktop
+shortcuts, installed dashboard and startup settings were checked on the development PC.
+All five [GitHub CI jobs](https://github.com/Wave-is/laas/actions/runs/34756285739)
+passed, including installer lifecycle checks on a hosted Windows runner.
+See VALIDATION.md and the release TESTING.json for boundaries.
 
-Before installer changes: 186 Python tests and 10 compiled helper protocol checks
-passed. Previous physical evidence includes CPU/one/two NVIDIA inference, Qwen Desktop,
-Pi and OpenClaw. See VALIDATION.md for limits; this is not a fresh test claim.
+## Next product work
 
-Installed GPU-helper acceptance, other Windows machines, prolonged maximum contexts,
-full non-Russian GUI translation and agent image-tool integration remain pending.
-User acceptance of a preview is distinct from completion of those product features.
+- Complete acceptance of the separately installed privileged GPU helper. Setup does
+  not install it; GPU monitoring does not require it. Do not claim live switching verified.
+- Other physical Windows machines/GPU counts; prolonged agent/max-context sessions.
+- Full English/Ukrainian GUI and agent-side image-generation tool integration.
+- Cross-version upgrade acceptance for each later release; this release tested repair.
 
-## Commands and map
+This installer/publication task is complete; the broader roadmap is not.
 
-- `python -m pytest -q`
-- `build_installer.ps1 -Python <venv-python> -ISCC <compiler>`
-- `python tools/handoff_snapshot.py`
-- `docs/ARCHITECTURE.md`: source map.
-- `docs/RELEASING.md`: build, publication and versioning.
-- `handoff-local/INSTALLER_RELEASE_PROGRESS.md`: current machine operation checkpoint.
+## Continuing safely
+
+Follow the checkpoint protocol in AGENTS.md before long operations. Stop only owned
+processes; keep GPU modes, model selection and agent selection independent. Do not
+contact paused remote services automatically. Preserve user data and private evidence.
+
+The shared main history starts with an audited root snapshot. Old local historical
+branches must not be pushed. Use src/version.py for both semantic and Windows versions;
+follow RELEASING.md for each new release. Do not change repository visibility implicitly.
+
+Commands: `python -m pytest -q`, `build_installer.ps1`, `python tools/handoff_snapshot.py`.
+The installer test refuses an existing installation: do not force it over a user's
+working copy. Source map: ARCHITECTURE.md. Public validation: VALIDATION.md.
