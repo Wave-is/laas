@@ -14,9 +14,12 @@ Do not remove models, agent installations or development source/history.
 
 Implementation: version source, Windows metadata, running-app setup guard, per-user
 Inno installer, build/package scripts, translated presentation and release workflow.
-Next: complete build + install/reinstall/uninstall validation, local data transfer and
-legacy cleanup; audit source snapshot; push clean main/tag; upload and verify release
-assets and CI. Completion must be based on actual installation and GitHub evidence.
+Completed locally: full build (186 Python tests + 10 compiled helper checks), installer
+installation, three-language repair, EXE doctor, running-app guard, uninstall, owned
+Startup removal and data preservation. Clean main is on the private repository.
+All four Windows/Linux Python CI jobs passed; Windows packaging job is still running.
+Machine data transfer verified; old GPU service removed. Next: final standard-path
+installation and visual check, legacy launcher cleanup, tag/release assets + CI verification.
 
 ## Working rules
 

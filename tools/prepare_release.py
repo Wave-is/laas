@@ -45,8 +45,9 @@ def main():
         (out / 'SHA256SUMS.txt').write_text(''.join(f'{sha(p)}  {p.name}\n' for p in files), encoding='ascii')
         print(json.dumps({'version': VERSION, 'assets': [p.name for p in files]}, indent=2))
         return
-    if git('status', '--porcelain', '--untracked-files=normal'):
-        raise RuntimeError('Commit release inputs before packaging; private files belong in ignored folders.')
+    dirty = git('status', '--porcelain', '--untracked-files=normal')
+    if dirty:
+        raise RuntimeError('Commit release inputs before packaging; private files belong in ignored folders.\n' + dirty)
     assert exe.is_file()
     subprocess.run([sys.executable, str(ROOT / 'tools/collect_notices.py')], cwd=ROOT, check=True)
     # LGPL component source accompanies the installed application and can be rebuilt/replaced.

@@ -2,8 +2,13 @@ param([string]$Python = 'python')
 $ErrorActionPreference='Stop'
 Push-Location $PSScriptRoot
 try {
-    & $Python (Join-Path $PSScriptRoot 'tools\build_brand_assets.py')
-    if ($LASTEXITCODE -ne 0) { throw 'Brand assets build failed.' }
+    # Release builds use reviewed, committed assets. Re-generating PNG/ICO with a
+    # different Pillow version can change bytes and dirty a clean checkout.
+    foreach ($asset in @('station.svg','station.png','station.ico')) {
+        if (-not (Test-Path (Join-Path $PSScriptRoot "assets/brand/$asset"))) {
+            throw 'Brand assets missing. Run tools/build_brand_assets.py and commit them first.'
+        }
+    }
     & $Python -m pytest -q
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed. Build cancelled.' }
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'src\services\build_helper.ps1')

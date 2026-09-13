@@ -5,6 +5,8 @@ increasing four-part Windows version. Config schema versions are separate.
 Keep the installer AppId and application executable name stable for upgrades.
 
 1. Update CHANGELOG and all three README files. Review the validation and known limits.
+   When changing the logo, run `python tools/build_brand_assets.py` and commit the
+   resulting assets. Release builds consume those committed assets without regenerating them.
 2. Use a clean Git checkout and Python 3.11–3.13 x64 on Windows. Install requirements-dev.
 3. Install [Inno Setup 6.7.3](https://github.com/jrsoftware/issrc/releases/tag/is-6_7_3).
    Official installer SHA256: `9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732`.
