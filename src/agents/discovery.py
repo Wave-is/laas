@@ -28,7 +28,8 @@ def npm_installation(binary, packages, settings=None):
             roots.extend(parent for parent in resolved.parents if (parent / 'package.json').is_file())
         for prefix in (executable.parent, executable.parent.parent / 'lib'):
             roots.extend(prefix / 'node_modules' / name for name in packages)
-        if executable.suffix.lower() == '.exe' or (os.name != 'nt' and not executable.is_symlink()):
+        if executable.suffix.lower() == '.exe' or (os.name != 'nt' and not executable.is_symlink()
+                and executable.suffix.lower() not in ('.cmd', '.bat', '.ps1')):
             return [str(executable)], None
     prefixes = [] if configured or settings.get('package_root') else [Path(os.environ.get('APPDATA', Path.home() / 'AppData/Roaming')) / 'npm']
     npm = shutil.which('npm')

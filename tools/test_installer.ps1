@@ -58,11 +58,14 @@ try {
     $report.runningAppGuard = 'passed'
 } finally {
     # Only this newly launched, isolated executable is eligible for window close.
-    $owned = @(Get-Process | Where-Object { $_.Path -eq $exe -and $_.StartTime -ge $guiStarted.AddSeconds(-1) })
-    foreach ($p in $owned) { if ($p.MainWindowHandle -ne 0) { $null = $p.CloseMainWindow() } }
-    foreach ($p in $owned) {
-        if (-not $p.WaitForExit(15000)) { throw 'Test GUI did not exit normally. Close it before continuing.' }
+    # The mutex appears before Tk has created a window. Wait for the real window.
+    for ($i = 0; $i -lt 60; $i++) {
+        $owned = @(Get-Process | Where-Object { $_.Path -eq $exe -and $_.StartTime -ge $guiStarted.AddSeconds(-1) })
+        if (-not $owned) { break }
+        foreach ($p in $owned) { if ($p.MainWindowHandle -ne 0) { $null = $p.CloseMainWindow() } }
+        Start-Sleep -Milliseconds 500
     }
+    if ($owned) { throw 'Test GUI did not exit normally. Close it before continuing.' }
 }
 $uninstall = Join-Path $appDir 'unins000.exe'
 $p = Start-Process -FilePath $uninstall -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LOG=`"$testRoot\uninstall.log`"" -WindowStyle Hidden -Wait -PassThru
