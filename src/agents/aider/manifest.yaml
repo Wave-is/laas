@@ -1,0 +1,6 @@
+id: aider
+name: Aider
+class: AiderAdapter
+optional: true
+provider_sync: false
+releases_url: https://github.com/Aider-AI/aider/releases

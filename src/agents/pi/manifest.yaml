@@ -1,0 +1,5 @@
+id: pi
+name: Pi Coding Agent
+class: PiAdapter
+home_environment: PI_CODING_AGENT_DIR
+releases_url: https://github.com/earendil-works/pi/releases

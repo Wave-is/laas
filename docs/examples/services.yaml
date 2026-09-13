@@ -1,0 +1,20 @@
+# Add only services that you want Station to manage.
+# The remote worker is checked over HTTP; Station does not restart a remote PC.
+- id: remote-image-worker
+  name: Example image server
+  type: remote
+  kind: comfyui
+  url: http://127.0.0.1:8188
+  health_url: http://127.0.0.1:8188/system_stats
+  monitor_enabled: false
+  optional: true
+  restart_policy: never
+# A local worker uses an executable and argument list, never shell commands.
+# - id: image-worker
+#   executable: C:/path/to/python.exe
+#   arguments: [C:/path/to/worker.py, --listen, 127.0.0.1]
+#   working_directory: C:/path/to/worker
+#   health_url: http://127.0.0.1:8188/system_stats
+#   restart_policy: on_failure
+#   environment_references:
+#     WORKER_TOKEN: image-worker/token

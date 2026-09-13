@@ -1,0 +1,26 @@
+﻿__pycache__/
+*.py[cod]
+*$py.class
+*.log
+.pytest_cache/
+.coverage
+build/
+dist/
+settings.json
+.baseline-test-data/
+.test-data/
+.venv/
+runtime/
+handoff-local/
+logs/
+backups/
+*.exe
+*.env
+secrets.*.yaml
+!secrets.references.example.yaml
+.env*
+*.key
+*.pem
+*.pfx
+/Мои хотелки к первой версии.txt
+/Предложения для второй версии от чатгпт.txt

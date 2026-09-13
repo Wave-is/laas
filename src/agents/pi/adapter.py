@@ -1,0 +1,131 @@
+"""Pi terminal and local providers; compatible with both npm package names."""
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+from ..base import AgentRuntimeAdapter, Result, Support, probe, unsupported
+from ..discovery import npm_installation
+from ..local_provider import provider_id, provider_record, enabled_models
+from ...agent_sync import preview_merge
+from ...storage import read_document, atomic_write
+from ...hardware import hidden_options
+from ...supervisor import supervisor
+
+
+class PiAdapter(AgentRuntimeAdapter):
+    def __init__(self, manifest=None):
+        super().__init__(manifest or {'id': 'pi', 'name': 'Pi Coding Agent'})
+        self.package = None
+
+    def detect(self):
+        self.command, self.package = npm_installation('pi',
+            ('@earendil-works/pi-coding-agent', '@mariozechner/pi-coding-agent'), self.settings)
+        self.frontends = [{'id': 'pi-terminal', 'runtime_id': self.id, 'name': 'Pi Coding Agent Terminal',
+            'type': 'terminal', 'optional': True, 'status': 'NOT INSTALLED'}]
+        if not self.command:
+            return unsupported('Pi Coding Agent is optional and is not installed')
+        try:
+            self.version = probe(self.command + ['--version'], env=self.process_environment())
+            self.help_text = probe(self.command + ['--help'], env=self.process_environment())
+            if not all(flag in self.help_text for flag in ('--provider', '--model')):
+                raise ValueError('Installed Pi CLI does not confirm model selection flags')
+            self.frontends[0]['status'] = 'INSTALLED'
+            return Result(Support.SUPPORTED, 'Pi CLI detected', {'version': self.version})
+        except Exception as exc:
+            self.frontends[0]['status'] = 'UNSUPPORTED BY INSTALLED VERSION'
+            return Result(Support.DEGRADED, str(exc))
+
+    def get_config_locations(self, workspace=None):
+        home = Path(self.settings.get('home') or os.environ.get('PI_CODING_AGENT_DIR', Path.home() / '.pi/agent')).expanduser()
+        return Result(Support.SUPPORTED, data={'user': str(home / 'models.json'), 'settings': str(home / 'settings.json')})
+
+    def process_environment(self):
+        return dict(super().process_environment(), PI_CODING_AGENT_DIR=str(Path(self.get_config_locations().data['user']).parent))
+
+    def get_capabilities(self):
+        return Result(Support.SUPPORTED, data={'headless': '--print' in self.help_text,
+            'provider_sync': bool(self.command and '--provider' in self.help_text), 'daemon': False, 'task_control': False})
+
+    def configure_model_provider(self, models):
+        if not self.get_capabilities().data['provider_sync']:
+            return unsupported('Install Pi and run runtime discovery before synchronizing')
+        changes = [(['providers', provider_id(m)], provider_record(m)) for m in enabled_models(models)]
+        return Result(Support.SUPPORTED, data=preview_merge(self.get_config_locations().data['user'], changes))
+
+    def configure_model_binding(self, model):
+        if not self.get_capabilities().data['provider_sync']:
+            return unsupported('Pi model selection is unavailable')
+        return Result(Support.SUPPORTED, data=preview_merge(self.get_config_locations().data['settings'], [
+            (['defaultProvider'], provider_id(model)), (['defaultModel'], model.backend_model_id)]))
+
+    def list_model_bindings(self):
+        doc = read_document(Path(self.get_config_locations().data['user']), {})
+        return Result(Support.SUPPORTED, data={k: v for k, v in doc.get('providers', {}).items() if k.startswith('local-agent-station-')})
+
+    def validate_configuration(self):
+        try:
+            locations = self.get_config_locations().data
+            settings = read_document(Path(locations['settings']), {})
+            providers = self.list_model_bindings().data
+            provider = providers.get(settings.get('defaultProvider'), {})
+            if settings.get('defaultModel') not in [m['id'] for m in provider.get('models', [])]:
+                raise ValueError('Selected Pi model is missing from the Station provider catalog')
+            return Result(Support.SUPPORTED, 'Pi model binding is valid')
+        except Exception as exc:
+            return Result(Support.ERROR, str(exc))
+
+    def start(self, workspace=None, model=None):
+        if not self.command:
+            return unsupported('Pi Coding Agent is not installed')
+        args = list(self.command)
+        if model:
+            if not all(flag in self.help_text for flag in ('--provider', '--model')):
+                return unsupported('Pi model selection flags unavailable')
+            args += ['--provider', provider_id(model), '--model', model.backend_model_id]
+        try:
+            return Result(Support.SUPPORTED, 'Pi terminal started', supervisor.start('agent:' + self.id,
+                args, cwd=workspace, env=self.process_environment(), visible=True))
+        except Exception as exc:
+            return Result(Support.ERROR, str(exc))
+
+    def smoke(self, model, workspace, timeout=180, configuration_path=None):
+        flags = ('--print', '--mode', '--no-tools', '--no-extensions', '--no-skills',
+                 '--no-prompt-templates', '--no-themes', '--no-session', '--system-prompt')
+        if not self.command or not all(flag in self.help_text for flag in flags):
+            return unsupported('Installed Pi lacks the isolated headless smoke flags')
+        try:
+            with tempfile.TemporaryDirectory(prefix='pi-smoke-', dir=workspace) as temporary:
+                home = Path(temporary)
+                if configuration_path:
+                    catalog = read_document(Path(configuration_path), {})
+                    binding = read_document(Path(configuration_path).parent / 'settings.json', {})
+                    selected = binding.get('defaultProvider')
+                    settings = {k: binding[k] for k in ('defaultProvider', 'defaultModel') if k in binding}
+                    providers = {selected: catalog.get('providers', {}).get(selected)} if selected else {}
+                else:
+                    selected = provider_id(model)
+                    settings = {'defaultProvider': selected, 'defaultModel': model.backend_model_id}
+                    providers = {selected: provider_record(model)}
+                if selected != provider_id(model) or settings.get('defaultModel') != model.backend_model_id or not providers.get(selected):
+                    return Result(Support.ERROR, 'Pi saved binding does not match the selected Station model')
+                atomic_write(home / 'models.json', {'providers': providers})
+                atomic_write(home / 'settings.json', settings)
+                args = self.command + ['--print', '--mode', 'json', '--no-tools', '--no-extensions', '--no-skills',
+                    '--no-prompt-templates', '--no-themes', '--no-session', '--system-prompt',
+                    'Connectivity test. Reply exactly STATION_OK.', 'Reply exactly STATION_OK. Do not use tools.']
+                env = dict(self.process_environment(), PI_CODING_AGENT_DIR=str(home), PI_OFFLINE='1', PI_SKIP_VERSION_CHECK='1')
+                p = subprocess.run(args, cwd=temporary, env=env, input='', capture_output=True,
+                    text=True, encoding='utf-8', errors='replace', timeout=timeout, **hidden_options())
+                events = [json.loads(line) for line in p.stdout.splitlines() if line.strip().startswith('{')]
+                messages = [e.get('message', {}) for e in events if e.get('type') == 'message_end']
+                answers = [m for m in messages if m.get('role') == 'assistant']
+                passed = p.returncode == 0 and bool(answers) and all(
+                    m.get('provider') == selected and m.get('model') == model.backend_model_id and
+                    m.get('stopReason') not in ('error', 'aborted', 'toolUse') for m in answers) and \
+                    ''.join(c.get('text', '') for c in answers[-1].get('content', []) if c.get('type') == 'text').strip() == 'STATION_OK'
+                return Result(Support.SUPPORTED if passed else Support.ERROR,
+                    'Pi headless smoke passed' if passed else 'Pi headless smoke failed',
+                    {'exit_code': p.returncode, 'output': p.stdout[-3000:], 'stderr': p.stderr[-1500:]})
+        except Exception as exc:
+            return Result(Support.ERROR, str(exc))

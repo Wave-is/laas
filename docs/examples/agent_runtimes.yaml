@@ -1,0 +1,28 @@
+- id: qwen-code
+  enabled: true
+  optional: true
+  # home: C:/path/to/qwen-user-home
+- id: hermes
+  enabled: true
+  optional: true
+  # executable: C:/path/to/hermes.exe
+  # source_root: C:/path/to/healthy/hermes-agent
+  # desktop_executable: C:/path/to/Hermes.exe
+  # home: C:/path/to/hermes-home
+- id: aider
+  enabled: true
+  optional: true
+- id: pi
+  enabled: true
+  optional: true
+  # package_root: C:/path/to/node_modules/@earendil-works/pi-coding-agent
+  # executable: C:/path/to/pi.cmd
+  # node: C:/Program Files/nodejs/node.exe
+  # home: C:/path/to/pi-agent-config
+- id: openclaw
+  enabled: true
+  optional: true
+  # package_root: C:/path/to/node_modules/openclaw
+  # home: C:/path/to/openclaw-state
+  # config_path: C:/path/to/openclaw.json
+  # gateway_port: 18789

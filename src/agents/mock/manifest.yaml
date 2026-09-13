@@ -1,0 +1,4 @@
+id: mock
+name: Mock runtime (tests only)
+class: MockAdapter
+enabled: false

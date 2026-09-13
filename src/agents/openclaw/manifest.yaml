@@ -1,0 +1,5 @@
+id: openclaw
+name: OpenClaw
+class: OpenClawAdapter
+home_environment: OPENCLAW_STATE_DIR
+releases_url: https://github.com/openclaw/openclaw/releases
