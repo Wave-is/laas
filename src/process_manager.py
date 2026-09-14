@@ -19,7 +19,7 @@ class ProcessManager:
         url = urlsplit(config.get('llama_swap_url'))
         if url.hostname not in ('127.0.0.1', 'localhost', '::1') or url.scheme != 'http':
             raise ValueError('Managed llama-swap must bind to loopback HTTP')
-        supervisor.start('service:llama-swap', [exe, '-config', str(path), '-listen', f'127.0.0.1:{url.port or 9292}'],
+        supervisor.start('service:llama-swap', [exe, '-config', str(path), '-listen', f'0.0.0.0:{url.port or 9292}'],
             cwd=str(Path(exe).parent))
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
