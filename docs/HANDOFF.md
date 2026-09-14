@@ -3,36 +3,41 @@
 Updated: 2026-09-13. **3.0.0-alpha.1 released**.
 Read AGENTS.md, then this file and ignored handoff-local/README.md when available.
 
-## Current work — managed coordination, 2026-09-14
+## Current work — managed coordination M2b1, 2026-09-14
 
-M1 remains the durable exact conversation/attachment journal and stale-attempt
-fencing core. M2a now adds the Qwen adapter's explicit managed-input facade,
-transactional follow-up outbox, capability-gated loopback prompt client and
-required external Tool Guard v1 HTTP provider. See QWEN_MANAGED_COORDINATION.md.
+Completed: durable exact-input journal (M1), follow-up outbox and required Tool
+Guard v1 (M2a), now a bounded authenticated REST/SSE observer (M2b1). See
+QWEN_EVENT_OBSERVER.md. Event envelope + epoch/cursor + correlated turn/tool result
+commit together. Replay deduplicates; gaps/epoch change/degraded history block
+permissions. Late tool results after corrections remain needs_review. A matching
+terminal may be joined after a late 202 receipt, without resending the prompt.
 
-The adapter still advertises `task_control=False`; native Desktop/Telegram ingress,
-steering dispatch and live result observation are NOT wired. Existing chats do not
-magically gain capture protection. HTTP 202 is queue admission, never full packet
-delivery. Guard permits require a separate trusted delivery binding and explicit
-application tool policy; until that evidence exists, tools are denied. No autonomous
-failover, process cancellation, remote request, model/GPU change or installer release.
+The adapter's explicit event_receiver() starts no daemon/thread on construction.
+Registered observers gate dispatch/Guard until caught up and fresh. No observer
+row preserves the legacy developer API, not a protected-session claim.
+`task_control=False`, `automatic_failover=False`, `live_runtime_verified=False`.
+Native Desktop/Telegram ingress, actual full-packet delivery and OS-process drain
+are still NOT wired. Existing user chats do not automatically gain protection.
+Never bind a delivery from HTTP 202, replay_complete, assistant text or turn_complete.
 
-Validation in this block: 78 new M2a tests + 53 M1 tests = 131 passed; both synthetic
-smokes passed. Broader local run: 279 passed, 1 skipped, 1 deselected, excluding two
-GUI-dependent modules because customtkinter is unavailable and pip network access
-failed. Full unchanged test matrix and Windows packaging belong to CI, not this
-local claim. Source came from the verified prior CI source archive for e178ee7.
+Validation: 89 new tests; M1+M2a+M2b1 = 220 passed locally; all three synthetic
+smokes PASS. Broader local run: 368 passed, 1 skipped, 1 deselected; two GUI modules
+excluded because customtkinter is unavailable. Full local collection was attempted
+and failed on that missing dependency, not represented as success. The unchanged
+GitHub CI matrix covers Windows/Linux 3.11/3.13 and installer lifecycle separately.
+Source reconstructed from the prior CI source archive; its merge tree bd0ba24 is
+identical to head fda25d3, verified by GitHub compare and archive SHA256.
 
-Next concrete step M2b: qualify the installed Qwen contract in a disposable project,
-wire all authenticated new/edited/queued input paths before dispatch, add persistent
-SSE epoch/cursor observation and prove current packet delivery before tool admission.
-Then correlate real final tool results, track/drain owned processes and test restart
-with ambiguous admission and late output. Do not activate nested AgentCore delegation
-under required external Guard v1; its top-level-only boundary must remain visible.
-Complete this end-to-end before M3 scheduling or exposing protected status in the GUI.
+Next concrete M2b2: qualify installed Qwen in a disposable project; route actual
+new/edited/queued/steering inputs through authenticated persistence BEFORE forwarding.
+Establish full packet receipt/token budget at the real model boundary, correlate
+owned foreground tool processes and drain/cancel them including pending prompts.
+Exercise an edit during tool execution and observer reconnect/restart end-to-end.
+External Guard v1 remains top-level; do not enable nested AgentCore execution or
+M3 automatic scheduling until the complete boundary is accepted.
 
-Main/installed alpha.1 and user settings remain unchanged. The feature PR is the
-review boundary. See WORKLOG.md and VALIDATION.md for exact validation scope.
+No main, installed EXE, model, GPU, startup, user setting or remote service changed.
+Feature PR #1 is the review boundary. WORKLOG.md/VALIDATION.md record test scope.
 
 ## Current state
 

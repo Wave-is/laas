@@ -121,6 +121,7 @@ class QwenDaemonClient:
         item = store.input_status(event_id)
         if item['runtime_id'] != self.runtime_id:
             raise ProtocolError('Input belongs to a different daemon instance')
+        store.check_observation(self.runtime_id, item["session_id"])
         body = store.prepare_request(event_id)
         if item['payload']['attachments'] and not self.image_transport_verified:
             raise ProtocolError('Image transport has not been qualified for this runtime')

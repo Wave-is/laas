@@ -1,10 +1,17 @@
-# Qwen managed ingress and Tool Guard — M2a
+# Qwen managed ingress and Tool Guard — M2a / M2b1
 
 **Status: opt-in implementation + offline HTTP contract tests. Not live Desktop
 capture. Automatic failover remains disabled. No installer release or production
 configuration change.**
 
-## Implemented now
+## M2b1 update
+
+Explicit REST/SSE event observation and atomic result/cursor persistence now exist;
+see [QWEN_EVENT_OBSERVER.md](QWEN_EVENT_OBSERVER.md) for current status and limits.
+The original M2a sections below describe the admission boundary. No native frontend
+is automatically wired and full-packet delivery/process draining remain open.
+
+## Implemented in M2a
 
 - `QwenCodeAdapter.open_managed_input(...)` returns an explicit
   `ManagedQwenInput` binding. Opening it starts nothing and contacts no server.
@@ -31,8 +38,8 @@ configuration change.**
   Unknown, nested-agent and background tools are denied. An empty rule map denies
   all tools; the LLM cannot label its own command read-only.
 - A trusted lifecycle observer can correlate a terminal prompt or tool result.
-  No observer is started by this change. Late/stale tool results become evidence
-  requiring review, not a new permit. HTTP exposes no delivery-ack, reconciliation,
+  No observer is automatically started. M2b1 adds an explicit receiver. Late/stale
+  tool results become evidence requiring review, not a new permit. HTTP exposes no delivery-ack, reconciliation,
   arbitrary-execution or user-input API.
 
 `get_coordination_capabilities()` reports the real boundaries; the existing
@@ -81,8 +88,8 @@ current raw messages, edits and attachments and the actual context budget. Until
 then a live Guard correctly **denies** an unbound prompt's tools.
 
 The submitted input is one queued human message, not automatically the full M1
-handoff. Compaction/tokenization, subscribing before dispatch, persistent SSE
-cursor/epoch tracking, and full packet-delivery evidence remain M2b work.
+handoff. M2b1 adds explicit subscribe-before-dispatch and durable SSE cursor/epoch
+tracking. Compaction/tokenization and full packet-delivery evidence remain M2b2 work.
 
 ## Queue and crash rules
 
@@ -144,7 +151,8 @@ process permissions remain necessary.
 3. The provider is not a sandbox and does not kill OS processes or retract a permit
    already delivered. A correction racing an admitted executor leaves its result
    requiring reconciliation. Owned-process cancellation/draining is still needed.
-4. No SSE receiver/result recorder is connected to a live Qwen instance yet.
+4. M2b1 implements an explicit SSE receiver/result recorder with synthetic tests;
+   no installed live Qwen instance has been qualified yet.
    Prompt completion must not be guessed to mean all tool outcomes are resolved.
 5. No current GUI, agent setting, GPU mode, startup entry or model endpoint changed.
 
@@ -162,8 +170,8 @@ server. The synthetic smoke binds a synthetic full packet explicitly and labels
 that fact in its output. Do not copy that simulated acknowledgement into a live
 frontend.
 
-M2b: pin/probe the installed daemon, connect authenticated native human ingress and
-an epoch/cursor-aware output observer, prove full packet delivery, and fence/drain
+M2b2: pin/probe the installed daemon, connect authenticated native human ingress to
+the M2b1 epoch/cursor-aware observer, prove full packet delivery, and fence/drain
 actual tools/processes in a disposable project. Keep automatic failover disabled
 until an edit during generation/tool execution and restart/replay are accepted
 end-to-end. Only then implement M3 node/task scheduling.

@@ -74,3 +74,25 @@ unchanged matrix and Windows packaging separately. No new dependencies.
 Next M2b: native input/steering and live SSE cursor/epoch + result/delivery evidence,
 then actual owned-process draining. Existing Desktop/Telegram conversations remain
 unprotected and automatic failover disabled until those integration tests pass.
+
+
+## 2026-09-14 — M2b1 durable Qwen SSE lifecycle observation
+
+Added bounded authenticated loopback SSE receiver and additive SQLite event tables.
+Each raw event, epoch/cursor and correlated terminal/tool projection commit together.
+Replay is idempotent; stale callbacks are fenced; gaps, changed epochs, degraded
+recording, session death/rewind/model changes block new permits. Subscriber loss
+reconnects only GET with the durable cursor, never a prompt POST. Missing final tool
+results remain unresolved. A user correction during execution leaves late results
+requiring review. HTTP 202, replay completion and model text still confer no delivery
+proof. Adapter exposes explicit event_receiver(); existing UIs are not intercepted.
+
+Reviewed upstream event schema, bus, SDK transport and tool emitter at f024b37689f3.
+89 new tests pass; combined coordination 220 passed. Three synthetic smokes PASS.
+Broader local regression 368 passed, 1 skipped, 1 deselected, two GUI modules excluded;
+full collection attempted and blocked by missing customtkinter. No faked dependency,
+live Qwen, GPU request or production change. Full matrix/installer is delegated to
+unchanged CI. Main and installed release remain unchanged.
+
+Next: M2b2 native ingress, full packet delivery and actual owned-process draining;
+then scheduling. Automatic failover and task_control remain false.

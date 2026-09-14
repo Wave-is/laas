@@ -98,3 +98,20 @@ NOT established: native composer/Telegram/steering interception, end-to-end full
 packet delivery proof, persistent live SSE/result observer, tool process cancellation,
 nested-agent fencing, live model or GUI testing, automatic failover. The adapter
 retains task_control=False; no running user installation or remote service changed.
+
+
+## Coordination M2b1 — 2026-09-14
+
+89 new synthetic tests in test_coordination_qwen_events.py passed. M1+M2a+M2b1:
+220 passed; all three coordination smoke scripts PASS. Includes real loopback HTTP
+GET/SSE framing, reconnect cursor/epoch headers, cancellation during idle reads,
+read-only transport, late admission joins, transactional rollback, replay/gap/epoch
+faults, stale observer callbacks, permission liveness and late tool-result handling.
+Runtime events never create user instructions or prove delivery. Final runtime tool
+status is not an assertion about pytest/file correctness or process-tree exit.
+
+Full local suite was attempted; collection needs unavailable customtkinter.
+Broader non-GUI run: 368 passed, 1 skipped, 1 deselected (two GUI modules excluded).
+Full Windows/Linux Python 3.11/3.13 and Windows installer execution belong to CI;
+results are recorded on the feature PR. No actual Qwen daemon/GUI, GPU/model server,
+Windows service or user configuration was exercised. No new dependencies.

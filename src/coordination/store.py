@@ -467,29 +467,33 @@ class JournalStore:
 
     def finish_action(self, action_id: str, *, success: bool, result: dict) -> str:
         """Keep late results as evidence; never let them regain authority."""
-        encoded = _json(result)
         with self._transaction() as db:
-            action = self._one(db, 'SELECT * FROM actions WHERE id=?', (action_id,))
-            if action['result'] is not None:
-                if action['result'] != encoded or bool(action['success']) != bool(success):
-                    raise IdempotencyConflict('Conflicting results for one tool action')
-                return action['state']
-            attempt = self._one(db, 'SELECT a.*,t.project_id FROM attempts a JOIN tasks t '
-                                'ON t.id=a.task_id WHERE a.id=?', (action['attempt_id'],))
-            try:
-                _, revision = self._current(db, attempt['id'], require_revision=True)
-                current = revision == action['revision']
-            except (StaleAttempt, StaleRevision):
-                current = False
-            state = ('succeeded' if success else 'failed') if current else 'needs_review'
-            if action['state'] == 'reconciled':
-                state = 'reconciled'  # late evidence must not undo an operator's reconciliation
-            db.execute('UPDATE actions SET state=?,result=?,success=? WHERE id=?',
-                       (state, encoded, int(bool(success)), action_id))
-            self._append(db, attempt['project_id'], 'tool.finished',
-                         {'task_id': attempt['task_id'], 'attempt_id': attempt['id'], 'action_id': action_id,
-                          'state': state, 'success': bool(success), 'result': result})
-            return state
+            return self._finish_action(db, action_id, success=success, result=result)
+
+    def _finish_action(self, db, action_id: str, *, success: bool, result: dict) -> str:
+        """Transaction-sharing variant for an atomic event/cursor/result commit."""
+        encoded = _json(result)
+        action = self._one(db, 'SELECT * FROM actions WHERE id=?', (action_id,))
+        if action['result'] is not None:
+            if action['result'] != encoded or bool(action['success']) != bool(success):
+                raise IdempotencyConflict('Conflicting results for one tool action')
+            return action['state']
+        attempt = self._one(db, 'SELECT a.*,t.project_id FROM attempts a JOIN tasks t '
+                            'ON t.id=a.task_id WHERE a.id=?', (action['attempt_id'],))
+        try:
+            _, revision = self._current(db, attempt['id'], require_revision=True)
+            current = revision == action['revision']
+        except (StaleAttempt, StaleRevision):
+            current = False
+        state = ('succeeded' if success else 'failed') if current else 'needs_review'
+        if action['state'] == 'reconciled':
+            state = 'reconciled'  # late evidence must not undo an operator's reconciliation
+        db.execute('UPDATE actions SET state=?,result=?,success=? WHERE id=?',
+                   (state, encoded, int(bool(success)), action_id))
+        self._append(db, attempt['project_id'], 'tool.finished',
+                     {'task_id': attempt['task_id'], 'attempt_id': attempt['id'], 'action_id': action_id,
+                      'state': state, 'success': bool(success), 'result': result})
+        return state
 
     def reconcile_action(self, action_id: str, *, note: str, expected_revision: int) -> None:
         """Operator-only gate AFTER checking process/files. Not an LLM tool or automatic retry."""

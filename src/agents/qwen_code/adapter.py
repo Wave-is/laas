@@ -62,7 +62,7 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
         # This must NOT turn task_control on for existing Desktop/CLI sessions.
         from .managed import coordination_coverage
         return Result(Support.DEGRADED,
-            'Managed outbox/Guard primitives only; native ingress and runtime observation are not wired',
+            'Managed outbox/Guard and SSE observer; native ingress and full delivery are not wired',
             data=coordination_coverage())
 
     def open_managed_input(self, **configuration):

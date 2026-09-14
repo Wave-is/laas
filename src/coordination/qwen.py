@@ -42,6 +42,26 @@ CREATE TABLE IF NOT EXISTS qwen_guard_requests (
     PRIMARY KEY(runtime_id, request_id),
     UNIQUE(runtime_id, session_id, prompt_id, tool_call_id)
 );
+CREATE TABLE IF NOT EXISTS qwen_stream_sessions (
+    runtime_id TEXT NOT NULL, session_id TEXT NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    epoch TEXT, cursor INTEGER NOT NULL DEFAULT 0,
+    connection_id TEXT, state TEXT NOT NULL DEFAULT 'disconnected',
+    last_seen REAL NOT NULL DEFAULT 0, note TEXT,
+    PRIMARY KEY(runtime_id, session_id)
+);
+CREATE TABLE IF NOT EXISTS qwen_stream_frames (
+    runtime_id TEXT NOT NULL, session_id TEXT NOT NULL, epoch TEXT NOT NULL,
+    event_id INTEGER NOT NULL, envelope TEXT NOT NULL,
+    disposition TEXT NOT NULL DEFAULT 'evidence',
+    PRIMARY KEY(runtime_id, session_id, epoch, event_id),
+    FOREIGN KEY(runtime_id, session_id) REFERENCES qwen_stream_sessions(runtime_id, session_id)
+);
+CREATE TRIGGER IF NOT EXISTS qwen_frames_immutable BEFORE UPDATE OF envelope ON qwen_stream_frames
+BEGIN SELECT RAISE(ABORT, 'stream evidence is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS qwen_frames_no_delete BEFORE DELETE ON qwen_stream_frames
+BEGIN SELECT RAISE(ABORT, 'stream evidence is append-only'); END;
+
 """
 
 
@@ -185,21 +205,26 @@ class QwenJournal(JournalStore):
     def record_terminal(self, event_id: str, *, prompt_id: str, evidence_id: str,
                         outcome: str) -> None:
         """Trusted runtime observer only. Not an LLM 'done' flag or a tool receipt."""
+        with self._transaction() as db:
+            self._record_terminal(db, event_id, prompt_id=prompt_id,
+                                  evidence_id=evidence_id, outcome=outcome)
+
+    def _record_terminal(self, db, event_id: str, *, prompt_id: str,
+                         evidence_id: str, outcome: str) -> None:
         identifier(prompt_id)
         identifier(evidence_id)
         if outcome not in ('end_turn', 'cancelled', 'max_tokens', 'error', 'length'):
             raise ValueError('Unsupported turn outcome')
-        with self._transaction() as db:
-            item = self._input(db, event_id)
-            if item['state'] not in ('accepted', 'completed') or item['prompt_id'] != prompt_id:
-                raise JournalError('Terminal event does not match an admitted input')
-            self._append(db, item['project_id'], 'runtime.notice',
-                         {'task_id': None, 'attempt_id': None, 'data': {
-                             'input_event_id': event_id, 'prompt_id': prompt_id, 'outcome': outcome}},
-                         source='qwen-terminal:' + event_id, source_id=evidence_id)
-            if item['state'] == 'completed' and item['note'] != outcome:
-                raise IdempotencyConflict('Conflicting terminal outcomes')
-            db.execute("UPDATE qwen_inputs SET state='completed',note=? WHERE event_id=?", (outcome, event_id))
+        item = self._input(db, event_id)
+        if item['state'] not in ('accepted', 'completed') or item['prompt_id'] != prompt_id:
+            raise JournalError('Terminal event does not match an admitted input')
+        self._append(db, item['project_id'], 'runtime.notice',
+                     {'task_id': None, 'attempt_id': None, 'data': {
+                         'input_event_id': event_id, 'prompt_id': prompt_id, 'outcome': outcome}},
+                     source='qwen-terminal:' + event_id, source_id=evidence_id)
+        if item['state'] == 'completed' and item['note'] != outcome:
+            raise IdempotencyConflict('Conflicting terminal outcomes')
+        db.execute("UPDATE qwen_inputs SET state='completed',note=? WHERE event_id=?", (outcome, event_id))
 
     def cancel_queued(self, event_id: str) -> None:
         """Cancel only undispatched work; never claims to stop a running daemon."""
@@ -232,6 +257,21 @@ class QwenJournal(JournalStore):
                          {'input_event_id': event_id, 'note': note,
                           'definitely_not_admitted': definitely_not_admitted})
 
+    def _check_observation(self, db, runtime_id: str, session_id: str) -> None:
+        """A registered observer must be caught up and recently alive.
+
+        No row preserves the M2a developer API; that is NOT protected mode.
+        A row is never silently discarded to bypass a replay gap.
+        """
+        row = db.execute('SELECT state,last_seen FROM qwen_stream_sessions '
+                         'WHERE runtime_id=? AND session_id=?', (runtime_id, session_id)).fetchone()
+        if row and (row['state'] != 'live' or not 0 <= self._now() - row['last_seen'] <= 60):
+            raise Busy('Runtime observation is disconnected, stale or requires reconciliation')
+
+    def check_observation(self, runtime_id: str, session_id: str) -> None:
+        with self._connection() as db:
+            self._check_observation(db, runtime_id, session_id)
+
     def bind_delivered_prompt(self, *, runtime_id: str, session_id: str, prompt_id: str,
                               attempt_id: str, delivery_id: str, digest: str) -> None:
         """Trusted delivery observer only; never call merely after HTTP 202.
@@ -242,6 +282,7 @@ class QwenJournal(JournalStore):
         for v in (runtime_id, session_id, prompt_id):
             identifier(v)
         with self._transaction() as db:
+            self._check_observation(db, runtime_id, session_id)
             attempt, revision = self._current(db, attempt_id)
             delivery = self._one(db, 'SELECT * FROM deliveries WHERE id=?', (delivery_id,))
             if delivery['attempt_id'] != attempt_id or delivery['digest'] != digest:
@@ -302,6 +343,7 @@ class QwenToolGuard:
             # Reserve request and tuple BEFORE admission. A crash in between is a
             # conservative refusal on replay, never a second permit.
             with self.store._transaction() as db:
+                self.store._check_observation(db, self.runtime_id, request['sessionId'])
                 binding = self.store._one(db, 'SELECT * FROM qwen_prompt_bindings WHERE runtime_id=? '
                     'AND session_id=? AND prompt_id=?',
                     (self.runtime_id, request['sessionId'], request['promptId']))
@@ -325,6 +367,7 @@ class QwenToolGuard:
                            (action_id, self.runtime_id, request['requestId']))
                 # Last re-check before permit response. Cannot undo an executor
                 # already admitted just before a later correction arrives.
+                self.store._check_observation(db, self.runtime_id, request['sessionId'])
                 self.store._current(db, attempt_id, require_revision=True)
             answer['allowed'] = True
         except Exception:

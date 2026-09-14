@@ -22,7 +22,10 @@ def coordination_coverage() -> dict:
         'steering_dispatch': False,
         'native_desktop_capture': False,
         'native_telegram_capture': False,
-        'runtime_result_observer': False,
+        'runtime_result_observer': True,
+        'durable_sse_epoch_cursor': True,
+        'full_packet_delivery_verified': False,
+        'owned_process_drain': False,
         'external_tool_guard_v1_provider': True,
         'live_runtime_verified': False,
         'automatic_failover': False,
@@ -53,6 +56,7 @@ class ManagedQwenInput:
             image_transport_verified=image_transport_verified)
         self.store = QwenJournal(journal_path)
         self.store.open_project(self.project_id, workspace)
+        self.observer = None
 
     def capture(self, *, message_id: str, text: str, intent: str = 'queue',
                 edit_of: str | None = None, attachments=()) -> dict:
@@ -64,8 +68,24 @@ class ManagedQwenInput:
         """Try ONE item; active/ambiguous earlier items block, not skip or replay."""
         for entry in self.store.pending_inputs(self.client.runtime_id, self.session_id):
             if entry['state'] in ('queued', 'sending', 'accepted', 'uncertain'):
-                return self.client.dispatch(self.store, entry['event_id'])
+                receipt = self.client.dispatch(self.store, entry['event_id'])
+                if self.observer is not None:
+                    self.observer.reconcile_admissions()
+                return receipt
         return None
+
+    def event_receiver(self):
+        """Opt-in: register a deny-until-caught-up observer; starts no thread/server.
+
+        Caller runs the receiver before dispatch. This does not wire native UI
+        input or establish full-packet delivery. It keeps the legacy API explicit.
+        """
+        from ...coordination.qwen_events import QwenEventObserver
+        from ...coordination.qwen_stream import QwenEventClient
+        if self.observer is None:
+            self.observer = QwenEventObserver(self.store, project_id=self.project_id,
+                runtime_id=self.client.runtime_id, session_id=self.session_id)
+        return QwenEventClient(self.client, self.observer)
 
     def status(self) -> dict:
         """No user content or credentials; suitable for future Station controls."""
@@ -73,4 +93,5 @@ class ManagedQwenInput:
         return {'project_id': self.project_id, 'runtime_id': self.client.runtime_id,
                 'session_id': self.session_id,
                 'counts': dict(Counter(item['state'] for item in entries)),
-                'coverage': coordination_coverage()}
+                'coverage': coordination_coverage(),
+                'observation': self.observer.status() if self.observer else None}
