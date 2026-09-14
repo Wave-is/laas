@@ -5,33 +5,34 @@ Read AGENTS.md, then this file and ignored handoff-local/README.md when availabl
 
 ## Current work — managed coordination, 2026-09-14
 
-User requirement: tasks evolve through conversation; no model is responsible for
-remembering to write changes to the database or a summary. Start the deterministic
-coordinator inside this project, not a new coding-agent framework.
+M1 remains the durable exact conversation/attachment journal and stale-attempt
+fencing core. M2a now adds the Qwen adapter's explicit managed-input facade,
+transactional follow-up outbox, capability-gated loopback prompt client and
+required external Tool Guard v1 HTTP provider. See QWEN_MANAGED_COORDINATION.md.
 
-M1 implemented in `src/coordination/`: transactional exact message/edit/attachment
-journal, replayable delivery receipts, requirement revisions, expiring/fenced task
-attempts, one writer per project and fail-closed tracking of uncertain tool effects.
-Summaries are derived; a missing summary item cannot replace an original message.
-Runtime stream evidence is separate from authoritative human input.
+The adapter still advertises `task_control=False`; native Desktop/Telegram ingress,
+steering dispatch and live result observation are NOT wired. Existing chats do not
+magically gain capture protection. HTTP 202 is queue admission, never full packet
+delivery. Guard permits require a separate trusted delivery binding and explicit
+application tool policy; until that evidence exists, tools are denied. No autonomous
+failover, process cancellation, remote request, model/GPU change or installer release.
 
-Current validation: 53 new offline tests passed in a Linux Python environment;
-`python tools/coordination_smoke.py` passed. Existing 186 tests, Windows packaging
-and live Qwen/Hermes behavior were not re-run locally in that environment. Full
-repository CI results belong to the feature PR, separately from historical results.
-No new installer or deployed binary; main/production settings are unchanged.
+Validation in this block: 78 new M2a tests + 53 M1 tests = 131 passed; both synthetic
+smokes passed. Broader local run: 279 passed, 1 skipped, 1 deselected, excluding two
+GUI-dependent modules because customtkinter is unavailable and pip network access
+failed. Full unchanged test matrix and Windows packaging belong to CI, not this
+local claim. Source came from the verified prior CI source archive for e178ee7.
 
-Next concrete step: M2 in [COORDINATION.md](COORDINATION.md). Inspect the installed
-Qwen protocol and implement a verified input/steering/queue capture adapter plus
-local tool-admission boundary. `QwenCodeAdapter` currently has `task_control=False`;
-this M1 library is NOT connected to Desktop/daemon and must not be advertised as
-protecting an existing live conversation. Do not enable autonomous failover until
-every relevant ingress and tool launch is captured/fenced. Add disposable integration
-tests for mid-turn user edits, disconnect/replay, stale output and process recovery.
+Next concrete step M2b: qualify the installed Qwen contract in a disposable project,
+wire all authenticated new/edited/queued input paths before dispatch, add persistent
+SSE epoch/cursor observation and prove current packet delivery before tool admission.
+Then correlate real final tool results, track/drain owned processes and test restart
+with ambiguous admission and late output. Do not activate nested AgentCore delegation
+under required external Guard v1; its top-level-only boundary must remain visible.
+Complete this end-to-end before M3 scheduling or exposing protected status in the GUI.
 
-Acceptance of M1: original corrections survive model-summary omission and restart;
-stale/revoked attempts cannot admit new tools through the library; ambiguous actions
-block retry. M2 acceptance additionally requires real runtime ingress/tool evidence.
+Main/installed alpha.1 and user settings remain unchanged. The feature PR is the
+review boundary. See WORKLOG.md and VALIDATION.md for exact validation scope.
 
 ## Current state
 

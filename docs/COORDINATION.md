@@ -1,7 +1,9 @@
 # Managed coordination: durable conversation first
 
-Status: **M1 implemented, opt-in library + offline smoke; not connected to live
-Qwen/Hermes input or tools yet.** This does not change the installed alpha.1 EXE.
+Status: **M1 implemented; M2a adds an opt-in Qwen outbox/client and external Tool
+Guard v1 provider with synthetic HTTP tests. Native Desktop/Telegram ingress and
+live result observation are not wired yet.** This does not change the installed
+alpha.1 EXE. See [Qwen M2a implementation](QWEN_MANAGED_COORDINATION.md).
 
 ## Why a summary is not the source of truth
 
@@ -79,8 +81,8 @@ replay stops for reconciliation rather than executing its side effect twice.
 
 - This is not a new coding harness or a chat UI. External agents still perform
   reasoning and tools. Existing Station model/GPU/frontend profiles stay independent.
-- The current `QwenCodeAdapter` reports `task_control=False`. No live ingress hook,
-  steering hook, GUI edit hook, stream subscription or tool gate is wired in this PR.
+- The current `QwenCodeAdapter` reports `task_control=False`. The new M2a explicit ingress/Guard APIs
+  do not install a native GUI/steering hook, stream subscription or live tool gate.
   Opening the existing Qwen Desktop therefore does NOT enable these guarantees.
 - A model-API proxy alone is insufficient: it sees model requests, not necessarily a
   user edit/queued message immediately when entered in the agent UI. The input adapter
@@ -130,7 +132,8 @@ late results, cancellation, operator reconciliation and untrusted runtime eviden
 
 ## Next milestones (not implemented by M1)
 
-**M2: one real Qwen runtime adapter, fail-closed.** Pin/probe installed protocol;
+**M2b: finish the real Qwen runtime adapter, fail-closed.** M2a outbox and external
+Guard provider are implemented; native ingress/output proof remains. Pin/probe installed protocol;
 intercept every new/edited/queued human input, store it before acknowledgement,
 subscribe to output with persistent source IDs/cursors, and gate every tool through
 managed admission. Preserve raw input independently of model summaries. Expose

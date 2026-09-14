@@ -70,3 +70,31 @@ edits through the live UI, real tokenizer/image budgeting, tool-executor interce
 remote-worker scheduling, cancellation of owned OS processes, live failover and
 Station task UI. Library receipts prove persistence/delivery, not model comprehension
 or semantic correctness. See COORDINATION.md for remaining milestones and boundaries.
+
+
+## Coordination M2a — 2026-09-14
+
+78 new tests in `tests/test_coordination_qwen.py` passed locally. Together with
+M1: **131 passed**. Both `coordination_smoke.py` and `coordination_qwen_smoke.py`
+passed. Tests exercise actual SQLite transactions and loopback HTTP with synthetic
+Qwen peers, not an installed daemon/model or native Desktop UI.
+
+Coverage: persist-before-network, exact edits/attachments, atomic queue rollback,
+FIFO claims, uncertain admission/crash recovery, no automatic replay, schema and
+capability refusal, HTTP 202 not delivery, authenticated external Guard v1,
+permit-before-execution intent, current-revision/attempt checks, duplicate request
+and tuple refusal, stale results, deny-by-default tools, facade privacy and no
+implicit network/background startup. Original M1 tests are unchanged.
+
+Broader local run: **279 passed, 1 skipped, 1 deselected**, excluding
+`test_gpu_confirmation.py`, `test_startup.py` and one UI callback test because
+customtkinter is unavailable. A full run initially failed on that missing dependency;
+pip installation was blocked by container networking. No dependency was stubbed.
+Full Windows/Linux matrix and installer verification are delegated to the existing
+PR CI; report its actual outcome separately. Source archive was recovered from the
+successful e178ee7 CI artifact, with the M1 store blob identity checked.
+
+NOT established: native composer/Telegram/steering interception, end-to-end full
+packet delivery proof, persistent live SSE/result observer, tool process cancellation,
+nested-agent fencing, live model or GUI testing, automatic failover. The adapter
+retains task_control=False; no running user installation or remote service changed.

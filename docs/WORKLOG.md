@@ -49,3 +49,28 @@ feature PR's existing CI; no local claim of running the historical 186 tests.
 Live Qwen/Hermes message capture and tool interception are NOT implemented yet.
 Next: verified runtime adapter (M2), then resource-aware dispatcher/UI (M3/M4).
 See COORDINATION.md and HANDOFF.md. No production settings or released binary changed.
+
+
+## 2026-09-14 — M2a Qwen durable outbox and required external Tool Guard
+
+Implemented an opt-in QwenCodeAdapter facade without changing task_control=False,
+production configuration or GUI startup. Exact human messages/edits and queue rows
+commit atomically; dispatch records intent before one HTTP POST. Ambiguous results
+block replay. HTTP 202 is kept separate from model delivery and tool completion.
+
+Reviewed the upstream external Tool Guard v1 at f024b37689f3abab4bbfb249f44af55d34effc77.
+Implemented its two authenticated loopback routes, strict contract parsing, explicit
+tool allowlist, current delivery/revision/attempt fencing and persistent request/tuple
+replay refusal. Unknown/nested/background tools deny. No OS tool is launched by this
+module; actual results require a trusted observer. Fixed the capabilities fixture
+against upstream: features is an array, not an invented boolean map.
+
+New tests: 78 passed. M1+M2a together: 131 passed. Both synthetic smokes PASS.
+Broader local regression: 279 passed, 1 skipped, 1 deselected, with two GUI-dependent
+modules excluded because customtkinter is missing; attempting dependency installation
+failed on unavailable network. No UI stubs or fake full-suite claim. CI runs the full
+unchanged matrix and Windows packaging separately. No new dependencies.
+
+Next M2b: native input/steering and live SSE cursor/epoch + result/delivery evidence,
+then actual owned-process draining. Existing Desktop/Telegram conversations remain
+unprotected and automatic failover disabled until those integration tests pass.
