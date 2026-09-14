@@ -3,6 +3,36 @@
 Updated: 2026-09-13. **3.0.0-alpha.1 released**.
 Read AGENTS.md, then this file and ignored handoff-local/README.md when available.
 
+## Current work — managed coordination, 2026-09-14
+
+User requirement: tasks evolve through conversation; no model is responsible for
+remembering to write changes to the database or a summary. Start the deterministic
+coordinator inside this project, not a new coding-agent framework.
+
+M1 implemented in `src/coordination/`: transactional exact message/edit/attachment
+journal, replayable delivery receipts, requirement revisions, expiring/fenced task
+attempts, one writer per project and fail-closed tracking of uncertain tool effects.
+Summaries are derived; a missing summary item cannot replace an original message.
+Runtime stream evidence is separate from authoritative human input.
+
+Current validation: 53 new offline tests passed in a Linux Python environment;
+`python tools/coordination_smoke.py` passed. Existing 186 tests, Windows packaging
+and live Qwen/Hermes behavior were not re-run locally in that environment. Full
+repository CI results belong to the feature PR, separately from historical results.
+No new installer or deployed binary; main/production settings are unchanged.
+
+Next concrete step: M2 in [COORDINATION.md](COORDINATION.md). Inspect the installed
+Qwen protocol and implement a verified input/steering/queue capture adapter plus
+local tool-admission boundary. `QwenCodeAdapter` currently has `task_control=False`;
+this M1 library is NOT connected to Desktop/daemon and must not be advertised as
+protecting an existing live conversation. Do not enable autonomous failover until
+every relevant ingress and tool launch is captured/fenced. Add disposable integration
+tests for mid-turn user edits, disconnect/replay, stale output and process recovery.
+
+Acceptance of M1: original corrections survive model-summary omission and restart;
+stale/revoked attempts cannot admit new tools through the library; ambiguous actions
+block retry. M2 acceptance additionally requires real runtime ingress/tool evidence.
+
 ## Current state
 
 The first early release is published at

@@ -7,7 +7,7 @@ for Setup. Added per-user Inno Setup packaging, standard shortcuts/uninstall, ow
 checked startup cleanup, three-language release presentation and reproducible release inputs.
 Private pre-installer progress is retained in ignored local handoff notes.
 
-Validation baseline: 186 Python tests and 10 compiled helper checks before this change.
+Validation baseline: 186 Python tests and 10 compiled helper protocol checks before this change.
 Installer installation/publishing work is still active; results must be recorded only
 once completed. Detailed machine actions are in handoff-local/INSTALLER_RELEASE_PROGRESS.md.
 
@@ -31,3 +31,21 @@ Private prerelease v3.0.0-alpha.1 published with five assets, downloaded hash ch
 passed. No repository visibility change. Application UI remains Russian; presentation
 and Setup are translated. Broader GPU-helper/physical-machine/agent qualification
 remains on the roadmap. Local raw evidence and machine details are ignored by Git.
+
+## 2026-09-14 — M1 durable conversation and fenced coordination core
+
+Added opt-in `src/coordination/JournalStore` using local SQLite, no new dependency,
+network request, model download or GUI/startup change. Exact human messages/edits and
+immutable attachment bytes persist before a successful receipt; every user update
+advances a revision. Model summaries cannot replace original input. Runtime outputs
+are evidence only. Replayable delivery receipts and attempt epochs gate new tool
+intents; a single writer is admitted per project. Uncertain effects block failover
+until explicit operator reconciliation. Late output is kept without granting authority.
+
+Validation: 53 new offline Python tests passed; synthetic coordination smoke passed.
+A locally reconstructed source subset was used because container Git networking was
+unavailable. Full-repository regression tests/Windows packaging are delegated to the
+feature PR's existing CI; no local claim of running the historical 186 tests.
+Live Qwen/Hermes message capture and tool interception are NOT implemented yet.
+Next: verified runtime adapter (M2), then resource-aware dispatcher/UI (M3/M4).
+See COORDINATION.md and HANDOFF.md. No production settings or released binary changed.

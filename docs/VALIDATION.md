@@ -49,3 +49,24 @@ because it contains machine details. BUILD.json and TESTING.json identify releas
 
 The release is an early preview. Do not equate simulated topology coverage with
 physical qualification, or compiled protocol checks with installed-service validation.
+
+## Coordination M1 — 2026-09-14
+
+New validation, separate from the installed release: 53 tests in
+`tests/test_coordination_journal.py` passed locally on Linux, plus
+`python tools/coordination_smoke.py`. Tests use temporary databases and fake clocks;
+no GPU, remote host, live agent, Windows service or installed user settings touched.
+They cover transactional/idempotent user input, edits, attachment persistence,
+concurrent writers, source-role separation, stale requirement/attempt fencing,
+context-budget refusal, replay after restart and reconciliation of unknown effects.
+
+The local test directory was a reconstructed subset, not a complete repository
+checkout. Existing regression and Windows results for this commit must be read from
+CI, not inferred from the earlier 186-test baseline. No Windows installer was built
+locally. Real power-loss/storage hardware testing was not performed.
+
+Not yet covered: Qwen Desktop/daemon ingress capture, queued/steering messages and
+edits through the live UI, real tokenizer/image budgeting, tool-executor interception,
+remote-worker scheduling, cancellation of owned OS processes, live failover and
+Station task UI. Library receipts prove persistence/delivery, not model comprehension
+or semantic correctness. See COORDINATION.md for remaining milestones and boundaries.
