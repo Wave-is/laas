@@ -6,8 +6,21 @@ on:
 permissions:
   contents: read
 jobs:
+  source-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: git archive --format=zip --output=laas-ci-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laas-ci-source-${{ github.sha }}
+          path: laas-ci-source.zip
+          retention-days: 3
   tests:
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
         python: ['3.11', '3.13']
@@ -18,7 +31,19 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: python -m pip install -r requirements-dev.txt
-      - run: python -m pytest -q
+      - name: Run tests with bounded diagnostics
+        timeout-minutes: 8
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: python -X faulthandler -m pytest -vv --durations=20 -o faulthandler_timeout=45 --junitxml=runtime/ci-results.xml
+      - name: Preserve test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}-${{ matrix.python }}
+          path: runtime/ci-results.xml
+          if-no-files-found: ignore
+          retention-days: 7
   windows-artifact:
     runs-on: windows-latest
     needs: tests

@@ -3,6 +3,44 @@
 Updated: 2026-09-13. **3.0.0-alpha.1 released**.
 Read AGENTS.md, then this file and ignored handoff-local/README.md when available.
 
+## Current work — M2b1 transport hardening, 2026-09-15
+
+The durable journal, Qwen outbox/Guard and SSE observer exist, but live native
+input capture, full-packet delivery and owned-process drain are still NOT wired.
+`task_control=False`, `automatic_failover=False`, `live_runtime_verified=False`.
+Existing Desktop/Telegram conversations are not automatically protected.
+
+This checkpoint fixes reproducible HTTP lifetime problems before M2b2: one owned
+exchange deadline now covers capabilities preflight, response headers and streaming
+body; explicit response/socket cleanup includes partial and Connection: close bodies.
+Cancellation cannot hide concurrent journal/protocol failures or turn uncertain
+prompt POSTs into retries. See HTTP_TRANSPORT_LIFETIME.md for precise boundaries.
+No new dependency, daemon startup, remote-model access or production change.
+
+Validation: 34 new loopback/SQLite tests; full coordination 254 passed locally.
+All three synthetic coordination smokes PASS. Broader non-GUI regression is run
+with customtkinter-dependent tests excluded; see VALIDATION.md for exact totals.
+The archived fda25d3 source was overlaid with connected-repository ab238e9 files;
+Git blob hashes for all affected predecessor modules/tests were checked.
+
+CI blocker: ab238e9 run 34897467428 passed Linux but both Windows jobs exceeded
+six hours and were cancelled. Logs have only progress dots, no exact hung test.
+The exact Windows root cause remains unconfirmed; do not claim these fixes prove it.
+Diagnostics commit d3ebf9c adds verbose test names, stack dumps and strict deadlines.
+Runs 34927013300 and 34927010021 failed before runner assignment (empty steps,
+runner_id=0); the available API does not establish why. No tests ran in those jobs.
+Do not repeatedly rerun or alter repository billing/security to bypass this.
+
+Next: obtain one bounded Windows/Linux run of this transport fix when runners are
+available; inspect named test/stack on any hang. Then qualify an installed Qwen in
+a disposable project for M2b2: native new/edit/queue/steer capture BEFORE forwarding,
+full packet receipt/token budget, foreground tool ownership and queue/process drain.
+Do not infer delivery from HTTP 202, replay_complete, model text or turn_complete.
+No M3 automatic scheduling until the complete boundary is accepted.
+
+PR #1 remains the review boundary. No main, release, installed EXE, GPU/model,
+startup, user setting or remote service was changed.
+
 ## Current state
 
 The first early release is published at

@@ -49,3 +49,93 @@ because it contains machine details. BUILD.json and TESTING.json identify releas
 
 The release is an early preview. Do not equate simulated topology coverage with
 physical qualification, or compiled protocol checks with installed-service validation.
+
+## Coordination M1 — 2026-09-14
+
+New validation, separate from the installed release: 53 tests in
+`tests/test_coordination_journal.py` passed locally on Linux, plus
+`python tools/coordination_smoke.py`. Tests use temporary databases and fake clocks;
+no GPU, remote host, live agent, Windows service or installed user settings touched.
+They cover transactional/idempotent user input, edits, attachment persistence,
+concurrent writers, source-role separation, stale requirement/attempt fencing,
+context-budget refusal, replay after restart and reconciliation of unknown effects.
+
+The local test directory was a reconstructed subset, not a complete repository
+checkout. Existing regression and Windows results for this commit must be read from
+CI, not inferred from the earlier 186-test baseline. No Windows installer was built
+locally. Real power-loss/storage hardware testing was not performed.
+
+Not yet covered: Qwen Desktop/daemon ingress capture, queued/steering messages and
+edits through the live UI, real tokenizer/image budgeting, tool-executor interception,
+remote-worker scheduling, cancellation of owned OS processes, live failover and
+Station task UI. Library receipts prove persistence/delivery, not model comprehension
+or semantic correctness. See COORDINATION.md for remaining milestones and boundaries.
+
+
+## Coordination M2a — 2026-09-14
+
+78 new tests in `tests/test_coordination_qwen.py` passed locally. Together with
+M1: **131 passed**. Both `coordination_smoke.py` and `coordination_qwen_smoke.py`
+passed. Tests exercise actual SQLite transactions and loopback HTTP with synthetic
+Qwen peers, not an installed daemon/model or native Desktop UI.
+
+Coverage: persist-before-network, exact edits/attachments, atomic queue rollback,
+FIFO claims, uncertain admission/crash recovery, no automatic replay, schema and
+capability refusal, HTTP 202 not delivery, authenticated external Guard v1,
+permit-before-execution intent, current-revision/attempt checks, duplicate request
+and tuple refusal, stale results, deny-by-default tools, facade privacy and no
+implicit network/background startup. Original M1 tests are unchanged.
+
+Broader local run: **279 passed, 1 skipped, 1 deselected**, excluding
+`test_gpu_confirmation.py`, `test_startup.py` and one UI callback test because
+customtkinter is unavailable. A full run initially failed on that missing dependency;
+pip installation was blocked by container networking. No dependency was stubbed.
+Full Windows/Linux matrix and installer verification are delegated to the existing
+PR CI; report its actual outcome separately. Source archive was recovered from the
+successful e178ee7 CI artifact, with the M1 store blob identity checked.
+
+NOT established: native composer/Telegram/steering interception, end-to-end full
+packet delivery proof, persistent live SSE/result observer, tool process cancellation,
+nested-agent fencing, live model or GUI testing, automatic failover. The adapter
+retains task_control=False; no running user installation or remote service changed.
+
+
+## Coordination M2b1 — 2026-09-14
+
+89 new synthetic tests in test_coordination_qwen_events.py passed. M1+M2a+M2b1:
+220 passed; all three coordination smoke scripts PASS. Includes real loopback HTTP
+GET/SSE framing, reconnect cursor/epoch headers, cancellation during idle reads,
+read-only transport, late admission joins, transactional rollback, replay/gap/epoch
+faults, stale observer callbacks, permission liveness and late tool-result handling.
+Runtime events never create user instructions or prove delivery. Final runtime tool
+status is not an assertion about pytest/file correctness or process-tree exit.
+
+Full local suite was attempted; collection needs unavailable customtkinter.
+Broader non-GUI run: 368 passed, 1 skipped, 1 deselected (two GUI modules excluded).
+Full Windows/Linux Python 3.11/3.13 and Windows installer execution belong to CI;
+results are recorded on the feature PR. No actual Qwen daemon/GUI, GPU/model server,
+Windows service or user configuration was exercised. No new dependencies.
+
+## Coordination HTTP lifetime hardening — 2026-09-15
+
+34 new real-loopback/SQLite regression tests passed; total coordination suite:
+254 passed in 6.50s. The lifetime suite also passed five additional full repeats
+(34 each). All three existing synthetic smoke scripts PASS. A regression subset
+was run against the exact prior ab238e9 transport files and failed, then passed
+with the fix; retained partial responses, unbounded preflight cancellation and
+concurrent stop masking persistence/protocol failures are independently reproduced.
+No new dependency or live agent/model/GPU access.
+
+Broader final local command excluded tests/test_gpu_confirmation.py and
+ tests/test_startup.py and deselected test_ui_callback_error_does_not_stop_telemetry_queue:
+402 passed, 1 skipped, 1 deselected in 10.19s. Earlier broader attempt with the
+callback included failed on missing customtkinter (1 failed, 399 passed, 1 skipped,
+before three final regression cases were added). No UI dependency was stubbed.
+This is not a full GUI or Windows-suite success claim.
+
+CI evidence: ab238e9 run 34897467428 passed Linux, but both Windows jobs timed out
+at six hours; the exact stalled test remains unknown. d3ebf9c adds named tests,
+faulthandler dumps, bounded step/job deadlines and JUnit retention. Its push/PR
+runs 34927010021 / 34927013300 failed before any runner or test step started.
+No Windows validation is claimed; see HTTP_TRANSPORT_LIFETIME.md. Runtime task
+control, live packet-delivery qualification and automatic failover stay disabled.

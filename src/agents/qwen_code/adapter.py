@@ -58,6 +58,18 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
             'daemon': bool(re.search(r'^\s*qwen serve\s', self.help_text, re.M)),
             'provider_sync': self.schema_confirmed, 'task_control': False})
 
+    def get_coordination_capabilities(self):
+        # This must NOT turn task_control on for existing Desktop/CLI sessions.
+        from .managed import coordination_coverage
+        return Result(Support.DEGRADED,
+            'Managed outbox/Guard and SSE observer; native ingress and full delivery are not wired',
+            data=coordination_coverage())
+
+    def open_managed_input(self, **configuration):
+        """Explicit developer entrypoint; no startup, provider edits or network on open."""
+        from .managed import ManagedQwenInput
+        return ManagedQwenInput(**configuration)
+
     def get_config_locations(self, workspace=None):
         home = Path(self.settings.get('home') or os.environ.get('QWEN_HOME', Path.home() / '.qwen')).expanduser()
         paths = {'user': str(home / 'settings.json')}
