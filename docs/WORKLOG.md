@@ -7,7 +7,7 @@ for Setup. Added per-user Inno Setup packaging, standard shortcuts/uninstall, ow
 checked startup cleanup, three-language release presentation and reproducible release inputs.
 Private pre-installer progress is retained in ignored local handoff notes.
 
-Validation baseline: 186 Python tests and 10 compiled helper protocol checks before this change.
+Validation baseline: 186 Python tests and 10 compiled C# helper protocol checks before this change.
 Installer installation/publishing work is still active; results must be recorded only
 once completed. Detailed machine actions are in handoff-local/INSTALLER_RELEASE_PROGRESS.md.
 
@@ -96,3 +96,26 @@ unchanged CI. Main and installed release remain unchanged.
 
 Next: M2b2 native ingress, full packet delivery and actual owned-process draining;
 then scheduling. Automatic failover and task_control remain false.
+
+## 2026-09-15 — M2b1 HTTP lifetime hardening and CI diagnostics
+
+Investigated ab238e9 Windows CI: both jobs ran until the six-hour timeout, while
+Linux passed. The old quiet logs do not identify a definitive root cause.
+Committed d3ebf9c with named tests, faulthandler stack dumps and bounded CI runtime.
+Both new runs failed before runner assignment; no unsupported billing diagnosis
+or claim of Windows PASS. No release/main/installed environment was changed.
+
+Implemented a shared bounded HTTP exchange for Qwen preflight and SSE. It handles
+absolute deadlines, cancellation before/after socket attachment, partial response
+cleanup, bounded reconnect waits and explicit application-error propagation during
+cancellation. A stale/error observer still denies tools; ambiguous POSTs never retry.
+
+34 new tests, 254 total coordination PASS; new suite repeated five additional times.
+Three synthetic smokes PASS. Broader non-GUI: 402 passed, 1 skipped, 1 deselected;
+customtkinter-dependent GUI checks remain unavailable locally. Previous transport
+files reproduce a failing regression subset. Code was based on hash-verified
+connected-repository source, not a guessed revision.
+
+Next: obtain bounded Windows evidence, then continue M2b2 live ingress/full-packet
+receipt and owned-process drain. Do not enable automatic failover or claim native
+Qwen Desktop capture. See HANDOFF.md and HTTP_TRANSPORT_LIFETIME.md.

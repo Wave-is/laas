@@ -115,3 +115,27 @@ Broader non-GUI run: 368 passed, 1 skipped, 1 deselected (two GUI modules exclud
 Full Windows/Linux Python 3.11/3.13 and Windows installer execution belong to CI;
 results are recorded on the feature PR. No actual Qwen daemon/GUI, GPU/model server,
 Windows service or user configuration was exercised. No new dependencies.
+
+## Coordination HTTP lifetime hardening — 2026-09-15
+
+34 new real-loopback/SQLite regression tests passed; total coordination suite:
+254 passed in 6.50s. The lifetime suite also passed five additional full repeats
+(34 each). All three existing synthetic smoke scripts PASS. A regression subset
+was run against the exact prior ab238e9 transport files and failed, then passed
+with the fix; retained partial responses, unbounded preflight cancellation and
+concurrent stop masking persistence/protocol failures are independently reproduced.
+No new dependency or live agent/model/GPU access.
+
+Broader final local command excluded tests/test_gpu_confirmation.py and
+ tests/test_startup.py and deselected test_ui_callback_error_does_not_stop_telemetry_queue:
+402 passed, 1 skipped, 1 deselected in 10.19s. Earlier broader attempt with the
+callback included failed on missing customtkinter (1 failed, 399 passed, 1 skipped,
+before three final regression cases were added). No UI dependency was stubbed.
+This is not a full GUI or Windows-suite success claim.
+
+CI evidence: ab238e9 run 34897467428 passed Linux, but both Windows jobs timed out
+at six hours; the exact stalled test remains unknown. d3ebf9c adds named tests,
+faulthandler dumps, bounded step/job deadlines and JUnit retention. Its push/PR
+runs 34927010021 / 34927013300 failed before any runner or test step started.
+No Windows validation is claimed; see HTTP_TRANSPORT_LIFETIME.md. Runtime task
+control, live packet-delivery qualification and automatic failover stay disabled.

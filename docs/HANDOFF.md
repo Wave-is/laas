@@ -3,41 +3,43 @@
 Updated: 2026-09-13. **3.0.0-alpha.1 released**.
 Read AGENTS.md, then this file and ignored handoff-local/README.md when available.
 
-## Current work — managed coordination M2b1, 2026-09-14
+## Current work — M2b1 transport hardening, 2026-09-15
 
-Completed: durable exact-input journal (M1), follow-up outbox and required Tool
-Guard v1 (M2a), now a bounded authenticated REST/SSE observer (M2b1). See
-QWEN_EVENT_OBSERVER.md. Event envelope + epoch/cursor + correlated turn/tool result
-commit together. Replay deduplicates; gaps/epoch change/degraded history block
-permissions. Late tool results after corrections remain needs_review. A matching
-terminal may be joined after a late 202 receipt, without resending the prompt.
-
-The adapter's explicit event_receiver() starts no daemon/thread on construction.
-Registered observers gate dispatch/Guard until caught up and fresh. No observer
-row preserves the legacy developer API, not a protected-session claim.
+The durable journal, Qwen outbox/Guard and SSE observer exist, but live native
+input capture, full-packet delivery and owned-process drain are still NOT wired.
 `task_control=False`, `automatic_failover=False`, `live_runtime_verified=False`.
-Native Desktop/Telegram ingress, actual full-packet delivery and OS-process drain
-are still NOT wired. Existing user chats do not automatically gain protection.
-Never bind a delivery from HTTP 202, replay_complete, assistant text or turn_complete.
+Existing Desktop/Telegram conversations are not automatically protected.
 
-Validation: 89 new tests; M1+M2a+M2b1 = 220 passed locally; all three synthetic
-smokes PASS. Broader local run: 368 passed, 1 skipped, 1 deselected; two GUI modules
-excluded because customtkinter is unavailable. Full local collection was attempted
-and failed on that missing dependency, not represented as success. The unchanged
-GitHub CI matrix covers Windows/Linux 3.11/3.13 and installer lifecycle separately.
-Source reconstructed from the prior CI source archive; its merge tree bd0ba24 is
-identical to head fda25d3, verified by GitHub compare and archive SHA256.
+This checkpoint fixes reproducible HTTP lifetime problems before M2b2: one owned
+exchange deadline now covers capabilities preflight, response headers and streaming
+body; explicit response/socket cleanup includes partial and Connection: close bodies.
+Cancellation cannot hide concurrent journal/protocol failures or turn uncertain
+prompt POSTs into retries. See HTTP_TRANSPORT_LIFETIME.md for precise boundaries.
+No new dependency, daemon startup, remote-model access or production change.
 
-Next concrete M2b2: qualify installed Qwen in a disposable project; route actual
-new/edited/queued/steering inputs through authenticated persistence BEFORE forwarding.
-Establish full packet receipt/token budget at the real model boundary, correlate
-owned foreground tool processes and drain/cancel them including pending prompts.
-Exercise an edit during tool execution and observer reconnect/restart end-to-end.
-External Guard v1 remains top-level; do not enable nested AgentCore execution or
-M3 automatic scheduling until the complete boundary is accepted.
+Validation: 34 new loopback/SQLite tests; full coordination 254 passed locally.
+All three synthetic coordination smokes PASS. Broader non-GUI regression is run
+with customtkinter-dependent tests excluded; see VALIDATION.md for exact totals.
+The archived fda25d3 source was overlaid with connected-repository ab238e9 files;
+Git blob hashes for all affected predecessor modules/tests were checked.
 
-No main, installed EXE, model, GPU, startup, user setting or remote service changed.
-Feature PR #1 is the review boundary. WORKLOG.md/VALIDATION.md record test scope.
+CI blocker: ab238e9 run 34897467428 passed Linux but both Windows jobs exceeded
+six hours and were cancelled. Logs have only progress dots, no exact hung test.
+The exact Windows root cause remains unconfirmed; do not claim these fixes prove it.
+Diagnostics commit d3ebf9c adds verbose test names, stack dumps and strict deadlines.
+Runs 34927013300 and 34927010021 failed before runner assignment (empty steps,
+runner_id=0); the available API does not establish why. No tests ran in those jobs.
+Do not repeatedly rerun or alter repository billing/security to bypass this.
+
+Next: obtain one bounded Windows/Linux run of this transport fix when runners are
+available; inspect named test/stack on any hang. Then qualify an installed Qwen in
+a disposable project for M2b2: native new/edit/queue/steer capture BEFORE forwarding,
+full packet receipt/token budget, foreground tool ownership and queue/process drain.
+Do not infer delivery from HTTP 202, replay_complete, model text or turn_complete.
+No M3 automatic scheduling until the complete boundary is accepted.
+
+PR #1 remains the review boundary. No main, release, installed EXE, GPU/model,
+startup, user setting or remote service was changed.
 
 ## Current state
 

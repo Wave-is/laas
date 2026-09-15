@@ -12,6 +12,7 @@ import time
 from typing import BinaryIO, Iterator
 from urllib.parse import quote
 
+from .http_lifetime import RequestInterrupted, bounded_response, interrupted
 from .qwen import ProtocolError
 from .qwen_events import MAX_FRAME_BYTES, ObservationLost, QwenEventObserver, StaleObserver, StreamInterrupted, validate_event
 from .qwen_http import QwenDaemonClient, _decode
@@ -85,13 +86,17 @@ class QwenEventClient:
                      max_events: int = 10000, max_seconds: float = 300) -> int:
         if type(max_events) is not int or not 1 <= max_events <= 100000:
             raise ValueError('Invalid event limit')
-        if not math.isfinite(max_seconds) or not 0 < max_seconds <= 3600:
+        if type(max_seconds) not in (int, float) or not math.isfinite(max_seconds) or not 0 < max_seconds <= 3600:
             raise ValueError('Invalid observation deadline')
         stop = stop or threading.Event()
         if stop.is_set():
             return 0
+        deadline = time.monotonic() + max_seconds
         try:
-            self.daemon.capabilities()
+            self.daemon.capabilities(stop=stop, deadline=deadline)
+        except RequestInterrupted:
+            self.observer.disconnect()
+            return 0
         except Exception as exc:
             self.observer.disconnect(fault=not isinstance(exc, (OSError, http.client.HTTPException)))
             raise
@@ -105,68 +110,57 @@ class QwenEventClient:
             headers['X-Qwen-Event-Epoch'] = saved['epoch']
         if self.daemon.client_id:
             headers['X-Qwen-Client-Id'] = self.daemon.client_id
-        conn = http.client.HTTPConnection(self.daemon.host, self.daemon.port,
-                                          timeout=min(self.daemon.timeout, max_seconds))
-        done = threading.Event()
-        active_socket = None
-        deadline = time.monotonic() + max_seconds
-
-        def interrupt():
-            # Close even if readline is waiting for a server that stopped sending.
-            while not done.wait(0.05):
-                if stop.is_set() or time.monotonic() >= deadline:
-                    try:
-                        if active_socket is not None:
-                            import socket
-                            active_socket.shutdown(socket.SHUT_RDWR)
-                    except OSError:
-                        pass
-                    return
-
-        watcher = threading.Thread(target=interrupt, daemon=True)
-        watcher.start()
         count = 0
+        application_failure = None
         try:
-            conn.connect()
-            active_socket = conn.sock
-            conn.request('GET', '/session/' + quote(self.observer.session_id, safe='') + '/events', headers=headers)
-            response = conn.getresponse()
-            if response.status != 200:
-                raise ProtocolError('Event subscription rejected; no redirect or mutation attempted')
-            if response.getheader('Content-Type', '').split(';')[0].strip().lower() != 'text/event-stream':
-                raise ProtocolError('Expected SSE response')
-            if response.getheader('Content-Encoding', 'identity').strip().lower() != 'identity':
-                raise ProtocolError('Encoded SSE transport is not qualified')
-            epochs = response.headers.get_all('X-Qwen-Event-Epoch', [])
-            if len(epochs) != 1:
-                raise ProtocolError('Exactly one event epoch is required')
-            self.observer.connect(epochs[0])
-            for event in parse_sse(response):
-                if stop.is_set() or time.monotonic() >= deadline:
-                    break
-                if event is None:
-                    self.observer.heartbeat()
-                else:
-                    self.observer.ingest(event)
-                    count += 1
-                    if count >= max_events:
+            with bounded_response(
+                self.daemon.host, self.daemon.port, 'GET',
+                '/session/' + quote(self.observer.session_id, safe='') + '/events',
+                headers=headers, timeout=self.daemon.timeout, deadline=deadline, stop=stop,
+            ) as response:
+                if response.status != 200:
+                    raise ProtocolError('Event subscription rejected; no redirect or mutation attempted')
+                if response.getheader('Content-Type', '').split(';')[0].strip().lower() != 'text/event-stream':
+                    raise ProtocolError('Expected SSE response')
+                if response.getheader('Content-Encoding', 'identity').strip().lower() != 'identity':
+                    raise ProtocolError('Encoded SSE transport is not qualified')
+                epochs = response.headers.get_all('X-Qwen-Event-Epoch', [])
+                if len(epochs) != 1:
+                    raise ProtocolError('Exactly one event epoch is required')
+                self.observer.connect(epochs[0])
+                for event in parse_sse(response):
+                    if interrupted(stop, deadline):
                         break
+                    try:
+                        if event is None:
+                            self.observer.heartbeat()
+                        else:
+                            self.observer.ingest(event)
+                            count += 1
+                            if count >= max_events:
+                                break
+                    except (StaleObserver, ObservationLost, StreamInterrupted):
+                        raise
+                    except Exception as exc:
+                        # Keep application I/O failures distinct from a cancelled
+                        # socket read, including OSError from private storage.
+                        application_failure = exc
+                        raise
             return count
         except (StaleObserver, ObservationLost):
             raise
         except (OSError, http.client.HTTPException):
-            if stop.is_set() or time.monotonic() >= deadline:
+            if application_failure is not None:
+                self.observer.disconnect(fault=True)
+                raise application_failure
+            if interrupted(stop, deadline):
                 return count
             raise
         except Exception:
-            if stop.is_set() or time.monotonic() >= deadline:
-                return count
+            # A concurrent stop must never turn a storage/protocol error into PASS.
             self.observer.disconnect(fault=True)
             raise
         finally:
-            done.set()
-            conn.close()
-            watcher.join(timeout=1)
             self.observer.disconnect()
 
     def run(self, *, stop: threading.Event, max_reconnects: int = 3,
@@ -174,7 +168,7 @@ class QwenEventClient:
         """Bounded read-only reconnect loop. No automatic background registration."""
         if type(max_reconnects) is not int or not 0 <= max_reconnects <= 10:
             raise ValueError('Invalid reconnect budget')
-        if not math.isfinite(max_seconds) or not 0 < max_seconds <= 3600:
+        if type(max_seconds) not in (int, float) or not math.isfinite(max_seconds) or not 0 < max_seconds <= 3600:
             raise ValueError('Invalid observation deadline')
         deadline = time.monotonic() + max_seconds
         connections, events = 0, 0
@@ -190,5 +184,5 @@ class QwenEventClient:
             if self.observer.status()['state'] == 'resync_required':
                 break
             if index < max_reconnects:
-                stop.wait(min(0.25 * (2**index), 2.0))
+                stop.wait(min(0.25 * (2**index), 2.0, max(0, deadline - time.monotonic())))
         return {'connections': connections, 'events': events, 'status': self.observer.status()}

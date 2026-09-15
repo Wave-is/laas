@@ -13,8 +13,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import math
 import threading
+import time
 from urllib.parse import quote, urlsplit
 
+from .http_lifetime import RequestInterrupted, bounded_response, interrupted
 from .qwen import ProtocolError, QwenJournal, QwenToolGuard, identifier
 
 MAX_REQUEST = 1024 * 1024
@@ -82,19 +84,21 @@ class QwenDaemonClient:
         self.timeout = timeout
         self.image_transport_verified = image_transport_verified
 
-    def _request(self, method: str, path: str, body: dict | None = None):
+    def _request(self, method: str, path: str, body: dict | None = None, *,
+                 stop: threading.Event | None = None, deadline: float | None = None):
         wire = None if body is None else json.dumps(body, ensure_ascii=False, allow_nan=False).encode('utf-8')
-        conn = http.client.HTTPConnection(self.host, self.port, timeout=self.timeout)
+        deadline = time.monotonic() + self.timeout if deadline is None else deadline
         headers = {'Authorization': 'Bearer ' + self._token, 'Accept': 'application/json'}
         if self.client_id:
             headers['X-Qwen-Client-Id'] = self.client_id
         if wire is not None:
             headers['Content-Type'] = 'application/json'
-        try:
-            conn.request(method, path, wire, headers)
-            response = conn.getresponse()
+        with bounded_response(self.host, self.port, method, path, body=wire, headers=headers,
+                              timeout=self.timeout, deadline=deadline, stop=stop) as response:
             status = response.status
             data = response.read(MAX_RESPONSE + 1)
+            if interrupted(stop, deadline):
+                raise RequestInterrupted('Daemon response cancelled or deadline reached')
             if len(data) > MAX_RESPONSE:
                 raise ProtocolError('Oversized daemon response')
             if response.getheader('Content-Type', '').split(';')[0].strip().lower() != 'application/json':
@@ -103,11 +107,10 @@ class QwenDaemonClient:
             if not isinstance(value, dict):
                 raise ProtocolError('Expected daemon response object')
             return status, value
-        finally:
-            conn.close()
 
-    def capabilities(self) -> dict:
-        status, value = self._request('GET', '/capabilities')
+    def capabilities(self, *, stop: threading.Event | None = None,
+                     deadline: float | None = None) -> dict:
+        status, value = self._request('GET', '/capabilities', stop=stop, deadline=deadline)
         if (status != 200 or not isinstance(value.get('features'), list)
                 or not all(isinstance(x, str) for x in value['features'])):
             raise ProtocolError('Daemon capabilities not confirmed')
