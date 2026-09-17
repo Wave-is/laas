@@ -50,10 +50,10 @@ DEFAULT_NODES = [
         "id": "remote-worker",
         "name": "Remote Worker (Example)",
         "url": "http://192.0.2.1:8080",
-        "telemetry_url": "http://192.0.2.1:9835",
+        "telemetry_url": "http://192.0.2.1:9273/metrics",
         "type": "llama_server",
         "enabled": True,
-        "notes": "Remote Worker • RTX A4000 16GB • Pure HTTP"
+        "notes": "Remote Worker • RTX A4000 16GB • Telegraf Prometheus"
     }
 ]
 
@@ -332,19 +332,58 @@ class ClusterManager:
         remain_tokens = next_tok.get("n_remain", 0)
 
         gpu_info = {"name": "NVIDIA RTX A4000", "vram_total_gb": 16.0}
+        cpu_util = None
+        ram_used = None
+        ram_total = None
 
-        # If telemetry_url is provided, query it for GPU metrics
+        # If telemetry_url is provided, query it for GPU metrics (supports Telegraf Prometheus & JSON Exporter)
         if telemetry_url:
             try:
-                req_t = urllib.request.Request(f"{telemetry_url}/api/telemetry", headers={"User-Agent": "laas-cluster"})
-                with urllib.request.urlopen(req_t, timeout=1.5) as resp_t:
-                    t_data = json.loads(resp_t.read().decode("utf-8"))
-                    if t_data.get("gpus"):
-                        gpu_info = t_data["gpus"][0]
+                t_endpoint = telemetry_url
+                if ":9273" in telemetry_url or telemetry_url.endswith("/metrics"):
+                    if not t_endpoint.endswith("/metrics"):
+                        t_endpoint = f"{t_endpoint}/metrics"
+                    req_t = urllib.request.Request(t_endpoint, headers={"User-Agent": "laas-cluster"})
+                    with urllib.request.urlopen(req_t, timeout=1.5) as resp_t:
+                        raw = resp_t.read().decode("utf-8")
+                    cpus = []
+                    for line in raw.splitlines():
+                        if line.startswith("#"):
+                            continue
+                        if line.startswith("nvidia_smi_utilization_gpu"):
+                            gpu_info["util_percent"] = float(line.split()[-1])
+                        elif line.startswith("nvidia_smi_temperature_gpu"):
+                            gpu_info["temp_c"] = float(line.split()[-1])
+                        elif line.startswith("nvidia_smi_power_draw"):
+                            gpu_info["power_w"] = float(line.split()[-1])
+                        elif line.startswith("nvidia_smi_memory_used"):
+                            gpu_info["vram_used_gb"] = round(float(line.split()[-1]) / 1024.0, 2)
+                        elif line.startswith("nvidia_smi_memory_total"):
+                            gpu_info["vram_total_gb"] = round(float(line.split()[-1]) / 1024.0, 2)
+                        elif line.startswith("cpu_usage_active"):
+                            cpus.append(float(line.split()[-1]))
+                        elif line.startswith("mem_used"):
+                            ram_used = round(float(line.split()[-1]) / (1024**3), 1)
+                        elif line.startswith("mem_total"):
+                            ram_total = round(float(line.split()[-1]) / (1024**3), 1)
+                    if cpus:
+                        cpu_util = round(sum(cpus) / len(cpus), 1)
+                else:
+                    ep = f"{t_endpoint}/api/telemetry" if not t_endpoint.endswith("/api/telemetry") else t_endpoint
+                    req_t = urllib.request.Request(ep, headers={"User-Agent": "laas-cluster"})
+                    with urllib.request.urlopen(req_t, timeout=1.5) as resp_t:
+                        t_data = json.loads(resp_t.read().decode("utf-8"))
+                        if t_data.get("gpus"):
+                            gpu_info = t_data["gpus"][0]
+                        if t_data.get("cpu"):
+                            cpu_util = t_data["cpu"].get("util_percent")
+                        if t_data.get("ram"):
+                            ram_used = t_data["ram"].get("used_gb")
+                            ram_total = t_data["ram"].get("total_gb")
             except Exception:
                 pass
 
-        return {
+        result = {
             "status": "online",
             "latency_ms": round((time.time() - t0) * 1000),
             "gpus": [gpu_info],
@@ -358,6 +397,13 @@ class ClusterManager:
                 "remain_tokens": remain_tokens,
             }
         }
+        if cpu_util is not None:
+            result["cpu_util"] = cpu_util
+        if ram_used is not None:
+            result["ram_used_gb"] = ram_used
+        if ram_total is not None:
+            result["ram_total_gb"] = ram_total
+        return result
 
     def get_snapshot(self):
         with self._lock:
