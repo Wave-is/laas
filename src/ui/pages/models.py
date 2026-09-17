@@ -13,15 +13,24 @@ from ...gpu_modes import gpu_mode_manager
 from ...storage import atomic_write
 from ...agent_sync import apply_preview
 from ... import model_server
+from .model_dialogs import ModelDialog, ScanDialog, MoveDialog, ChatDialog, HfDialog
 from ..common import BG, PANEL, EDGE, TEXT, MUTED, ACCENT, WARNING, number
 
 
 class ModelsPage:
     def _build_models(self):
         page = self.page('models')
+        card = self.card(page, tr('Управление моделями'), tr('Добавляйте модели из файлов, сканируйте папку, загружайте с Hugging Face или проверяйте работу модели быстрым чатом.'))
+        row = self.row(card)
+        self.button(row, tr('Добавить модель'), lambda: ModelDialog(self, on_saved=self._refresh_models_text), True, width=160)
+        self.button(row, tr('Сканировать папку'), lambda: ScanDialog(self, on_saved=self._refresh_models_text), width=170)
+        self.button(row, tr('Загрузить с HF ↗'), lambda: HfDialog(self, on_saved=self._refresh_models_text), width=170)
+        row = self.row(card)
+        self.button(row, tr('Быстрый чат'), lambda: ChatDialog(self), width=130)
+        self.button(row, tr('Переместить папку моделей'), lambda: MoveDialog(self), width=220)
         card = self.card(page, tr('Реестр моделей'), tr('Профили хранятся отдельно от агентов. Наличие файлов и возможности модели проверяются независимо.'))
         row = self.row(card)
-        self.button(row, tr('Редактировать профили (YAML)'), lambda: self.edit_document('model_profiles.yaml'), True, width=230)
+        self.button(row, tr('Редактировать профили (YAML)'), lambda: self.edit_document('model_profiles.yaml'), width=230)
         self.button(row, tr('Синхронизировать с агентами'), self._sync_models, width=230)
         row = self.row(card)
         self.test_model_combo = self.combo(row, list(profile_storage.model_profiles), config.get('selected_model_profile', config.get('active_model_profile')))
