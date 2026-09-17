@@ -1,65 +1,65 @@
-"""
-i18n.py
-Localization and Multi-language support (RU, UK, EN) with live switching.
+"""Interface languages: English, Russian, Ukrainian.
+
+The Russian source text is the message id: ``tr('Модель «{name}» загружена', name=model.name)``.
+Translations live in ``locales/<lang>/*.json`` as ``{"<Russian text>": "<translation>"}``; every
+file in the folder is merged, so separate modules keep separate catalogs. Missing translations
+fall back to the Russian text. The language is read from settings when Station starts.
 """
 import json
-import pathlib
-from .config import config
+import locale
+import os
+from pathlib import Path
 
-LOCALES_DIR = pathlib.Path(__file__).parent.parent / "locales"
+LANGUAGES = {'en': 'English', 'ru': 'Русский', 'uk': 'Українська'}
+SOURCE_LANGUAGE = 'ru'
 
-class I18nManager:
-    _instance = None
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(I18nManager, cls).__new__(cls)
-            cls._instance._locales = {}
-            cls._instance._subscribers = []
-            cls._instance._load_all()
-        return cls._instance
+def locales_dir() -> Path:
+    import sys
+    base = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
+    return base / 'locales'
 
-    def _load_all(self):
-        for lang in ["en", "ru", "uk"]:
-            p = LOCALES_DIR / f"{lang}.json"
-            if p.exists():
-                try:
-                    self._locales[lang] = json.loads(p.read_text(encoding="utf-8"))
-                except Exception:
-                    self._locales[lang] = {}
 
-    @property
-    def current_language(self) -> str:
-        return config.get("language", "ru")
+def system_language():
+    """Default for a new installation: the Windows UI language when supported, otherwise English."""
+    try:
+        if os.name == 'nt':
+            import ctypes
+            name = locale.windows_locale.get(ctypes.windll.kernel32.GetUserDefaultUILanguage(), '')
+        else:
+            name = locale.getlocale()[0] or ''
+    except Exception:
+        name = ''
+    code = name.split('_')[0].lower()
+    return code if code in LANGUAGES else 'en'
 
-    def set_language(self, lang: str):
-        if lang in ["en", "ru", "uk"] and lang != self.current_language:
-            config.set("language", lang)
-            self._notify_subscribers()
 
-    def subscribe(self, callback):
-        if callback not in self._subscribers:
-            self._subscribers.append(callback)
+_catalogs = {}
 
-    def unsubscribe(self, callback):
-        if callback in self._subscribers:
-            self._subscribers.remove(callback)
 
-    def _notify_subscribers(self):
-        for cb in self._subscribers:
-            try:
-                cb()
-            except Exception:
-                pass
+def catalog(language):
+    if language not in _catalogs:
+        merged = {}
+        folder = locales_dir() / language
+        for path in sorted(folder.glob('*.json')) if folder.is_dir() else []:
+            merged.update(json.loads(path.read_text(encoding='utf-8')))
+        _catalogs[language] = merged
+    return _catalogs[language]
 
-    def t(self, key: str, default: str = None) -> str:
-        lang = self.current_language
-        text = self._locales.get(lang, {}).get(key)
-        if text is None:
-            text = self._locales.get("en", {}).get(key)
-        if text is None:
-            return default if default is not None else key
-        return text
 
-i18n = I18nManager()
-t = i18n.t
+def current_language():
+    forced = os.environ.get('LOCAL_AGENT_STATION_LANGUAGE')
+    if forced in LANGUAGES:
+        return forced
+    try:
+        from .config import config
+        value = config.get('language')
+    except Exception:
+        value = None
+    return value if value in LANGUAGES else SOURCE_LANGUAGE
+
+
+def tr(text, **values):
+    language = current_language()
+    translated = text if language == SOURCE_LANGUAGE else catalog(language).get(text, text)
+    return translated.format(**values) if values else translated
