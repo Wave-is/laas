@@ -26,10 +26,36 @@ public sealed class LocalAgentGpuModeHelper : ServiceBase {
     NamedPipeServerStream listener;
     readonly SemaphoreSlim clients = new SemaphoreSlim(8);
     public LocalAgentGpuModeHelper(string sid) { userSid = sid; ServiceName = NameValue; CanStop = true; }
-    public static void Main(string[] args) {
+    public static int Main(string[] args) {
+        // Fallback without the service: Station starts this EXE once with a UAC prompt.
+        if (args.Length == 4 && args[0] == "--apply-plan" && args[2] == "--result")
+            return ApplyOnce(args[1], args[3]);
         if (args.Length != 2 || args[0] != "--user-sid" || !Regex.IsMatch(args[1], @"^S-1-5-21-(\d+-){3}\d+$"))
             throw new ArgumentException("A local installation user SID is required");
         ServiceBase.Run(new LocalAgentGpuModeHelper(args[1]));
+        return 0;
+    }
+    static int ApplyOnce(string planPath, string resultPath) {
+        var json = new JavaScriptSerializer { MaxJsonLength = 65536, RecursionLimit = 8 };
+        object response;
+        try {
+            if (!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
+                throw new UnauthorizedAccessException("Administrator rights are required");
+            var info = new FileInfo(planPath);
+            if (!info.Exists || info.Length > 32768 || (info.Attributes & FileAttributes.ReparsePoint) != 0)
+                throw new InvalidDataException("Invalid plan file");
+            var request = json.DeserializeObject(File.ReadAllText(planPath, Encoding.UTF8)) as Dictionary<string, object>;
+            if (request == null || request.Count != 1 || !request.ContainsKey("Plan"))
+                throw new InvalidDataException("Expected a typed Plan");
+            response = new LocalAgentGpuModeHelper("S-1-5-18").Apply(request);
+        } catch (Exception ex) { response = new { Success = false, Message = ex.GetBaseException().Message }; }
+        // CreateNew never follows or overwrites an existing file or link planted at the result path.
+        var directory = new DirectoryInfo(Path.GetDirectoryName(Path.GetFullPath(resultPath)));
+        if ((directory.Attributes & FileAttributes.ReparsePoint) != 0) return 2;
+        using (var stream = new FileStream(resultPath, FileMode.CreateNew, FileAccess.Write))
+        using (var writer = new StreamWriter(stream, new UTF8Encoding(false)))
+            writer.Write(json.Serialize(response));
+        return 0;
     }
     protected override void OnStart(string[] args) {
         stopping = false;

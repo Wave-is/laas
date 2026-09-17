@@ -1,8 +1,22 @@
-param([string]$Python = 'python', [string]$ISCC = '', [switch]$SkipBuild)
+param([string]$Python = 'python', [string]$ISCC = '', [switch]$SkipBuild, [string]$EngineDir = $env:STATION_ENGINE_DIR)
 $ErrorActionPreference = 'Stop'
 Push-Location $PSScriptRoot
 try {
     if (-not $SkipBuild) { & ./build.ps1 -Python $Python }
+    # Bundle the model engine: only llama.cpp and llama-swap binaries/licenses, never models or configs.
+    $engineOut = Join-Path $PSScriptRoot 'dist/engine'
+    if (Test-Path $engineOut) { Remove-Item $engineOut -Recurse -Force }
+    if ($EngineDir) {
+        foreach ($part in @('llama.cpp', 'llama-swap')) {
+            $source = Join-Path $EngineDir $part
+            if (-not (Test-Path (Join-Path $source ($(if ($part -eq 'llama.cpp') { 'llama-server.exe' } else { 'llama-swap.exe' }))))) {
+                throw "Engine part missing: $source"
+            }
+            New-Item -ItemType Directory -Force (Join-Path $engineOut $part) | Out-Null
+            Get-ChildItem $source -File | Where-Object { $_.Extension -in '.exe', '.dll' -or $_.Name -like 'LICENSE*' -or $_.Name -eq 'README.md' } |
+                Copy-Item -Destination (Join-Path $engineOut $part)
+        }
+    } else { Write-Warning 'No -EngineDir: the installer will not include llama.cpp/llama-swap.' }
     & $Python tools/prepare_release.py
     if ($LASTEXITCODE -ne 0) { throw 'Release preparation failed.' }
     if (-not $ISCC) {

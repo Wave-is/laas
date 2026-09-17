@@ -5,7 +5,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 }
 $stationService = Get-Service -Name 'LocalAgentGpuModeHelper' -ErrorAction SilentlyContinue
 if ($stationService) {
-    Stop-Service -Name 'LocalAgentGpuModeHelper'
+    if ($stationService.Status -ne 'Stopped') { Stop-Service -Name 'LocalAgentGpuModeHelper' }
     & sc.exe delete 'LocalAgentGpuModeHelper'
     if ($LASTEXITCODE -ne 0) { throw 'Service removal failed.' }
 }

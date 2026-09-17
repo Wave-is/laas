@@ -100,9 +100,6 @@ class TrayControls:
                  Menu.SEPARATOR, command('Выгрузить модель', 'model', 'none', enabled=enabled))),
             Item('Агенты и интерфейсы', Menu(*agents)),
             Menu.SEPARATOR, *gpu_entries, Menu.SEPARATOR,
-            Item('Пресеты', Menu(*[command(p.name, 'preset', p.id, enabled=enabled)
-                for p in profile_storage.station_presets.values()],
-                command('Сохранить текущее как пресет…', 'save_preset', enabled=enabled))),
             Item('Службы', Menu(*services)), Menu.SEPARATOR,
             Item('Вид значка', Menu(*[command(label, 'tray_style', key,
                 checked=lambda item, key=key: config.get('tray_style') == key) for key, label in STYLES.items()])),

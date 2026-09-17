@@ -86,11 +86,23 @@ def _search(folder, name):
     return None
 
 
+def bundled_runtime_dir():
+    """Engine shipped with the installer: <Station install folder>\\engine."""
+    import sys
+    if getattr(sys, 'frozen', False):
+        folder = Path(sys.executable).parent / 'engine'
+        if folder.is_dir():
+            return folder
+    return None
+
+
 def runtime_dir():
-    """Folder with llama.cpp and llama-swap. Older settings stored only the two executables."""
+    """Chosen engine folder, else the bundled engine, else the folder of older explicit executables."""
     value = config.get('runtime_dir')
     if value:
         return Path(value)
+    if bundled_runtime_dir():
+        return bundled_runtime_dir()
     for key in ('llama_swap_executable', 'llama_server_executable'):
         exe = config.get(key)
         if exe and Path(exe).is_file():
@@ -113,9 +125,12 @@ def detect_models_dir(profiles):
 
 
 def fill_missing_folders(profiles):
-    """Settings created before these fields existed: store what is already in use, once."""
+    """Settings created before these fields existed: store what is already in use, once.
+
+    The bundled engine is used implicitly while runtime_dir stays empty.
+    """
     changes = {}
-    if not config.get('runtime_dir') and runtime_dir():
+    if not config.get('runtime_dir') and runtime_dir() and not bundled_runtime_dir():
         changes['runtime_dir'] = str(runtime_dir())
     if not config.get('models_dir'):
         found = detect_models_dir(profiles)
@@ -151,6 +166,22 @@ def resolve_model_file(value):
     if path.is_absolute() or not models_dir():
         return str(path)
     return str(models_dir() / path)
+
+
+def cuda_runtime_status():
+    """(required cuBLAS DLL name or None, found path or None) for the CUDA build of llama.cpp."""
+    import re
+    server = llama_server_executable()
+    cuda = server.parent / 'ggml-cuda.dll' if server else None
+    if not cuda or not cuda.is_file():
+        return None, None
+    names = sorted(set(re.findall(rb'cublas64_\d+\.dll', cuda.read_bytes())))
+    if not names:
+        return None, None
+    name = names[0].decode()
+    folders = [server.parent] + [Path(p) for p in os.environ.get('PATH', '').split(os.pathsep) if p]
+    found = next((folder / name for folder in folders if (folder / name).is_file()), None)
+    return name, found
 
 
 def describe_missing_runtime():

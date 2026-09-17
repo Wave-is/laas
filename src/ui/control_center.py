@@ -44,7 +44,6 @@ def result_message(value):
     return {'Frontend process started': 'Агент запущен', 'Terminal opened': 'Терминал агента открыт',
             'No driver changes required': 'Переключение GPU не требуется: режимы уже соответствуют профилю',
             'Agent runtime selected': 'Основной агент выбран', 'Frontend selected': 'Способ запуска агента выбран',
-            'Install LocalAgentGpuModeHelper in Settings first': 'Для переключения GPU установите службу в разделе «Настройки»',
             'Finish and close active agent sessions before changing GPU drivers': 'Перед переключением GPU завершите и закройте сеансы агентов'}.get(text, text)
 
 class StationButton(ctk.CTkButton):
@@ -174,6 +173,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
     def show_page(self, name):
         if name == 'Настройки':
             self._refresh_startup_choices()
+            self._refresh_helper_status()
         for page in self.pages.values():
             page.grid_remove()
         if name in self.pages:
@@ -271,13 +271,6 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.dashboard_gpu_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='gpu')
         self.dashboard_empty = ctk.CTkLabel(self.dashboard_gpu_area, text='Обнаружение GPU…', text_color=MUTED)
         self.dashboard_empty.grid(row=0, column=0, columnspan=3)
-        card = self.card(page, 'Пресеты (GPU + модель + агент)')
-        row = self.row(card)
-        self.preset_combo = self.combo(row, list(profile_storage.station_presets), config.get('active_preset'), 395)
-        self.button(row, 'Применить пресет', self._apply_preset)
-        row = self.row(card)
-        self.button(row, 'Сохранить текущее как пресет', self._save_preset, width=230)
-        self.button(row, 'Инструкция по проверке', self._testing_guide, width=190)
 
     def _build_hardware(self):
         page = self.page('Оборудование')
@@ -363,7 +356,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         card = self.card(page, 'Папки и сервер моделей', f'Данные и настройки Station: {data_dir()}')
         self.path_entries = {}
         for key, title, hint in [
-                ('runtime_dir', 'Папка движка', 'Где лежат программы, которые запускают модели: llama-swap.exe и llama-server.exe (llama.cpp). Они не входят в установщик Station. Нужные exe ищутся внутри папки автоматически.'),
+                ('runtime_dir', 'Папка движка', 'Программы, которые запускают модели: llama-swap.exe и llama-server.exe (llama.cpp). Встроенный движок ставится вместе со Station — оставьте поле пустым, чтобы использовать его. Другую папку указывайте, только если нужна своя сборка llama.cpp.'),
                 ('models_dir', 'Папка моделей', 'Где лежат файлы моделей .gguf. Если в профиле модели указано только имя файла, он ищется здесь.'),
                 ('workspace', 'Рабочая папка агентов', 'Папка ваших проектов: в ней открываются Qwen Code, Hermes и другие агенты. Пусто — домашняя папка пользователя.')]:
             ctk.CTkLabel(card, text=title, anchor='w', font=('Segoe UI', 13, 'bold')).pack(fill='x', padx=20, pady=(8, 0))
@@ -389,13 +382,30 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         row = self.row(card)
         self.button(row, 'Сохранить', self._save_paths, True)
         self.button(row, 'Открыть папку данных', lambda: self._open_path(data_dir()), width=190)
-        card = self.card(page, 'Управление режимами GPU', 'Для переключения WDDM/TCC нужна аппаратная служба. Её установка выполняется один раз с правами администратора.')
+        card = self.card(page, 'Управление режимами GPU', 'Переключать видеокарты между WDDM и TCC может только администратор. '
+            'Служба переключения ставится установщиком Station и выполняет только эту операцию, без окна подтверждения прав. '
+            'Если службы нет, при каждом переключении Windows один раз спросит права администратора.')
+        self.helper_status_label = ctk.CTkLabel(card, text='Проверка службы…', anchor='w', justify='left', wraplength=900)
+        self.helper_status_label.pack(fill='x', padx=20)
         row = self.row(card)
-        self.button(row, 'Установить службу переключения GPU', self._install_helper, width=280)
+        self.button(row, 'Установить или восстановить службу', self._install_helper, width=280)
         self.button(row, 'Снова спрашивать перед переключением', self._reset_gpu_confirmation, width=280)
         row = self.row(card)
         self.button(row, 'GPU-профили (YAML)', lambda: self.edit_document('hardware_profiles.yaml'), width=180)
-        self.button(row, 'Пресеты (YAML)', lambda: self.edit_document('station_presets.yaml'), width=180)
+
+    def _refresh_helper_status(self):
+        from ..services.gpu_mode_client import gpu_service_client
+        def check():
+            try:
+                return gpu_service_client.is_service_running(), gpu_service_client.is_service_installed()
+            except Exception:
+                return False, False
+        running, installed = check()
+        self.helper_status_label.configure(
+            text='Служба работает: переключение режимов GPU без запроса прав.' if running else
+                 'Служба установлена, но не запущена. Нажмите «Установить или восстановить службу».' if installed else
+                 'Служба не установлена. Переключение режимов будет каждый раз запрашивать права администратора.',
+            text_color=ACCENT if running else '#f8ad88')
 
     def _browse(self, entry, directory):
         path = filedialog.askdirectory(parent=self) if directory else filedialog.askopenfilename(parent=self)
@@ -407,9 +417,15 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.workspace_warning.configure(text='Сейчас агенты открываются в папке движка. Лучше выбрать папку с вашими проектами.'
             if workspace and engine and os.path.normcase(workspace) == os.path.normcase(str(engine)) else '')
         swap, server = model_server.swap_executable(), model_server.llama_server_executable()
+        bundled = model_server.bundled_runtime_dir()
+        engine = model_server.runtime_dir()
+        source = ('встроенный движок Station' if bundled and engine == bundled else f'папка {engine}' if engine else 'папка не выбрана')
+        cuda_name, cuda_path = model_server.cuda_runtime_status()
+        cuda = (f'\nCUDA: {cuda_name} найден ({cuda_path.parent})' if cuda_path else
+                f'\nCUDA: не найден {cuda_name} — установите NVIDIA CUDA Toolkit этой версии' if cuda_name else '')
         self.runtime_found_label.configure(
-            text=f'Найдено — llama-swap.exe: {swap or "нет"}\nНайдено — llama-server.exe: {server or "нет"}',
-            text_color=MUTED if swap and server else '#f8ad88')
+            text=f'Используется: {source}\nllama-swap.exe: {swap or "не найден"}\nllama-server.exe: {server or "не найден"}' + cuda,
+            text_color=MUTED if swap and server and (cuda_path or not cuda_name) else '#f8ad88')
         addresses = ', '.join(f'http://{ip}:{model_server.port()}/v1' for ip in model_server.lan_addresses()) or 'сетевые адреса не найдены'
         self.lan_label.configure(text=f'С этого ПК: {model_server.api_url()}. ' + (
             f'Из сети: {addresses}. Брандмауэр Windows должен разрешать порт {model_server.port()}.'
@@ -529,18 +545,6 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             self.button(row, 'Применить показанные изменения', lambda: (window.destroy(), self.worker(apply, callback, label=label or title)), True, width=260)
         self.button(row, 'Отмена' if apply else 'Закрыть', window.destroy)
 
-    def _apply_preset(self, id=None):
-        id = id or self.preset_combo.get()
-        self.deiconify(); self.lift()
-        preset = profile_storage.get_station_preset(id)
-        if preset:
-            self.review('Применить пресет', json.dumps(preset.to_dict(), indent=2, ensure_ascii=False), lambda: self.controller.apply_preset(id))
-
-    def _save_preset(self):
-        name = simpledialog.askstring(APP_NAME, 'Имя пресета:', parent=self)
-        if name:
-            gpu_mode_manager.save_current_as_preset(name)
-            self.preset_combo.configure(values=list(profile_storage.station_presets))
 
     def _sync_models(self):
         previews = []
@@ -677,7 +681,6 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                 self.model_combo.configure(values=list(profile_storage.model_profiles))
                 self.test_model_combo.configure(values=list(profile_storage.model_profiles))
                 self.gpu_combo.configure(values=list(profile_storage.gpu_profiles))
-                self.preset_combo.configure(values=list(profile_storage.station_presets))
                 self._refresh_models_text()
                 self._refresh_tray(rebuild=True)
                 window.destroy()
@@ -692,13 +695,20 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         import subprocess
         from ..paths import resource_path
         from ..hardware import hidden_options
-        script = resource_path('src/services/install_helper.ps1')
+        import sys
+        # Installed Station keeps the reviewed script and helper in Program Files, next to the EXE.
+        app_dir = Path(sys.executable).parent
+        script = app_dir / 'tools/install_helper.ps1' if getattr(sys, 'frozen', False) else resource_path('src/services/install_helper.ps1')
+        if not script.is_file():
+            messagebox.showerror(APP_NAME, f'Не найден сценарий установки службы: {script}. Переустановите Station.', parent=self)
+            return
         system = Path(os.environ['SystemRoot']) / 'System32'
         identity = subprocess.run([str(system / 'whoami.exe'), '/user', '/fo', 'csv', '/nh'],
             capture_output=True, text=True, check=True, timeout=5, **hidden_options()).stdout
         sid = next(csv.reader(io.StringIO(identity.strip())))[1]
         # Only the reviewed, fixed installer is elevated; daily app execution is not.
-        params = subprocess.list2cmdline(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(script), '-AllowedUserSid', sid])
+        params = subprocess.list2cmdline(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(script), '-AllowedUserSid', sid]
+            + (['-InstallPath', str(app_dir)] if getattr(sys, 'frozen', False) else []))
         powershell = system / 'WindowsPowerShell/v1.0/powershell.exe'
         result = ctypes.windll.shell32.ShellExecuteW(None, 'runas', str(powershell), params, None, 0)
         if result <= 32:
@@ -950,10 +960,6 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             self.worker(lambda: self.controller.stop_frontend(value))
         elif action == 'gpu':
             self._preview_gpu(value)
-        elif action == 'preset':
-            self._apply_preset(value)
-        elif action == 'save_preset':
-            self.deiconify(); self.lift(); self._save_preset()
         elif action == 'install':
             self.worker(lambda: self.controller.open_installation_page(value))
         elif action == 'backend_start':

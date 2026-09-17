@@ -76,7 +76,7 @@ def test_native_menu_queues_actions_without_executing_gpu_changes(monkeypatch):
     monkeypatch.setattr('src.ui.tray_controls.shared_services.profiles', lambda: {'test': {'name': 'Worker'}})
     menu = harness._tray_menu()
     entries = {item.text: item for item in menu.items}
-    assert {'Модель', 'Все GPU в WDDM', 'Все GPU в TCC', 'Первая GPU в WDDM, остальные в TCC', 'Пресеты', 'Службы', 'Вид значка'} <= entries.keys()
+    assert {'Модель', 'Все GPU в WDDM', 'Все GPU в TCC', 'Первая GPU в WDDM, остальные в TCC', 'Службы', 'Вид значка'} <= entries.keys()
     entries['Модель'].submenu.items[-1](None)
     assert harness.events.get_nowait() == ('tray_action', ('model', 'none'), None)
     entries['Первая GPU в WDDM, остальные в TCC'](None)

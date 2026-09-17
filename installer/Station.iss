@@ -47,8 +47,17 @@ Name: "en"; MessagesFile: "compiler:Default.isl"; InfoBeforeFile: "welcome.en.tx
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"; InfoBeforeFile: "welcome.ru.txt"
 Name: "uk"; MessagesFile: "compiler:Languages\Ukrainian.isl"; InfoBeforeFile: "welcome.uk.txt"
 
+[CustomMessages]
+en.GpuHelperTask=GPU mode switching service (WDDM/TCC without an administrator prompt)
+ru.GpuHelperTask=Служба переключения режимов GPU (WDDM/TCC без запроса прав администратора)
+uk.GpuHelperTask=Служба перемикання режимів GPU (WDDM/TCC без запиту прав адміністратора)
+en.ServicesGroup=Services:
+ru.ServicesGroup=Службы:
+uk.ServicesGroup=Служби:
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "gpuhelper"; Description: "{cm:GpuHelperTask}"; GroupDescription: "{cm:ServicesGroup}"; Check: IsAdminInstallMode
 
 [Files]
 Source: "..\dist\LocalAgentAIStation.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -61,13 +70,22 @@ Source: "..\dist\third-party-source\*"; DestDir: "{app}\third-party-source"; Fla
 Source: "..\dist\dependency-versions.json"; DestDir: "{app}"
 Source: "..\dist\build-requirements.lock.txt"; DestDir: "{app}"
 Source: "..\dist\BUILD.json"; DestDir: "{app}"
+; Bundled model engine (llama.cpp + llama-swap), staged by build_installer.ps1 -EngineDir.
+Source: "..\dist\engine\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+Source: "..\src\services\LocalAgentGpuModeHelper.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\src\services\install_helper.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\src\services\uninstall_helper.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\Local Agent AI Station"; Filename: "{app}\LocalAgentAIStation.exe"; WorkingDir: "{app}"
 Name: "{autodesktop}\Local Agent AI Station"; Filename: "{app}\LocalAgentAIStation.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\install_helper.ps1"" -InstallPath ""{app}"""; Flags: runhidden waituntilterminated; Tasks: gpuhelper; StatusMsg: "GPU helper service..."
 Filename: "{app}\LocalAgentAIStation.exe"; Description: "{cm:LaunchProgram,Local Agent AI Station}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\uninstall_helper.ps1"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveGpuHelper"; Check: IsAdminInstallMode
 
 [Code]
 const
@@ -90,6 +108,11 @@ var
 begin
   Result := '';
   StartupLinkExisted := FileExists(StartupLinkPath());
+  // The running service locks its EXE in {app}; it is started again after files are copied.
+  if IsAdminInstallMode then
+    Exec(ExpandConstant('{sys}\sc.exe'), 'stop LocalAgentGpuModeHelper', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  if IsAdminInstallMode then
+    Sleep(1500);
   if IsAdminInstallMode and not RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', Uninstaller) then
     Uninstaller := ExpandConstant('{localappdata}\Programs\Local Agent AI Station\unins000.exe');
   if IsAdminInstallMode and FileExists(RemoveQuotes(Uninstaller)) then begin

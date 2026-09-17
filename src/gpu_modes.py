@@ -135,9 +135,8 @@ class ProfileExecutionManager:
                     config.set('active_gpu_profile', gpu_profile_id)
                     return {'Success': True, 'Message': 'No driver changes required', **preview}
                 if any(supervisor.status(k)['running'] for k in supervisor.records if k.startswith(('agent:', 'frontend:'))):
-                    return {'Success': False, 'Message': 'Finish and close active agent sessions before changing GPU drivers'}
-                if not gpu_service_client.is_service_running():
-                    return {'Success': False, 'Message': 'Install LocalAgentGpuModeHelper in Settings first'}
+                    return {'Success': False, 'Message': 'Перед переключением GPU завершите и закройте агентов, запущенных из Station.'}
+                use_service = gpu_service_client.is_service_running()
                 if pm.is_llama_swap_running():
                     stopped = pm.stop_llama_swap()
                     if not stopped['Success']:
@@ -146,9 +145,17 @@ class ProfileExecutionManager:
                 self.rollback_plan = [{'gpu_stable_id': p['gpu_stable_id'], 'target_mode': top.get_device_by_uuid(p['gpu_stable_id']).driver_mode} for p in plan]
                 self.state = 'SWITCHING'
                 self.log('Applying ' + str(plan))
-                response = gpu_service_client.apply_driver_mode_plan(plan, timeout_ms=45000+15000*len(plan))
+                if use_service:
+                    response = gpu_service_client.apply_driver_mode_plan(plan, timeout_ms=45000+15000*len(plan))
+                else:
+                    # No service: one UAC prompt for this switch only.
+                    from .services.elevated_switch import apply_plan_elevated
+                    self.log('GPU helper service is not running; using a one-time elevated switch')
+                    response = apply_plan_elevated(plan, timeout_ms=60000+15000*len(plan))
                 hardware.reinit()
                 verified = topology_engine.discover_live(force=True)
+                if response.get('RebootRequired'):
+                    response['Message'] = 'Драйвер применит новые режимы только после перезагрузки Windows.'
                 if response.get('Success'):
                     for entry in plan:
                         device = verified.get_device_by_uuid(entry['gpu_stable_id'])
@@ -157,7 +164,7 @@ class ProfileExecutionManager:
                             break
                 if response.get('Success'):
                     config.set('active_gpu_profile', gpu_profile_id)
-                    response['Message'] = 'Режимы GPU переключены и проверены: ' + ', '.join(f'GPU {c["index"]} → {c["target_mode"]}' for c in preview['Changes']) + '. Модель выгружена — загрузите её заново, когда будете готовы.'
+                    response['Message'] = ('' if use_service else '(без службы, с подтверждением прав) ') + 'Режимы GPU переключены и проверены: ' + ', '.join(f'GPU {c["index"]} → {c["target_mode"]}' for c in preview['Changes']) + '. Модель выгружена — загрузите её заново, когда будете готовы.'
                 self.log(response.get('Message', str(response)))
                 response['RollbackPlan'] = self.rollback_plan
                 return response
