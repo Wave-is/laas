@@ -47,6 +47,18 @@ def result_message(value):
             'Install LocalAgentGpuModeHelper in Settings first': 'Для переключения GPU установите службу в разделе «Настройки»',
             'Finish and close active agent sessions before changing GPU drivers': 'Перед переключением GPU завершите и закройте сеансы агентов'}.get(text, text)
 
+class StationButton(ctk.CTkButton):
+    """A disabled button must look inactive: grey fill and muted text, never a pale accent."""
+    def __init__(self, *args, primary=False, **kwargs):
+        self.primary = primary
+        super().__init__(*args, fg_color=ACCENT if primary else EDGE, text_color=BG if primary else TEXT,
+            text_color_disabled='#5d6d7e', hover_color='#71e2c2' if primary else '#364a60', **kwargs)
+    def configure(self, require_redraw=False, **kwargs):
+        if 'state' in kwargs:
+            kwargs['fg_color'] = ACCENT if self.primary and kwargs['state'] == 'normal' else EDGE if kwargs['state'] == 'normal' else '#1f2b37'
+        return super().configure(require_redraw=require_redraw, **kwargs)
+
+
 class ProfileCombo(ctk.CTkComboBox):
     def __init__(self, *args, resolver, values, **kwargs):
         self.resolver = resolver
@@ -183,10 +195,8 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         return frame
 
     def button(self, parent, text, command, primary=False, width=140):
-        button = ctk.CTkButton(parent, text=text, command=command, height=36, corner_radius=7,
-            width=width,
-            fg_color=ACCENT if primary else EDGE, text_color=BG if primary else TEXT,
-            hover_color='#71e2c2' if primary else '#364a60')
+        button = StationButton(parent, text=text, command=command, height=36, corner_radius=7,
+            width=width, primary=primary)
         button.pack(side='left', padx=(0, 10), pady=14)
         self.controls.append(button)
         return button
@@ -236,13 +246,19 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.runtime_combo = self.combo(row, list(self.controller.adapters), config.get('primary_agent_runtime'), 175)
         self.runtime_combo.configure(command=lambda value: self._select_runtime(self.runtime_combo.get()))
         self.frontend_combo = self.combo(row, [], width=208)
-        self.button(row, 'Запустить агента', self._launch_frontend, True, width=150)
-        self.button(row, 'Остановить агента', lambda: self._run_selection(self.frontend_combo, self.controller.stop_frontend, 'Остановка агента'), width=150)
+        self.dashboard_agent_start = self.button(row, 'Запустить агента', self._launch_frontend, True, width=150)
+        self.dashboard_agent_stop = self.button(row, 'Остановить агента', lambda: self._run_selection(self.frontend_combo, self.controller.stop_frontend, 'Остановка агента'), width=150)
         row = self.row(card)
-        self.dashboard_server_label = ctk.CTkLabel(row, text='Сервер моделей (llama-swap): проверка…', width=395, anchor='w', justify='left', wraplength=390)
-        self.dashboard_server_label.pack(side='left', padx=(0, 12), pady=14)
-        self.button(row, 'Запустить сервер', lambda: self.worker(gpu_mode_manager.start_backend, label='Запуск сервера моделей'), width=150)
-        self.button(row, 'Остановить сервер', lambda: self.worker(gpu_mode_manager.stop_backend, label='Остановка сервера моделей'), width=150)
+        # Same field look as the selectors above: a read-only status box, then primary/secondary buttons.
+        box = ctk.CTkFrame(row, width=395, height=36, fg_color='#111b25', border_color=EDGE, border_width=2, corner_radius=6)
+        box.pack(side='left', padx=(0, 12), pady=14)
+        box.pack_propagate(False)
+        self.dashboard_server_dot = ctk.CTkLabel(box, text='●', text_color=MUTED, width=18)
+        self.dashboard_server_dot.pack(side='left', padx=(10, 2))
+        self.dashboard_server_label = ctk.CTkLabel(box, text='Сервер моделей: проверка…', anchor='w', text_color=TEXT)
+        self.dashboard_server_label.pack(side='left', fill='x', expand=True)
+        self.dashboard_server_start = self.button(row, 'Запустить сервер', lambda: self.worker(gpu_mode_manager.start_backend, label='Запуск сервера моделей'), True, width=150)
+        self.dashboard_server_stop = self.button(row, 'Остановить сервер', lambda: self.worker(gpu_mode_manager.stop_backend, label='Остановка сервера моделей'), width=150)
         self.combination_label = ctk.CTkLabel(card, text='Выберите модель и нажмите «Загрузить модель».', anchor='w', justify='left', text_color=MUTED)
         self.combination_label.pack(fill='x', padx=20, pady=(0, 12))
         ctk.CTkLabel(page, text='Оборудование сейчас', anchor='w', font=('Segoe UI', 18, 'bold')).pack(fill='x', pady=(0, 8))
@@ -285,7 +301,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
 
     def _build_agents(self):
         page = self.page('Агенты')
-        card = self.card(page, 'Запуск и установка агентов', 'Выберите Desktop, терминал или другой интерфейс в карточке и нажмите «Запустить». «Установить» открывает официальные релизы; после установки повторите обнаружение.')
+        card = self.card(page, 'Запуск и установка агентов', 'В карточке агента выберите способ запуска (Desktop, терминал и т. д.) и нажмите «Запустить агента». «Установить ↗» открывает официальные релизы; после установки нажмите «Найти агенты заново».')
         row = self.row(card)
         self.button(row, 'Найти агенты заново', lambda: self.worker(self.controller.discover_agents, self._agents_discovered, label='Поиск агентов'), True, width=180)
         self.button(row, 'Настройки агентов (YAML)', lambda: self.edit_document('agent_runtimes.yaml'), width=200)
@@ -436,7 +452,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             child.destroy()
         self.controls = [control for control in self.controls if control.winfo_exists()]
         self.agent_launch_widgets = {}
-        states = {'SUPPORTED': 'Доступен', 'UNSUPPORTED': 'Недоступен',
+        states = {'SUPPORTED': 'Установлен', 'UNSUPPORTED': 'Не установлен',
                   'DEGRADED': 'Требует внимания', 'ERROR': 'Ошибка'}
         installed = {'INSTALLED': 'Установлен', 'NOT INSTALLED': 'Не установлен',
                      'UNSUPPORTED BY INSTALLED VERSION': 'Не поддерживается этой версией',
@@ -446,7 +462,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             version = (adapter.version or 'версия неизвестна').splitlines()[0]
             title = adapter.manifest.get('name', id)
             has_frontend = any(f.get('status') == 'INSTALLED' for f in self.controller.frontends.values() if f['runtime_id'] == id)
-            state = states.get(status['status'], status['status']) if adapter.command else 'Доступен' if has_frontend else 'Не установлен'
+            state = states.get(status['status'], status['status']) if adapter.command else 'Установлен' if has_frontend else 'Не установлен'
             card = ctk.CTkFrame(self.agent_cards, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
             card.pack(fill='x', pady=(0, 10))
             header = ctk.CTkFrame(card, fg_color='transparent')
@@ -816,8 +832,10 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
 
     def _update_server_card(self, info):
         if info and hasattr(self, 'dashboard_server_label'):
-            self.dashboard_server_label.configure(text='Сервер моделей (llama-swap): ' + pm.describe(info),
-                text_color=ACCENT if info['online'] else MUTED)
+            where = (info.get('listen') or info['url'].removeprefix('http://')) if info['online'] else ''
+            owner = ('Station' if info['owned'] else 'не Station') + (f', PID {info["pid"]}' if info.get('pid') else '')
+            self.dashboard_server_label.configure(text=f'llama-swap · {where} · {owner}' if info['online'] else 'llama-swap · остановлен')
+            self.dashboard_server_dot.configure(text_color=ACCENT if info['online'] else MUTED)
         if not info or not hasattr(self, 'server_status_label'):
             return
         self.server_status_label.configure(text=pm.describe(info), text_color=ACCENT if info['online'] else MUTED)

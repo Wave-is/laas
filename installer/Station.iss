@@ -90,7 +90,9 @@ var
 begin
   Result := '';
   StartupLinkExisted := FileExists(StartupLinkPath());
-  if IsAdminInstallMode and RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', Uninstaller) then begin
+  if IsAdminInstallMode and not RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', Uninstaller) then
+    Uninstaller := ExpandConstant('{localappdata}\Programs\Local Agent AI Station\unins000.exe');
+  if IsAdminInstallMode and FileExists(RemoveQuotes(Uninstaller)) then begin
     Uninstaller := RemoveQuotes(Uninstaller);
     Log('Removing previous per-user installation: ' + Uninstaller);
     if not Exec(Uninstaller, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then
@@ -100,8 +102,8 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  // Keep "start with Windows" when the old per-user uninstaller removed its shortcut.
-  if (CurStep = ssPostInstall) and StartupLinkExisted and not FileExists(StartupLinkPath()) then
+  // Keep "start with Windows": recreate a removed shortcut or point an old one at this copy.
+  if (CurStep = ssPostInstall) and StartupLinkExisted then
     CreateShellLink(StartupLinkPath(), 'Local Agent AI Station '#$2014' Windows startup', ExpandConstant('{app}\LocalAgentAIStation.exe'),
       '--data-dir "' + ExpandConstant('{localappdata}\LocalAgentAIStation') + '" --startup',
       ExpandConstant('{app}'), ExpandConstant('{app}\LocalAgentAIStation.exe'), 0, SW_SHOWNORMAL);

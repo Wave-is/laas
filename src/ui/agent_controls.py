@@ -37,14 +37,32 @@ class AgentControls:
         label.pack(fill='x', padx=20, pady=(0, 14))
         self.agent_launch_widgets[runtime] = (combo, start, stop, label)
 
+    def _refresh_dashboard_buttons(self):
+        """Start buttons on the overview are inactive while the thing is already running."""
+        if not hasattr(self, 'dashboard_server_stop'):
+            return
+        info = getattr(self, 'backend_info', None) or {}
+        online = bool(info.get('online'))
+        self.dashboard_server_start.configure(state='disabled' if self.busy or online else 'normal')
+        self.dashboard_server_stop.configure(state='disabled' if self.busy or not (online and info.get('owned')) else 'normal')
+        fid = self.frontend_combo.get()
+        state = self.frontend_states.get(fid, {})
+        frontend = self.controller.frontends.get(fid, {})
+        actions = frontend_action_state(frontend, state.get('running', False), self.busy, state.get('owned', False))
+        self.dashboard_agent_start.configure(state='normal' if actions['start'] else 'disabled',
+            text='Агент уже запущен' if state.get('running') else 'Запустить агента')
+        self.dashboard_agent_stop.configure(state='normal' if actions['stop'] else 'disabled')
+
     def _refresh_agent_launch_states(self):
+        self._refresh_dashboard_buttons()
         for combo, start, stop, label in getattr(self, 'agent_launch_widgets', {}).values():
             id = combo.get()
             frontend = self.controller.frontends.get(id, {})
             state = self.frontend_states.get(id, {})
             running = state.get('running', False)
             actions = frontend_action_state(frontend, running, self.busy, state.get('owned', False))
-            start.configure(state='normal' if actions['start'] else 'disabled')
+            start.configure(state='normal' if actions['start'] else 'disabled',
+                text='Уже запущен' if running else 'Запустить агента')
             stop.configure(state='normal' if actions['stop'] else 'disabled')
             combo.configure(state='disabled' if self.busy else 'readonly')
             workspace = config.get('workspace') or 'домашняя папка'
