@@ -19,8 +19,8 @@ class AgentControls:
         row = self.row(card)
         combo = self.combo(row, choices, selected, width=375)
         combo.configure(command=lambda value: self._refresh_agent_launch_states())
-        start = self.button(row, 'Запустить', lambda: self._launch_frontend(combo.get()), True, width=135)
-        stop = self.button(row, 'Остановить', lambda: self._stop_agent_frontend(combo.get()), width=135)
+        start = self.button(row, 'Запустить агента', lambda: self._launch_frontend(combo.get()), True, width=160)
+        stop = self.button(row, 'Остановить агента', lambda: self._stop_agent_frontend(combo.get()), width=160)
         label = ctk.CTkLabel(card, text='', anchor='w', justify='left', text_color='#91a2b4', wraplength=770)
         label.pack(fill='x', padx=20, pady=(0, 14))
         self.agent_launch_widgets[runtime] = (combo, start, stop, label)
@@ -34,9 +34,12 @@ class AgentControls:
             start.configure(state='normal' if actions['start'] else 'disabled')
             stop.configure(state='normal' if actions['stop'] else 'disabled')
             combo.configure(state='disabled' if self.busy else 'readonly')
-            label.configure(text='Запущен Station. Перед остановкой завершите текущую задачу агента.' if running else
-                'Готов к запуску. Остановить здесь можно процесс, запущенный Station.' if actions['start'] or frontend.get('status') == 'INSTALLED' else
-                'Этот интерфейс недоступен. Установите его и повторите обнаружение.')
+            pid = self.controller.frontend_status(id).get('pid') if running else None
+            workspace = config.get('workspace') or 'домашняя папка'
+            label.configure(text=(f'Запущен из Station (PID {pid}). Перед остановкой завершите текущую задачу агента.' if running else
+                f'Готов к запуску. Рабочая папка: {workspace}. Кнопка «Остановить» закрывает только процесс, запущенный Station.'
+                if actions['start'] or frontend.get('status') == 'INSTALLED' else
+                'Этот вариант запуска не установлен. Установите его и нажмите «Найти агенты заново».'))
 
     def _agent_frontend_done(self, result):
         from .control_center import result_message
@@ -44,8 +47,8 @@ class AgentControls:
         self.runtime_combo.set(config.get('primary_agent_runtime'))
         self._refresh_frontend_choices()
         self._refresh_agent_launch_states()
-        self.status_label.configure(text=result_message(result)[:150], text_color='#56d6b1' if result.get('Success') else '#f8ad88')
+        self.status_label.configure(text=result_message(result)[:400], text_color='#56d6b1' if result.get('Success') else '#f8ad88')
         self._refresh_tray(rebuild=True)
 
     def _stop_agent_frontend(self, id):
-        self.worker(lambda: self.controller.stop_frontend(id), self._agent_frontend_done)
+        self.worker(lambda: self.controller.stop_frontend(id), self._agent_frontend_done, label='Остановка агента')

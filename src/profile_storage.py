@@ -44,11 +44,15 @@ class ProfileStorage:
         self.directory = Path(directory or STORAGE_DIR)
         self._lock = RLock()
         self._digests = {}
+        self.extras = {name: {} for name in self.TYPES}
+        self.warnings = []
         self.load_all()
 
     def load_all(self):
         staged = {}
         hashes = {}
+        extras = {}
+        warnings = []
         for name, (filename, cls, defaults) in self.TYPES.items():
             path = self.directory / filename
             rows = read_document(path, None)
@@ -58,8 +62,13 @@ class ProfileStorage:
                 if not isinstance(rows, list):
                     raise ConfigurationError(f'Expected a list: {path}')
                 from .validation import validate_registry
-                validate_registry(filename, rows)
+                unknown = {}
+                validate_registry(filename, rows, strict=False, unknown_fields=unknown)
                 values = [cls.from_dict(row) for row in rows]
+                # Fields written by other tools are preserved on save and reported, never fatal.
+                extras[name] = {row['id']: {k: row[k] for k in unknown[row['id']]} for row in rows if row['id'] in unknown}
+                warnings += [f'{filename}: профиль «{id}» содержит поля, которые Station не использует: {", ".join(keys)}'
+                             for id, keys in unknown.items()]
             ids = [p.id for p in values]
             if len(ids) != len(set(ids)):
                 raise ConfigurationError(f'Duplicate profile ID: {path}')
@@ -68,10 +77,13 @@ class ProfileStorage:
         for name, values in staged.items():
             setattr(self, name, values)
         self._digests = hashes
+        self.extras = {name: extras.get(name, {}) for name in self.TYPES}
+        self.warnings = warnings
 
     def _save(self, name):
         path = self.directory / self.TYPES[name][0]
-        atomic_write(path, [p.to_dict() for p in getattr(self, name).values()], expected_digest=self._digests[name])
+        rows = [{**p.to_dict(), **self.extras.get(name, {}).get(p.id, {})} for p in getattr(self, name).values()]
+        atomic_write(path, rows, expected_digest=self._digests[name])
         self._digests[name] = digest(path)
 
     def save_all(self):

@@ -22,14 +22,15 @@ class Result:
     def to_dict(self):
         return asdict(self)
 
-def unsupported(message='Not supported by this runtime'):
+def unsupported(message='Эта функция не поддерживается установленной версией агента.'):
     return Result(Support.UNSUPPORTED, message)
 
 def probe(argv, timeout=12, env=None):
     result = subprocess.run(argv, capture_output=True, text=True, encoding='utf-8',
         errors='replace', timeout=timeout, env=env, **hidden_options())
     if result.returncode:
-        raise RuntimeError(result.stderr[-1500:] or f'Exit {result.returncode}')
+        raise RuntimeError(result.stderr[-1500:] or f'Программа {Path(argv[0]).name} завершилась с кодом {result.returncode} '
+            'без описания ошибки. Проверьте, что агент установлен полностью.')
     return result.stdout.strip()
 
 class AgentRuntimeAdapter:
@@ -48,13 +49,13 @@ class AgentRuntimeAdapter:
         source = self.settings.get('source_root')
         if source:
             if not Path(source).is_dir():
-                raise ValueError('Configured runtime source directory is missing')
+                raise ValueError(f'Папка исходников агента не найдена: {source}. Исправьте путь в настройках агента.')
             env.update(PYTHONPATH=str(source), PYTHONDONTWRITEBYTECODE='1')
         return env
     def detect(self):
         return unsupported()
     def get_version(self):
-        return Result(Support.SUPPORTED, data=self.version) if self.version else unsupported('Version unknown')
+        return Result(Support.SUPPORTED, data=self.version) if self.version else unsupported('Версия агента не определена. Нажмите «Найти агенты заново».')
     def get_capabilities(self):
         return Result(Support.SUPPORTED, data={'headless': False, 'daemon': False, 'task_control': False})
     def get_status(self):
@@ -64,18 +65,25 @@ class AgentRuntimeAdapter:
     def get_config_locations(self, workspace=None):
         return unsupported()
     def backup_configuration(self):
-        return unsupported('Backups are created when applying a reviewed configuration change')
+        return unsupported('Резервная копия настроек агента создаётся автоматически при применении изменений.')
     def configure_model_provider(self, models):
         return unsupported()
     def configure_model_binding(self, model):
         return unsupported()
     def list_model_bindings(self):
         return unsupported()
+    def binding_ready(self, model):
+        """True when saved settings already point the agent to this model on the Station server.
+
+        Unlike a full sync preview, stale entries for other models do not matter here: they must
+        not block launching the agent with the selected model.
+        """
+        return False
     def get_active_model(self):
-        return unsupported('The runtime does not expose the active interactive session model')
+        return unsupported('Агент не сообщает, какая модель используется в открытом окне.')
     def start(self, workspace=None, model=None):
         if not self.command:
-            return unsupported('Runtime is not installed')
+            return unsupported(self.manifest.get('name', self.id) + ' не установлен. Установите его и нажмите «Найти агенты заново».')
         try:
             return Result(Support.SUPPORTED, data=supervisor.start('agent:' + self.id, self.command,
                 cwd=workspace, visible=True))
@@ -88,13 +96,13 @@ class AgentRuntimeAdapter:
         stopped = self.stop()
         return self.start(**kwargs) if stopped.ok else stopped
     def get_active_tasks(self):
-        return unsupported('Task state unavailable; do not assume the runtime is idle')
+        return unsupported('Station не может узнать, выполняет ли агент задачу. Убедитесь сами, что агент ничего не делает.')
     def request_graceful_stop(self):
-        return unsupported('Finish the interactive task before changing hardware')
+        return unsupported('Завершите задачу в окне агента, прежде чем менять режим видеокарт.')
     def wait_until_idle(self, timeout):
-        return unsupported('Idle detection unavailable')
+        return unsupported('Station не может определить, что агент закончил работу. Проверьте окно агента.')
     def cancel_task(self, task_id=None):
-        return unsupported('Task cancellation unavailable')
+        return unsupported('Отменить задачу из Station нельзя — остановите её в окне агента.')
     def get_health(self):
         return self.get_status()
     def tail_logs(self):
@@ -102,4 +110,4 @@ class AgentRuntimeAdapter:
     def validate_configuration(self):
         return unsupported()
     def restore_configuration(self, backup):
-        return unsupported('Restore via the reviewed configuration transaction')
+        return unsupported('Настройки агента восстанавливаются через просмотр изменений: нажмите «Синхронизировать с агентами».')

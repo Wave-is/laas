@@ -6,6 +6,7 @@ import subprocess
 from .storage import atomic_write, read_document
 from .paths import data_dir
 from .compatibility import compatibility_evaluator
+from .model_server import resolve_model_file
 
 def launch_signature(model, hardware_profile, executable, topology):
     import hashlib
@@ -16,7 +17,7 @@ def launch_signature(model, hardware_profile, executable, topology):
     values = {key: getattr(model, key) for key in fields}
     values['hardware'] = hardware_profile.to_dict() if hardware_profile else None
     values['devices'] = [(d.uuid, d.driver_mode) for d in topology.devices]
-    for key, value in [('weights', model.weights_path), ('projector', model.mmproj_path), ('server', executable)]:
+    for key, value in [('weights', resolve_model_file(model.weights_path)), ('projector', resolve_model_file(model.mmproj_path)), ('server', executable)]:
         path = Path(value) if value else None
         stat = path.stat() if path and path.is_file() else None
         values[key] = [str(path), stat.st_size, stat.st_mtime_ns] if stat else str(path)
@@ -26,7 +27,7 @@ def tensor_split(model, devices):
     if model.tensor_split_policy not in ('auto', '', 'none'):
         values = [float(v) for v in model.tensor_split_policy.split(',')]
         if len(values) != len(devices) or any(v <= 0 for v in values):
-            raise ValueError('Tensor split does not match selected devices')
+            raise ValueError('Tensor split не совпадает с числом выбранных GPU')
         return ','.join(str(v) for v in values)
     if not devices:
         return ''
@@ -36,10 +37,11 @@ def tensor_split(model, devices):
 
 def build_model_entry(model, devices, executable):
     if not executable or not Path(executable).is_file():
-        raise ValueError('Select an installed llama-server executable')
-    if not Path(model.weights_path).is_file():
-        raise ValueError('Model weights are missing')
-    args = [executable, '-m', model.weights_path, '-c', str(model.context), '-ngl',
+        raise ValueError('Не найден llama-server.exe (llama.cpp). Укажите папку движка в «Настройки → Папки и сервер моделей».')
+    weights, mmproj = resolve_model_file(model.weights_path), resolve_model_file(model.mmproj_path)
+    if not Path(weights).is_file():
+        raise ValueError(f'Файл весов модели «{model.name}» не найден: {weights}')
+    args = [executable, '-m', weights, '-c', str(model.context), '-ngl',
         '0' if model.backend == 'cpu' else str(model.gpu_layers), '--parallel', '1', '--host', '127.0.0.1', '--port', '${PORT}',
         '-b', str(model.batch), '-ub', str(model.ubatch), '-fa', 'on']
     if model.backend == 'cpu':
@@ -47,9 +49,9 @@ def build_model_entry(model, devices, executable):
         if model.vision:
             args += ['--no-mmproj-offload']
     if model.vision:
-        if not model.mmproj_path or not Path(model.mmproj_path).is_file():
-            raise ValueError('Vision projector is missing')
-        args += ['--mmproj', model.mmproj_path]
+        if not mmproj or not Path(mmproj).is_file():
+            raise ValueError(f'Файл mmproj модели «{model.name}» не найден: {mmproj}')
+        args += ['--mmproj', mmproj]
     if len(devices) > 1:
         args += ['--split-mode', model.split_mode, '--tensor-split', tensor_split(model, devices)]
     if model.mtp_depth:
@@ -77,7 +79,7 @@ def compile_swap(profiles, topology, hardware_profile, executable, path=None):
         else:
             skipped[model.id] = evaluation.summary
     if not models:
-        raise ValueError('No compatible installed model profiles: ' + '; '.join(skipped.values()))
+        raise ValueError('Нет моделей, которые можно запустить на текущем оборудовании: ' + '; '.join(f'{k}: {v}' for k, v in skipped.items()))
     document = {'healthCheckTimeout': max(p.startup_timeout for p in profiles), 'logLevel': 'warn',
         'captureBuffer': 0, 'models': models}
     old = read_document(target, None)

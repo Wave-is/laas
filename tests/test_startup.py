@@ -18,7 +18,7 @@ def fixture_runner():
         return Mock(side_effect=run)
     controller = NS(frontends={'desktop': {'name': 'Desktop', 'runtime_id': 'qwen', 'status': 'INSTALLED'}},
         adapters={'qwen': NS(id='qwen', manifest={})},
-        preview_sync=Mock(return_value=NS(status='IN SYNC')), frontend_status=Mock(return_value={'running': False}),
+        model_binding_state=Mock(return_value='READY'), frontend_status=Mock(return_value={'running': False}),
         launch_frontend=launch('frontend'))
     services = NS(profiles=lambda: {'worker': {'name': 'Worker', 'type': 'local'}, 'remote': {'type': 'remote'}},
                   start=launch('service'))
@@ -61,7 +61,7 @@ def test_order_readiness_binding_and_once_only():
     runner, settings, calls = fixture_runner()
     assert runner.run(settings, threading.Event())['Success']
     assert calls == [('service', 'worker'), ('model', 'model'), ('frontend', 'desktop')]
-    runner.controller.preview_sync.assert_called_once()
+    runner.controller.model_binding_state.assert_called_once()
     runner.controller.launch_frontend.assert_called_once_with('desktop', remember=False)
     runner.run(settings, threading.Event())
     assert len(calls) == 3
@@ -95,9 +95,9 @@ def test_deleted_or_remote_components_are_not_started(kind, id):
 
 def test_autostart_never_applies_a_new_binding():
     runner, settings, calls = fixture_runner()
-    runner.controller.preview_sync.return_value.status = 'CHANGED'
+    runner.controller.model_binding_state.return_value = 'NEEDS_REVIEW'
     result = runner.run(settings, threading.Event())
-    assert not result['Success'] and 'вручную' in result['Message']
+    assert not result['Success'] and 'не настроен на модель' in result['Message']
     runner.controller.launch_frontend.assert_not_called()
 
 
@@ -120,7 +120,7 @@ def test_already_running_agent_does_not_require_binding_rewrite():
     runner, settings, calls = fixture_runner()
     runner.controller.frontend_status.return_value = {'running': True}
     runner.run(settings, threading.Event())
-    runner.controller.preview_sync.assert_not_called()
+    runner.controller.model_binding_state.assert_not_called()
 
 
 def test_controller_reuses_owned_frontend_and_keeps_selection(monkeypatch):
@@ -153,3 +153,10 @@ def test_windows_command_persists_data_directory_and_handles_spaces(tmp_path, mo
     assert value['target'] == str(executable)
     assert value['arguments'] == f'--data-dir "{tmp_path / "Private Data"}" --startup'
     assert value['working_directory'] == str(executable.parent)
+
+
+def test_autostart_launches_when_selected_model_is_bound_despite_stale_entries():
+    runner, settings, calls = fixture_runner()
+    runner.controller.model_binding_state.return_value = 'READY_STALE'
+    assert runner.run(settings, threading.Event())['Success']
+    assert ('frontend', 'desktop') in calls

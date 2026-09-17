@@ -68,7 +68,7 @@ def preview_merge(path, changes, *, allow_json5=False):
     path = Path(path)
     before = read_document(path, {}, allow_json5=allow_json5)
     if not isinstance(before, dict):
-        raise ValueError('Agent configuration must be a mapping')
+        raise ValueError(f'Файл настроек агента повреждён или имеет неожиданный формат: {path}. Исправьте его или удалите.')
     after = deepcopy(before)
     state_path = data_dir() / 'sync' / (hashlib.sha256(str(path.resolve()).encode()).hexdigest() + '.json')
     state = read_document(state_path, {})
@@ -81,7 +81,7 @@ def preview_merge(path, changes, *, allow_json5=False):
         target = after
         for part in key[:-1]:
             if part in target and not isinstance(target[part], dict):
-                raise ValueError(f'Invalid mapping: {part}')
+                raise ValueError(f'В файле настроек агента {path} поле «{part}» имеет неожиданный формат. Исправьте его вручную.')
             target = target.setdefault(part, {})
         target[key[-1]] = deepcopy(value)
     # Display only affected blocks; unrelated credentials never enter the diff.
@@ -96,15 +96,18 @@ def apply_preview(preview, *, accept_custom=False, smoke=None):
     if isinstance(preview, SyncTransaction):
         return apply_transaction(preview, accept_custom=accept_custom, smoke=smoke)
     if preview.status == 'CUSTOM MODIFIED' and not accept_custom:
-        raise ConfigurationConflict('CUSTOM MODIFIED: review and explicitly accept the changed managed fields')
+        raise ConfigurationConflict(f'Файл настроек агента {preview.path} был изменён вручную после последней синхронизации. '
+            'Просмотрите изменения и подтвердите, что их можно перезаписать.')
     saved = atomic_write(preview.path, preview.after, expected_digest=preview.expected)
     applied_digest = digest(preview.path)
     try:
         if smoke is not None and not smoke():
-            raise RuntimeError('Agent smoke request failed; configuration rolled back')
+            raise RuntimeError('Проверка агента через модель не пройдена — изменения настроек отменены, файл восстановлен. '
+                'Убедитесь, что модель запущена, и повторите синхронизацию.')
     except Exception:
         if digest(preview.path) != applied_digest:
-            raise ConfigurationConflict('Smoke failed and configuration changed again. Restore the reviewed backup manually; concurrent edits were preserved.')
+            raise ConfigurationConflict(f'Проверка агента не пройдена, а файл настроек {preview.path} за это время изменил кто-то другой. '
+                'Эти изменения сохранены; при необходимости восстановите резервную копию вручную.')
         if not preview.expected:
             preview.path.unlink()
         else:
@@ -123,9 +126,10 @@ def apply_transaction(transaction, *, accept_custom=False, smoke=None):
     previews = transaction.previews
     for p in previews:
         if p.status == 'CUSTOM MODIFIED' and not accept_custom:
-            raise ConfigurationConflict('CUSTOM MODIFIED: review the changed managed fields')
+            raise ConfigurationConflict(f'Файл настроек агента {p.path} был изменён вручную после последней синхронизации. '
+                'Просмотрите изменения и подтвердите, что их можно перезаписать.')
         if digest(p.path) != p.expected:
-            raise ConfigurationConflict(f'Configuration changed: {p.path}')
+            raise ConfigurationConflict(f'Файл настроек агента изменился после просмотра: {p.path}. Откройте синхронизацию заново.')
     applied = []
     backups = []
     try:
@@ -134,7 +138,8 @@ def apply_transaction(transaction, *, accept_custom=False, smoke=None):
             applied.append((p, digest(p.path)))
             backups.append(str(saved) if saved else None)
         if smoke is not None and not smoke():
-            raise RuntimeError('Agent smoke request failed; configuration rolled back')
+            raise RuntimeError('Проверка агента через модель не пройдена — изменения настроек отменены, файл восстановлен. '
+                'Убедитесь, что модель запущена, и повторите синхронизацию.')
     except Exception as exc:
         conflicts = []
         for p, written in reversed(applied):
@@ -145,7 +150,8 @@ def apply_transaction(transaction, *, accept_custom=False, smoke=None):
             else:
                 atomic_write(p.path, p.before, expected_digest=written)
         if conflicts:
-            raise ConfigurationConflict('Concurrent edits preserved; review backups for: ' + ', '.join(conflicts)) from exc
+            raise ConfigurationConflict('Синхронизация не удалась, а эти файлы настроек за это время изменил кто-то другой (их изменения сохранены): '
+                + ', '.join(conflicts) + '. При необходимости восстановите резервные копии вручную.') from exc
         raise
     for p in previews:
         state_path = data_dir() / 'sync' / (hashlib.sha256(str(p.path.resolve()).encode()).hexdigest() + '.json')

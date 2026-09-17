@@ -17,8 +17,9 @@ DEFAULT_SETTINGS = {
     'suppress_gpu_switch_warning': False,
     'poll_interval_sec': 3.0, 'excluded_gpu_uuids': [], 'autostart': False,
     'llama_swap_url': 'http://127.0.0.1:9292', 'ollama_url': 'http://127.0.0.1:11434',
-    'workspace': '', 'llama_swap_executable': '', 'llama_swap_config': '',
-    'llama_server_executable': '',
+    # runtime_dir holds llama.cpp and llama-swap; explicit executables override the search there.
+    'workspace': '', 'runtime_dir': '', 'models_dir': '', 'llama_swap_lan_access': False,
+    'llama_swap_executable': '', 'llama_server_executable': '',
 }
 
 class AppConfig:
@@ -42,6 +43,9 @@ class AppConfig:
         self._data['startup'] = startup_settings(self._data.get('startup'))
         from .tray_settings import validate_tray
         validate_tray(self._data)
+        for key in ('llama_swap_lan_access', 'suppress_gpu_switch_warning'):
+            if type(self._data.get(key)) is not bool:
+                raise ConfigurationError(key + ' must be a boolean')
         if type(self._data.get('suppress_gpu_switch_warning')) is not bool:
             raise ConfigurationError('suppress_gpu_switch_warning must be a boolean')
         interval = self._data.get('poll_interval_sec')

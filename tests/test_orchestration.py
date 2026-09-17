@@ -81,7 +81,10 @@ def setup_switch(tmp_path,monkeypatch,owned=True):
     monkeypatch.setattr(manager,'get_active_gpu_profile',lambda:GpuHardwareProfile('u','Unchanged'))
     calls=[]
     manager.engine=SimpleNamespace(get_active_model=lambda:None,request=lambda path:{'running':[{'model':'old','state':'ready'}]},switch_model=lambda *a:calls.append('start') or True)
-    monkeypatch.setattr(module,'pm',SimpleNamespace(is_llama_swap_running=lambda:True,free_gpu=lambda:calls.append('unload') or True))
+    monkeypatch.setattr(module,'pm',SimpleNamespace(is_llama_swap_running=lambda:True,free_gpu=lambda:calls.append('unload') or True,
+        backend_info=lambda *a:{'owned':owned,'stale_config':False,'listen':'127.0.0.1:9292','log':None},describe=lambda *a:'running'))
+    monkeypatch.setattr(module.model_server,'listen_address',lambda:'127.0.0.1:9292')
+    monkeypatch.setattr(manager,'_compile',lambda *a:(tmp_path/'swap.yaml',False,{}))
     monkeypatch.setattr(module,'supervisor',SimpleNamespace(status=lambda key:{'owned':owned}))
     monkeypatch.setattr(module.hardware,'reinit',lambda:None)
     monkeypatch.setattr(module.topology_engine,'discover_live',lambda **kw:free)

@@ -4,7 +4,7 @@ A Windows control center for local models, agents and GPU monitoring.
 The installer and documentation support English, Russian and Ukrainian.
 The application interface currently uses Russian.
 
-Installs for the current Windows user. No administrator rights are required.
+Installs to C:\Program Files (administrator rights once); the app itself runs without them.
 Models, agents and GPU drivers are installed separately. Startup is off by default.
 No GPU service is installed automatically. GPU driver mode switching requires
 the optional helper and compatible hardware; it remains an experimental feature.

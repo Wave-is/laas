@@ -17,10 +17,10 @@ def npm_installation(binary, packages, settings=None):
     if found:
         executable = Path(found).expanduser()
         if configured and not executable.is_file():
-            raise ValueError('Configured runtime executable is missing')
+            raise ValueError(f'Указанный файл агента не найден: {executable}. Исправьте путь в настройках агента.')
         if executable.suffix.lower() in ('.js', '.mjs', '.cjs'):
             if not node:
-                raise ValueError('Node.js is required for this runtime')
+                raise ValueError('Для этого агента нужен Node.js, но он не найден. Установите Node.js и нажмите «Найти агенты заново».')
             return [str(node), str(executable)], None
         # POSIX npm shims are symlinks to scripts; inspect their package metadata.
         if executable.is_symlink():
@@ -50,12 +50,14 @@ def npm_installation(binary, packages, settings=None):
             continue
         path = (root / entry).resolve()
         if not path.is_relative_to(root.resolve()) or not path.is_file():
-            raise ValueError('Invalid npm runtime entrypoint')
+            raise ValueError(f'Файл запуска пакета {meta.get("name")} отсутствует или находится вне папки пакета: {path}. '
+                'Переустановите агент.')
         if not node:
-            raise ValueError('Node.js is required for this runtime')
+            raise ValueError('Для этого агента нужен Node.js, но он не найден. Установите Node.js и нажмите «Найти агенты заново».')
         return [str(node), str(path)], root
     if configured or settings.get('package_root'):
-        raise ValueError('Configured npm runtime package was not found')
+        raise ValueError(f'Пакет {" или ".join(packages)} не найден по указанному пути. '
+            'Проверьте путь к программе или папке пакета в настройках агента.')
     return [], None
 
 def local_appdata():

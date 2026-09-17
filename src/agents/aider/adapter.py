@@ -9,18 +9,18 @@ class AiderAdapter(AgentRuntimeAdapter):
     def detect(self):
         exe=self.settings.get('executable') or shutil.which('aider')
         self.command=[exe] if exe else []
-        self.frontends=[{'id':'aider-terminal','runtime_id':self.id,'name':'Aider Terminal','type':'terminal','optional':True,'status':'INSTALLED' if exe else 'NOT INSTALLED'}]
-        if not exe:return unsupported('Aider is optional and is not installed')
+        self.frontends=[{'id':'aider-terminal','runtime_id':self.id,'name':'Aider — терминал','type':'terminal','optional':True,'status':'INSTALLED' if exe else 'NOT INSTALLED'}]
+        if not exe:return unsupported('Aider не установлен (необязательный агент). Чтобы использовать его, установите Aider и нажмите «Найти агенты заново».')
         try:
             self.version=probe(self.command+['--version']);self.help_text=probe(self.command+['--help'])
-            return Result(Support.SUPPORTED,'Aider CLI detected',{'version':self.version})
-        except Exception as exc:return Result(Support.DEGRADED,str(exc))
+            return Result(Support.SUPPORTED,'Aider найден',{'version':self.version})
+        except Exception as exc:return Result(Support.DEGRADED,'Aider найден, но не отвечает на проверку версии: '+str(exc))
     def get_config_locations(self,workspace=None):
         return Result(Support.SUPPORTED,data={'user':str(Path.home()/'.aider.conf.yml')})
     def start(self,workspace=None,model=None):
-        if not self.command:return unsupported('Aider is not installed')
-        if not model:return unsupported('Select a Station model before opening Aider')
-        if '--model' not in self.help_text:return unsupported('Installed model selection flag was not confirmed')
+        if not self.command:return unsupported('Aider не установлен. Установите его и нажмите «Найти агенты заново».')
+        if not model:return unsupported('Сначала выберите модель в Station, затем откройте Aider.')
+        if '--model' not in self.help_text:return unsupported('Эта версия Aider не поддерживает выбор модели при запуске (--model). Обновите Aider.')
         args=self.command+['--model','openai/'+(model.backend_model_id)]
         env=dict(OPENAI_API_BASE=model.endpoint,OPENAI_API_KEY='local-station')
         try:return Result(Support.SUPPORTED,data=supervisor.start('agent:'+self.id,args,cwd=workspace,env=env,visible=True))

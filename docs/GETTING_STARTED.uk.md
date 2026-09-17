@@ -37,7 +37,7 @@ worker. Віддалений сервіс можна перевірити та �
 
 | Що | Стандартний шлях |
 |---|---|
-| Програма | `%LOCALAPPDATA%\Programs\Local Agent AI Station` |
+| Програма | `%ProgramFiles%\Local Agent AI Station` |
 | Налаштування, профілі, журнали | `%LOCALAPPDATA%\LocalAgentAIStation` |
 | «Пуск» і робочий стіл | Звичайні ярлики поточного користувача |
 
@@ -50,7 +50,7 @@ worker. Віддалений сервіс можна перевірити та �
 Відкрийте журнали із застосунку або створіть діагностичний звіт:
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\Local Agent AI Station\LocalAgentAIStation.exe" --doctor --output "$env:TEMP\station-doctor.json"
+& "$env:ProgramFiles\Local Agent AI Station\LocalAgentAIStation.exe" --doctor --output "$env:TEMP\station-doctor.json"
 ```
 
 Звіт може містити локальні шляхи, ідентифікатори GPU й відомості про налаштування

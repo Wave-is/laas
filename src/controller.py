@@ -54,6 +54,18 @@ class StationController:
             previews.append(binding.data)
         return combine_previews(previews)
 
+    def model_binding_state(self, runtime_id, model):
+        """READY: agent already uses this model (other stale entries allowed); NEEDS_REVIEW otherwise."""
+        adapter = self.adapters[runtime_id]
+        if not model or model.id == 'none' or not adapter.manifest.get('provider_sync', True):
+            return 'READY'
+        try:
+            if self.preview_sync(runtime_id, model).status == 'IN SYNC':
+                return 'READY'
+        except Exception:
+            pass
+        return 'READY_STALE' if adapter.binding_ready(model) else 'NEEDS_REVIEW'
+
     def installation_options(self, runtime_id):
         """Expose official release links even when discovery found no executable."""
         adapter = self.adapters[runtime_id]
@@ -63,7 +75,7 @@ class StationController:
         from urllib.parse import urlsplit
         parsed = urlsplit(url)
         if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password:
-            raise ValueError('Official releases URL must be HTTPS without embedded credentials')
+            raise ValueError('Адрес страницы релизов должен начинаться с https:// и не содержать логин и пароль')
         options = [{'label': 'Официальные релизы' if adapter.command else 'Установить ↗',
                     'url': url, 'missing': not bool(adapter.command)}]
         if adapter.command and any(f['type'] == 'desktop' and f['status'] == 'NOT INSTALLED' for f in adapter.frontends):
@@ -81,19 +93,19 @@ class StationController:
 
     def select_runtime(self, id):
         if id not in self.adapters:
-            raise ValueError('Unknown runtime')
+            raise ValueError(f'Неизвестный агент: {id}')
         config.set('primary_agent_runtime', id)
-        return {'Success': True, 'Message': 'Agent runtime selected'}
+        return {'Success': True, 'Message': 'Основной агент: ' + self.adapters[id].manifest.get('name', id)}
 
     def select_frontend(self, id):
         frontend = self.frontends.get(id)
         if not frontend:
-            raise ValueError('Unknown frontend')
+            raise ValueError(f'Неизвестный способ запуска агента: {id}')
         if frontend['status'] in ('NOT INSTALLED', 'UNSUPPORTED BY INSTALLED VERSION'):
             alternatives = [f['name'] for f in self.frontends.values() if f['runtime_id'] == frontend['runtime_id'] and f['status'] == 'INSTALLED']
-            return {'Success': False, 'Message': 'Frontend is unavailable. Available: ' + ', '.join(alternatives)}
+            return {'Success': False, 'Message': frontend['name'] + ' не установлен. ' + ('Доступно: ' + ', '.join(alternatives) if alternatives else 'Других установленных вариантов нет.')}
         config.update({'preferred_frontend': id, 'primary_agent_runtime': frontend['runtime_id']})
-        return {'Success': True, 'Message': 'Frontend selected'}
+        return {'Success': True, 'Message': 'Выбран: ' + frontend['name']}
 
     def frontend_status(self, id):
         frontend = self.frontends.get(id)
@@ -106,19 +118,19 @@ class StationController:
         id = id or config.get('preferred_frontend')
         frontend = self.frontends.get(id)
         if not frontend or frontend.get('status') not in ('INSTALLED', 'SUPPORTED (experimental)'):
-            return {'Success': False, 'Message': 'Интерфейс агента недоступен. Повторите обнаружение после установки.'}
+            return {'Success': False, 'Message': 'Этот способ запуска агента не установлен. После установки нажмите «Найти агенты заново» на странице «Агенты».'}
         selected = self.select_frontend(id) if remember else {'Success': True}
         if not selected['Success']:
             return selected
         if self.frontend_status(id)['running']:
-            return {'Success': True, 'Message': 'Этот интерфейс агента уже запущен Station.'}
+            return {'Success': True, 'Message': frontend.get('name', id) + ' уже запущен из Station' + (f' (PID {self.frontend_status(id).get("pid")})' if self.frontend_status(id).get('pid') else '') + '.'}
         adapter = self.adapters[frontend['runtime_id']]
         workspace = config.get('workspace') or str(Path.home())
         model = gpu_mode_manager.get_active_model_profile()
         model = model if model and model.id != 'none' else None
         if frontend['type'] == 'terminal':
             result = adapter.start(workspace, model)
-            return {'Success': result.ok, 'Message': result.message or 'Terminal opened', 'Details': result.data}
+            return {'Success': result.ok, 'Message': result.message or (frontend['name'] + ' открыт' + (f' (PID {result.data["pid"]}), папка {workspace}' if isinstance(result.data, dict) and result.data.get('pid') else '')), 'Details': result.data}
         if frontend.get('adapter_launch'):
             result = adapter.launch_frontend(frontend, workspace, model)
             return {'Success': result.ok, 'Message': result.message, 'Details': result.data}
@@ -127,15 +139,15 @@ class StationController:
         if frontend['type'] == 'desktop':
             executable = frontend.get('executable')
             if not executable or not Path(executable).is_file():
-                return {'Success': False, 'Message': 'Desktop executable not found'}
+                return {'Success': False, 'Message': 'Не найден файл программы: ' + str(executable or frontend['name'])}
             args = [executable] + frontend.get('launch_arguments', [])
         elif frontend['type'] == 'daemon':
             help_text = probe(adapter.command + ['serve', '--help'])
             if '--hostname' not in help_text:
-                return {'Success': False, 'Message': 'Installed daemon does not confirm loopback binding options'}
+                return {'Success': False, 'Message': 'Эта версия ' + frontend['name'] + ' не поддерживает запуск только на 127.0.0.1 (--hostname)'}
             port = adapter.settings.get('daemon_port', 4170)
             if type(port) is not int or not 1024 <= port <= 65535:
-                return {'Success': False, 'Message': 'Daemon port must be an integer from 1024 to 65535'}
+                return {'Success': False, 'Message': 'Порт фонового сервера должен быть целым числом от 1024 до 65535'}
             args = adapter.command + ['serve', '--hostname', '127.0.0.1', '--port', str(port)]
         elif frontend['type'] == 'gateway':
             args = adapter.command + ['gateway', 'run']
@@ -146,10 +158,10 @@ class StationController:
             # Invoke the native editor executable, never interpolate a shell command.
             executable = Path(launcher).parent.parent / 'Code.exe' if launcher else None
             if not executable or not executable.is_file():
-                return {'Success': False, 'Message': 'VS Code executable not found'}
+                return {'Success': False, 'Message': 'VS Code (Code.exe) не найден'}
             args = [str(executable), workspace]
         else:
-            return {'Success': False, 'Message': 'Unsupported frontend type'}
+            return {'Success': False, 'Message': 'Неподдерживаемый способ запуска: ' + str(frontend['type'])}
         environment = adapter.process_environment()
         environment['LOCAL_AGENT_STATION_API_KEY'] = 'local-station'
         locations = adapter.get_config_locations().data or {}
@@ -157,12 +169,12 @@ class StationController:
         if home_variable and locations.get('user'):
             environment[home_variable] = str(Path(locations['user']).parent)
         result = supervisor.start('frontend:' + id, args, cwd=workspace, visible=visible, env=environment)
-        return {'Success': result['running'], 'Message': 'Frontend process started', 'Details': result}
+        return {'Success': result['running'], 'Message': (frontend['name'] + f' запущен (PID {result["pid"]}), рабочая папка {workspace}') if result['running'] else (frontend['name'] + ' завершился сразу после запуска. Журнал: ' + str(supervisor.records.get('frontend:' + id, {}).get('log', ''))), 'Details': result}
 
     def stop_frontend(self, id):
         frontend = self.frontends.get(id)
         if not frontend:
-            return {'Success': False, 'Message': 'Unknown frontend'}
+            return {'Success': False, 'Message': f'Неизвестный способ запуска агента: {id}'}
         if frontend['type'] == 'terminal':
             result = self.adapters[frontend['runtime_id']].stop()
             return {'Success': result.ok, 'Message': result.message}
@@ -172,11 +184,11 @@ class StationController:
     def apply_preset(self, preset_id):
         preset = profile_storage.get_station_preset(preset_id)
         if not preset:
-            return {'Success': False, 'Message': 'Preset not found'}
+            return {'Success': False, 'Message': f'Пресет «{preset_id}» не найден'}
         if preset.primary_agent_runtime not in self.adapters:
-            return {'Success': False, 'Message': 'Preset runtime is unavailable'}
+            return {'Success': False, 'Message': f'Агент из пресета не найден: {preset.primary_agent_runtime}'}
         if preset.auto_start_agents and preset.preferred_frontend not in self.frontends:
-            return {'Success': False, 'Message': 'Preset frontend is unavailable'}
+            return {'Success': False, 'Message': f'Способ запуска агента из пресета недоступен: {preset.preferred_frontend}'}
         result = gpu_mode_manager.apply_preset(preset_id)
         if result.get('Success') and preset.auto_start_agents:
             result = self.launch_frontend(preset.preferred_frontend)

@@ -13,6 +13,7 @@ from .process_manager import pm
 from .supervisor import supervisor
 from .engines.llama_swap import LlamaSwapEngine
 from .model_backend import compile_swap, launch_signature
+from . import model_server
 
 class ProfileExecutionManager:
     def __init__(self):
@@ -57,17 +58,17 @@ class ProfileExecutionManager:
     def preview_gpu_plan(self, profile_id, topology=None):
         profile = profile_storage.get_gpu_profile(profile_id)
         if not profile:
-            raise ValueError('Hardware profile not found')
+            raise ValueError(f'GPU-профиль «{profile_id}» не найден')
         top = topology or self.get_current_topology()
         if top.discovery_error:
-            raise ValueError('Hardware discovery incomplete: ' + top.discovery_error)
+            raise ValueError('Опрос оборудования не завершён: ' + top.discovery_error)
         plan, warnings, changes = [], [], []
         included = {s.lower() for s in profile.included_devices}
         excluded = {s.lower() for s in profile.excluded_devices}
         rules = {r.gpu_stable_id.lower(): r for r in profile.rules}
         missing = set(rules) - {d.uuid.lower() for d in top.devices}
         if missing:
-            raise ValueError('Profile references missing GPU UUIDs: ' + ', '.join(sorted(missing)))
+            raise ValueError('В профиле указаны GPU, которых сейчас нет: ' + ', '.join(sorted(missing)))
         displays = [d for d in top.devices if d.display_active is True]
         graphics = {d.uuid for d in displays or top.devices[:1]}
         for d in top.devices:
@@ -85,7 +86,7 @@ class ProfileExecutionManager:
                 continue
             if d.vendor != 'NVIDIA':
                 if rule and target != d.driver_mode:
-                    raise ValueError(d.name + ': driver mode switching is unsupported')
+                    raise ValueError(d.name + ': переключение режима драйвера не поддерживается')
                 continue
             if d.driver_mode == target and d.pending_driver_mode in (target, 'UNKNOWN'):
                 continue
@@ -119,8 +120,10 @@ class ProfileExecutionManager:
                     return {'Success': False, 'Message': 'Finish and close active agent sessions before changing GPU drivers'}
                 if not gpu_service_client.is_service_running():
                     return {'Success': False, 'Message': 'Install LocalAgentGpuModeHelper in Settings first'}
-                if pm.is_llama_swap_running() and not pm.stop_llama_swap():
-                    return {'Success': False, 'Message': 'Backend is externally managed; stop it before changing GPU drivers'}
+                if pm.is_llama_swap_running():
+                    stopped = pm.stop_llama_swap()
+                    if not stopped['Success']:
+                        return {'Success': False, 'Message': stopped['Message'] + ' Затем повторите переключение GPU.'}
                 config.update({'active_model_profile': 'none', 'active_preset': None})
                 self.rollback_plan = [{'gpu_stable_id': p['gpu_stable_id'], 'target_mode': top.get_device_by_uuid(p['gpu_stable_id']).driver_mode} for p in plan]
                 self.state = 'SWITCHING'
@@ -132,11 +135,11 @@ class ProfileExecutionManager:
                     for entry in plan:
                         device = verified.get_device_by_uuid(entry['gpu_stable_id'])
                         if device is None or device.driver_mode != entry['target_mode'] or device.pending_driver_mode != entry['target_mode']:
-                            response = {'Success': False, 'Message': 'Driver switch failed independent verification'}
+                            response = {'Success': False, 'Message': 'Драйвер не подтвердил новый режим для ' + (device.name if device else entry['gpu_stable_id']) + f': ожидался {entry["target_mode"]}.'}
                             break
                 if response.get('Success'):
                     config.set('active_gpu_profile', gpu_profile_id)
-                    response['Message'] = 'GPU modes verified. AI remains stopped; select Start model when ready.'
+                    response['Message'] = 'Режимы GPU переключены и проверены: ' + ', '.join(f'GPU {c["index"]} → {c["target_mode"]}' for c in preview['Changes']) + '. Модель выгружена — загрузите её заново, когда будете готовы.'
                 self.log(response.get('Message', str(response)))
                 response['RollbackPlan'] = self.rollback_plan
                 return response
@@ -149,35 +152,36 @@ class ProfileExecutionManager:
         with self._lock:
             model = profile_storage.get_model_profile(model_profile_id)
             if not model:
-                return {'Success': False, 'Message': 'Model profile not found'}
+                return {'Success': False, 'Message': f'Профиль модели «{model_profile_id}» не найден'}
             if model.id == 'none':
                 active = self.get_active_model_profile()
                 if active and active.provider_type in ('openai_compatible', 'ollama'):
                     return {'Success': False, 'Message': 'Модель управляется внешним сервером. Выгрузите её средствами этого сервера.'}
                 if not pm.free_gpu():
-                    return {'Success': False, 'Message': 'Backend refused unload or is externally managed'}
+                    return {'Success': False, 'Message': 'Не удалось выгрузить модель: ' + pm.describe() + '. Если сервер запущен не Station, выгрузите модель в нём самом.'}
                 config.update({'active_model_profile': 'none', 'active_preset': None})
                 self.engine._active_model = None
-                return {'Success': True, 'Message': 'Model unloaded'}
+                return {'Success': True, 'Message': 'Модель выгружена, видеопамять освобождена.'}
             if model.provider_type in ('openai_compatible', 'ollama'):
                 try:
                     if not auto_start:
                         config.set('selected_model_profile', model.id)
-                        return {'Success': True, 'Message': 'External model selected'}
+                        return {'Success': True, 'Message': f'Выбрана внешняя модель «{model.name}» ({model.endpoint})'}
                     import requests
                     response = requests.post(model.endpoint.rstrip('/') + '/chat/completions',
                         json={'model': model.backend_model_id, 'messages': [{'role': 'user', 'content': 'Reply OK.'}],
                             'max_tokens': 16, 'chat_template_kwargs': {'enable_thinking': False}}, timeout=model.startup_timeout)
                     response.raise_for_status()
                     if not response.json().get('choices'):
-                        raise ValueError('External backend returned no choices')
+                        raise ValueError(f'Внешний сервер {model.endpoint} вернул пустой ответ')
                     config.set('active_model_profile', model.id)
-                    return {'Success': True, 'Message': 'External model answered a health request'}
+                    return {'Success': True, 'Message': f'Внешняя модель «{model.name}» отвечает: {model.endpoint}'}
                 except Exception as exc:
                     return {'Success': False, 'Message': str(exc)}
             top = self.get_current_topology()
             hw_profile = self.get_active_gpu_profile()
-            signature = launch_signature(model, hw_profile, config.get('llama_server_executable'), top)
+            server_exe = model_server.llama_server_executable()
+            signature = launch_signature(model, hw_profile, server_exe and str(server_exe), top)
             if auto_start and pm.is_llama_swap_running():
                 try:
                     rows = self.engine.request('/running').get('running', [])
@@ -186,7 +190,7 @@ class ProfileExecutionManager:
                             r['model'] == model.backend_model_id and r.get('state') == 'ready' for r in rows):
                         if self.engine.switch_model(model.backend_model_id, model.startup_timeout):
                             config.set('active_model_profile', model.id)
-                            return {'Success': True, 'Message': 'Loaded model answered a health request'}
+                            return {'Success': True, 'Message': f'Модель «{model.name}» уже загружена и отвечает: {model_server.api_url()}, id «{model.backend_model_id}»'}
                     if running:
                         # This preflight checks only whether unloading could help. Actual free
                         # memory is measured again after the owned backend releases its model.
@@ -196,9 +200,9 @@ class ProfileExecutionManager:
                         if not possible.can_run:
                             return {'Success': False, 'Message': possible.summary, 'Evaluation': possible.to_dict()}
                         if not supervisor.status('service:llama-swap')['owned']:
-                            return {'Success': False, 'Message': 'Current backend is externally managed; Station cannot unload it'}
+                            return {'Success': False, 'Message': pm.describe() + '. Этот сервер запущен не Station, поэтому Station не может сменить в нём модель.'}
                         if not pm.free_gpu():
-                            return {'Success': False, 'Message': 'Owned backend refused model unload'}
+                            return {'Success': False, 'Message': 'Сервер моделей не выгрузил текущую модель. ' + pm.describe()}
                         config.update({'active_model_profile': 'none', 'active_preset': None})
                         hardware.reinit()
                         top = topology_engine.discover_live(force=True)
@@ -209,12 +213,16 @@ class ProfileExecutionManager:
                 return {'Success': False, 'Message': evaluation.summary, 'Evaluation': evaluation.to_dict()}
             if not auto_start:
                 config.set('selected_model_profile', model.id)
-                return {'Success': True, 'Message': 'Model selected; backend has not been started'}
+                return {'Success': True, 'Message': f'Модель «{model.name}» выбрана; сервер моделей не запускался'}
             try:
-                path, changed, _ = compile_swap(list(profile_storage.model_profiles.values()), top, hw_profile, config.get('llama_server_executable'))
-                if changed and pm.is_llama_swap_running():
-                    if not pm.stop_llama_swap():
-                        raise RuntimeError('Backend configuration changed, but the external process cannot be restarted')
+                path, changed, _ = self._compile(top, hw_profile)
+                info = pm.backend_info() if pm.is_llama_swap_running() else None
+                needs_restart = info is not None and (changed or info['stale_config'] or
+                    (info['owned'] and info['listen'] != model_server.listen_address()))
+                if needs_restart:
+                    stopped = pm.stop_llama_swap()
+                    if not stopped['Success']:
+                        raise RuntimeError('Список моделей изменился, но сервер нельзя перезапустить. ' + stopped['Message'])
                     self.engine._active_model = None
                     config.update({'active_model_profile': 'none', 'active_preset': None})
                     hardware.reinit()
@@ -222,23 +230,58 @@ class ProfileExecutionManager:
                     evaluation = compatibility_evaluator.evaluate(model, top, hw_profile)
                     if not evaluation.can_run:
                         raise RuntimeError(evaluation.summary)
-                    path, _, _ = compile_swap(list(profile_storage.model_profiles.values()), top, hw_profile, config.get('llama_server_executable'))
+                    path, _, _ = self._compile(top, hw_profile)
                 if not pm.is_llama_swap_running():
-                    if not pm.start_llama_swap(path):
-                        raise RuntimeError('llama-swap failed to start. Check configured paths and service logs.')
+                    started = pm.start_llama_swap(path)
+                    if not started['Success']:
+                        raise RuntimeError(started['Message'])
                 if not self.engine.switch_model(model.backend_model_id, model.startup_timeout):
                     config.update({'active_model_profile': 'none', 'active_preset': None})
-                    raise RuntimeError(self.engine.last_error or 'Model health request failed')
+                    raise RuntimeError(f'Модель «{model.name}» не ответила за {model.startup_timeout} с: '
+                        f'{self.engine.last_error or "пустой ответ"}. Журнал сервера: {pm.backend_info().get("log") or "нет"}')
                 config.update({'active_model_profile': model.id, 'selected_model_profile': model.id,
                     'active_model_signature': signature, 'active_preset': None})
-                return {'Success': True, 'Message': 'Model answered a real health request', 'Evaluation': evaluation.to_dict()}
+                gpus = ', '.join(f'GPU {g.index}' for g in evaluation.assigned_gpus) or 'CPU'
+                return {'Success': True, 'Message': f'Модель «{model.name}» загружена ({gpus}) и ответила. '
+                    f'Адрес для агентов: {model_server.api_url()}, id «{model.backend_model_id}»', 'Evaluation': evaluation.to_dict()}
             except Exception as exc:
                 return {'Success': False, 'Message': str(exc)}
+    def _compile(self, topology, hw_profile):
+        server_exe = model_server.llama_server_executable()
+        if not server_exe or not model_server.swap_executable():
+            raise RuntimeError(model_server.describe_missing_runtime())
+        return compile_swap(list(profile_storage.model_profiles.values()), topology, hw_profile, str(server_exe))
+    def start_backend(self):
+        """Start the model server without loading a model, using the generated configuration."""
+        with self._lock:
+            try:
+                top = self.get_current_topology()
+                path, changed, skipped = self._compile(top, self.get_active_gpu_profile())
+                info = pm.backend_info() if pm.is_llama_swap_running() else None
+                if info and info['owned'] and (changed or info['stale_config'] or info['listen'] != model_server.listen_address()):
+                    stopped = pm.stop_llama_swap()
+                    if not stopped['Success']:
+                        return stopped
+                    self.engine._active_model = None
+                    config.update({'active_model_profile': 'none', 'active_preset': None})
+                result = pm.start_llama_swap(path)
+                if result['Success'] and skipped:
+                    result['Message'] += ' Не вошли в конфигурацию: ' + '; '.join(f'{k} — {v}' for k, v in skipped.items())
+                return result
+            except Exception as exc:
+                return {'Success': False, 'Message': str(exc)}
+    def stop_backend(self):
+        with self._lock:
+            result = pm.stop_llama_swap()
+            if result['Success']:
+                self.engine._active_model = None
+                config.update({'active_model_profile': 'none', 'active_preset': None})
+            return result
     def apply_preset(self, preset_id):
         with self._lock:
             p = profile_storage.get_station_preset(preset_id)
             if not p or not profile_storage.get_gpu_profile(p.gpu_profile_id) or not profile_storage.get_model_profile(p.model_profile_id):
-                return {'Success': False, 'Message': 'Preset has missing profile references'}
+                return {'Success': False, 'Message': 'В пресете указан отсутствующий GPU-профиль или профиль модели'}
             result = self.apply_gpu_profile_only(p.gpu_profile_id, True)
             if not result.get('Success'):
                 return result

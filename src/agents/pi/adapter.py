@@ -21,20 +21,20 @@ class PiAdapter(AgentRuntimeAdapter):
     def detect(self):
         self.command, self.package = npm_installation('pi',
             ('@earendil-works/pi-coding-agent', '@mariozechner/pi-coding-agent'), self.settings)
-        self.frontends = [{'id': 'pi-terminal', 'runtime_id': self.id, 'name': 'Pi Coding Agent Terminal',
+        self.frontends = [{'id': 'pi-terminal', 'runtime_id': self.id, 'name': 'Pi Coding Agent — терминал',
             'type': 'terminal', 'optional': True, 'status': 'NOT INSTALLED'}]
         if not self.command:
-            return unsupported('Pi Coding Agent is optional and is not installed')
+            return unsupported('Pi Coding Agent не установлен (необязательный агент). Чтобы использовать его, установите Pi и нажмите «Найти агенты заново».')
         try:
             self.version = probe(self.command + ['--version'], env=self.process_environment())
             self.help_text = probe(self.command + ['--help'], env=self.process_environment())
             if not all(flag in self.help_text for flag in ('--provider', '--model')):
-                raise ValueError('Installed Pi CLI does not confirm model selection flags')
+                raise ValueError('Эта версия Pi Coding Agent не поддерживает выбор модели при запуске (--provider, --model). Обновите Pi.')
             self.frontends[0]['status'] = 'INSTALLED'
-            return Result(Support.SUPPORTED, 'Pi CLI detected', {'version': self.version})
+            return Result(Support.SUPPORTED, 'Pi Coding Agent найден', {'version': self.version})
         except Exception as exc:
             self.frontends[0]['status'] = 'UNSUPPORTED BY INSTALLED VERSION'
-            return Result(Support.DEGRADED, str(exc))
+            return Result(Support.DEGRADED, 'Pi Coding Agent найден, но проверка не пройдена: ' + str(exc))
 
     def get_config_locations(self, workspace=None):
         home = Path(self.settings.get('home') or os.environ.get('PI_CODING_AGENT_DIR', Path.home() / '.pi/agent')).expanduser()
@@ -49,13 +49,13 @@ class PiAdapter(AgentRuntimeAdapter):
 
     def configure_model_provider(self, models):
         if not self.get_capabilities().data['provider_sync']:
-            return unsupported('Install Pi and run runtime discovery before synchronizing')
+            return unsupported('Pi Coding Agent не найден или не поддерживает выбор модели. Установите или обновите Pi и нажмите «Найти агенты заново».')
         changes = [(['providers', provider_id(m)], provider_record(m)) for m in enabled_models(models)]
         return Result(Support.SUPPORTED, data=preview_merge(self.get_config_locations().data['user'], changes))
 
     def configure_model_binding(self, model):
         if not self.get_capabilities().data['provider_sync']:
-            return unsupported('Pi model selection is unavailable')
+            return unsupported('Выбор модели для Pi Coding Agent недоступен. Установите или обновите Pi и нажмите «Найти агенты заново».')
         return Result(Support.SUPPORTED, data=preview_merge(self.get_config_locations().data['settings'], [
             (['defaultProvider'], provider_id(model)), (['defaultModel'], model.backend_model_id)]))
 
@@ -70,21 +70,22 @@ class PiAdapter(AgentRuntimeAdapter):
             providers = self.list_model_bindings().data
             provider = providers.get(settings.get('defaultProvider'), {})
             if settings.get('defaultModel') not in [m['id'] for m in provider.get('models', [])]:
-                raise ValueError('Selected Pi model is missing from the Station provider catalog')
-            return Result(Support.SUPPORTED, 'Pi model binding is valid')
+                raise ValueError('Модель, выбранная в Pi (' + locations['settings'] + '), отсутствует в списке моделей Station (' +
+                    locations['user'] + '). Нажмите «Синхронизировать с агентами».')
+            return Result(Support.SUPPORTED, 'Настройки модели в Pi Coding Agent в порядке')
         except Exception as exc:
             return Result(Support.ERROR, str(exc))
 
     def start(self, workspace=None, model=None):
         if not self.command:
-            return unsupported('Pi Coding Agent is not installed')
+            return unsupported('Pi Coding Agent не установлен. Установите его и нажмите «Найти агенты заново».')
         args = list(self.command)
         if model:
             if not all(flag in self.help_text for flag in ('--provider', '--model')):
-                return unsupported('Pi model selection flags unavailable')
+                return unsupported('Эта версия Pi Coding Agent не поддерживает выбор модели при запуске (--provider, --model). Обновите Pi.')
             args += ['--provider', provider_id(model), '--model', model.backend_model_id]
         try:
-            return Result(Support.SUPPORTED, 'Pi terminal started', supervisor.start('agent:' + self.id,
+            return Result(Support.SUPPORTED, 'Терминал Pi Coding Agent открыт', supervisor.start('agent:' + self.id,
                 args, cwd=workspace, env=self.process_environment(), visible=True))
         except Exception as exc:
             return Result(Support.ERROR, str(exc))
@@ -93,7 +94,7 @@ class PiAdapter(AgentRuntimeAdapter):
         flags = ('--print', '--mode', '--no-tools', '--no-extensions', '--no-skills',
                  '--no-prompt-templates', '--no-themes', '--no-session', '--system-prompt')
         if not self.command or not all(flag in self.help_text for flag in flags):
-            return unsupported('Installed Pi lacks the isolated headless smoke flags')
+            return unsupported('Проверка Pi Coding Agent через модель недоступна: Pi не установлен или его версия не поддерживает изолированный режим проверки. Обновите Pi.')
         try:
             with tempfile.TemporaryDirectory(prefix='pi-smoke-', dir=workspace) as temporary:
                 home = Path(temporary)
@@ -108,7 +109,7 @@ class PiAdapter(AgentRuntimeAdapter):
                     settings = {'defaultProvider': selected, 'defaultModel': model.backend_model_id}
                     providers = {selected: provider_record(model)}
                 if selected != provider_id(model) or settings.get('defaultModel') != model.backend_model_id or not providers.get(selected):
-                    return Result(Support.ERROR, 'Pi saved binding does not match the selected Station model')
+                    return Result(Support.ERROR, 'Сохранённые настройки Pi не указывают на выбранную модель Station. Нажмите «Синхронизировать с агентами».')
                 atomic_write(home / 'models.json', {'providers': providers})
                 atomic_write(home / 'settings.json', settings)
                 args = self.command + ['--print', '--mode', 'json', '--no-tools', '--no-extensions', '--no-skills',
@@ -125,7 +126,8 @@ class PiAdapter(AgentRuntimeAdapter):
                     m.get('stopReason') not in ('error', 'aborted', 'toolUse') for m in answers) and \
                     ''.join(c.get('text', '') for c in answers[-1].get('content', []) if c.get('type') == 'text').strip() == 'STATION_OK'
                 return Result(Support.SUPPORTED if passed else Support.ERROR,
-                    'Pi headless smoke passed' if passed else 'Pi headless smoke failed',
+                    'Проверка Pi Coding Agent через модель пройдена' if passed else
+                    f'Проверка Pi Coding Agent через модель не пройдена (код выхода {p.returncode}). Убедитесь, что модель запущена, и посмотрите вывод проверки.',
                     {'exit_code': p.returncode, 'output': p.stdout[-3000:], 'stderr': p.stderr[-1500:]})
         except Exception as exc:
             return Result(Support.ERROR, str(exc))

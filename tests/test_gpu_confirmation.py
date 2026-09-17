@@ -42,7 +42,7 @@ class Harness(GpuControls):
         self._refresh_tray = Mock()
         self.state = lambda: 'withdrawn'
 
-    def worker(self, action, callback):
+    def worker(self, action, callback, label=None):
         callback(action())
 
 

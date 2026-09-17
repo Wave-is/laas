@@ -60,7 +60,7 @@ def test_npm_shim_resolves_actual_package_entrypoint(tmp_path, monkeypatch, pack
 def test_explicit_npm_package_cannot_be_replaced_by_path_runtime(tmp_path, monkeypatch):
     import src.agents.discovery as module
     monkeypatch.setattr(module.shutil, 'which', lambda name: 'unrelated.exe')
-    with pytest.raises(ValueError, match='was not found'):
+    with pytest.raises(ValueError, match='не найден по указанному пути'):
         module.npm_installation('pi', ('@earendil-works/pi-coding-agent',), {'package_root': str(tmp_path)})
 
 
@@ -69,7 +69,7 @@ def test_npm_entrypoint_cannot_escape_package(tmp_path):
     root = tmp_path / 'package'; root.mkdir()
     (tmp_path / 'outside.js').write_text('test')
     atomic_write(root / 'package.json', {'name': 'openclaw', 'bin': {'openclaw': '../outside.js'}})
-    with pytest.raises(ValueError, match='entrypoint'):
+    with pytest.raises(ValueError, match='вне папки пакета'):
         npm_installation('openclaw', ('openclaw',), {'package_root': str(root), 'node': 'node.exe'})
 
 

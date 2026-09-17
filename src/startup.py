@@ -76,10 +76,10 @@ class StartupRunner:
                         # Auto-start uses a previously reviewed binding; never silently rewrites it.
                         model = self.profiles.model_profiles.get(settings['model_id'])
                         adapter = self.controller.adapters[frontend['runtime_id']]
-                        if model and model.id != 'none' and adapter.manifest.get('provider_sync', True):
-                            preview = self.controller.preview_sync(adapter.id, model)
-                            if preview.status != 'IN SYNC':
-                                raise ValueError('Сначала запустите агент вручную и подтвердите подключение модели.')
+                        if self.controller.model_binding_state(adapter.id, model) == 'NEEDS_REVIEW':
+                            raise ValueError(f'{frontend["name"]} ещё не настроен на модель «{model.name}». '
+                                'Один раз нажмите «Открыть» на странице «Станция» и подтвердите изменения — '
+                                'после этого автозапуск будет работать.')
                     result = self.controller.launch_frontend(id, remember=False)
                 if not isinstance(result, dict):
                     raise ValueError('Компонент не вернул результат запуска.')
@@ -90,5 +90,5 @@ class StartupRunner:
                 break
         failed = [row for row in results if not row.get('Success')]
         message = ('Автозапуск: ' + failed[0]['name'] + ' — ' + failed[0].get('Message', 'Ошибка') if failed else
-                   f'Автозапуск завершён: {len(results)} компонентов.' if results else 'Автозапуск компонентов выключен.')
+                   'Автозапуск завершён: ' + ', '.join(row['name'] for row in results) + '.' if results else 'Автозапуск компонентов выключен.')
         return {'Success': not failed, 'Message': message, 'Steps': results}

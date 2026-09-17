@@ -3,7 +3,8 @@ import math
 import re
 from .profiles_schema import ModelProfile, GpuHardwareProfile, StationPreset, GpuSelectionPolicy
 
-def validate_registry(filename, rows):
+def validate_registry(filename, rows, *, strict=True, unknown_fields=None):
+    """strict=False keeps unrecognised fields (reported via unknown_fields) instead of failing."""
     if not isinstance(rows, list):
         raise ValueError('Registry must be a list')
     ids = set()
@@ -17,8 +18,10 @@ def validate_registry(filename, rows):
                'station_presets.yaml': StationPreset}.get(filename)
         if cls:
             unknown = set(row) - set(cls.__dataclass_fields__)
-            if unknown:
-                raise ValueError('Unknown fields: ' + ', '.join(sorted(unknown)))
+            if unknown and strict:
+                raise ValueError(f'Профиль «{row["id"]}»: неизвестные поля ' + ', '.join(sorted(unknown)))
+            if unknown and unknown_fields is not None:
+                unknown_fields[row['id']] = sorted(unknown)
             cls.from_dict(row)
         if filename == 'model_profiles.yaml':
             if row.get('gpu_selection_policy', 'all_compute_gpus') not in {p.value for p in GpuSelectionPolicy}:

@@ -16,9 +16,12 @@ AppUpdatesURL=https://github.com/Wave-is/laas/releases
 VersionInfoVersion={#WindowsVersion}
 VersionInfoProductVersion={#WindowsVersion}
 VersionInfoProductTextVersion={#AppVersion}
-DefaultDirName={localappdata}\Programs\Local Agent AI Station
+DefaultDirName={autopf}\Local Agent AI Station
 DefaultGroupName=Local Agent AI Station
-PrivilegesRequired=lowest
+; Program Files by default; "only for me" remains available in the dialog and via /CURRENTUSER.
+PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog commandline
+UsedUserAreasWarning=no
 ArchitecturesAllowed=x64os
 ArchitecturesInstallIn64BitMode=x64os
 MinVersion=10.0
@@ -67,6 +70,43 @@ Name: "{autodesktop}\Local Agent AI Station"; Filename: "{app}\LocalAgentAIStati
 Filename: "{app}\LocalAgentAIStation.exe"; Description: "{cm:LaunchProgram,Local Agent AI Station}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+const
+  UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{95B6AE4D-9C5A-4A23-BD31-B076AF7D2358}_is1';
+
+var
+  StartupLinkExisted: Boolean;
+
+function StartupLinkPath(): String;
+begin
+  Result := ExpandConstant('{userstartup}\Local Agent AI Station.lnk');
+end;
+
+// Earlier versions installed per user into %LOCALAPPDATA%\Programs. When installing for all users,
+// remove that copy first (user data in %LOCALAPPDATA%\LocalAgentAIStation is never touched).
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Uninstaller: String;
+  Code: Integer;
+begin
+  Result := '';
+  StartupLinkExisted := FileExists(StartupLinkPath());
+  if IsAdminInstallMode and RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', Uninstaller) then begin
+    Uninstaller := RemoveQuotes(Uninstaller);
+    Log('Removing previous per-user installation: ' + Uninstaller);
+    if not Exec(Uninstaller, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then
+      Result := 'Could not remove the previous per-user installation (%LOCALAPPDATA%\Programs). Uninstall it in Windows Settings > Apps and retry.';
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  // Keep "start with Windows" when the old per-user uninstaller removed its shortcut.
+  if (CurStep = ssPostInstall) and StartupLinkExisted and not FileExists(StartupLinkPath()) then
+    CreateShellLink(StartupLinkPath(), 'Local Agent AI Station '#$2014' Windows startup', ExpandConstant('{app}\LocalAgentAIStation.exe'),
+      '--data-dir "' + ExpandConstant('{localappdata}\LocalAgentAIStation') + '" --startup',
+      ExpandConstant('{app}'), ExpandConstant('{app}\LocalAgentAIStation.exe'), 0, SW_SHOWNORMAL);
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   LinkPath: String;

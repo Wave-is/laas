@@ -1,5 +1,6 @@
 """Own process identities, never stop processes merely because their names match."""
 import hashlib
+import re
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,11 @@ import psutil
 from .paths import data_dir
 from .storage import atomic_write, read_document
 from .hardware import hidden_options
+
+def log_name(key):
+    """Readable log file name for a process key, e.g. service:llama-swap -> service-llama-swap."""
+    name = re.sub(r'[^A-Za-z0-9._-]+', '-', key).strip('.-')[:80]
+    return name or hashlib.sha256(key.encode()).hexdigest()[:12]
 
 class ProcessSupervisor:
     def __init__(self, directory=None):
@@ -40,15 +46,15 @@ class ProcessSupervisor:
 
     def start(self, key, argv, *, cwd=None, env=None, visible=False):
         if not argv or not isinstance(argv, list) or not all(isinstance(a, str) and '\0' not in a for a in argv):
-            raise ValueError('Expected executable and a list of arguments')
+            raise ValueError('Не указана программа для запуска или её параметры заданы неверно. Проверьте путь и параметры в настройках.')
         if Path(argv[0]).suffix.lower() in ('.bat', '.cmd', '.ps1'):
-            raise ValueError('Use the runtime executable directly, not a shell script')
+            raise ValueError('Укажите .exe-файл, а не .bat/.cmd/.ps1: ' + argv[0])
         with self._lock:
             if self.owned_process(key):
                 return self.status(key)
             logs = self.directory / 'logs'
             logs.mkdir(parents=True, exist_ok=True)
-            logfile = logs / (hashlib.sha256(key.encode()).hexdigest()[:12] + '.log')
+            logfile = logs / (log_name(key) + '.log')
             kwargs = hidden_options()
             if visible and os.name == 'nt':
                 kwargs = {'creationflags': subprocess.CREATE_NEW_CONSOLE}
@@ -76,7 +82,7 @@ class ProcessSupervisor:
         with self._lock:
             root = self.owned_process(key)
             if not root:
-                return {'success': True, 'message': 'No owned process is running'}
+                return {'success': True, 'message': 'Процесс не запущен из Station'}
             try:
                 tree = [root] + root.children(recursive=True)
                 for process in reversed(tree):
@@ -89,13 +95,15 @@ class ProcessSupervisor:
                     process.kill()  # psutil verifies process identity to reject PID reuse.
                 _, alive = psutil.wait_procs(alive, timeout=3)
                 if alive:
-                    return {'success': False, 'message': 'Owned processes did not stop'}
+                    return {'success': False, 'message': f'Процесс (PID {root.pid}) или его дочерние процессы не остановились. '
+                        'Закройте их вручную в Диспетчере задач.'}
             except psutil.AccessDenied:
-                return {'success': False, 'message': 'Access denied stopping owned process'}
+                return {'success': False, 'message': f'Нет прав на остановку процесса (PID {root.pid}). '
+                    'Закройте его вручную или запустите Station от имени администратора.'}
             self.records.pop(key, None)
             self._children.pop(key, None)
             self._save()
-            return {'success': True, 'message': 'Owned process stopped'}
+            return {'success': True, 'message': f'Процесс остановлен (PID {root.pid})'}
 
     def tail(self, key, limit=16000):
         path = self.records.get(key, {}).get('log')

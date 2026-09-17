@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Any
 from .profiles_schema import CompatibilityStatus as Status
 from .hardware_topology import GpuDeviceInfo
+from .model_server import resolve_model_file
 
 @dataclass
 class CompatibilityResult:
@@ -25,7 +26,7 @@ class CompatibilityEvaluator:
         def result():
             status = Status.INCOMPATIBLE if errors else Status.UNKNOWN if unknown else Status.COMPATIBLE_WITH_WARNING if warnings else Status.COMPATIBLE
             reasons = errors or unknown or ['Проверенные требования профиля удовлетворены.']
-            return CompatibilityResult(status, not errors and not unknown, reasons[0], reasons, warnings, assigned, transport)
+            return CompatibilityResult(status, not errors and not unknown, ' '.join(reasons[:3]) + (f' (и ещё {len(reasons) - 3})' if len(reasons) > 3 else ''), reasons, warnings, assigned, transport)
         transport = 'None'
         if model.id == 'none':
             return CompatibilityResult(Status.COMPATIBLE, True, 'Модель не выбрана', [], [], [])
@@ -36,12 +37,14 @@ class CompatibilityEvaluator:
                 errors.append('Endpoint модели не задан.')
             transport = 'HTTP'
             return result()
+        weights = resolve_model_file(model.weights_path)
+        mmproj = resolve_model_file(model.mmproj_path)
         if not model.weights_path:
             errors.append('Путь к файлу весов не задан.')
-        elif not topology.is_simulated and not Path(model.weights_path).is_file():
-            errors.append('Файл весов модели не найден: ' + model.weights_path)
-        if model.vision and (not model.mmproj_path or (not topology.is_simulated and not Path(model.mmproj_path).is_file())):
-            errors.append('Для заявленного Vision требуется существующий mmproj.')
+        elif not topology.is_simulated and not Path(weights).is_file():
+            errors.append('Файл весов модели не найден: ' + weights)
+        if model.vision and (not model.mmproj_path or (not topology.is_simulated and not Path(mmproj).is_file())):
+            errors.append('Для работы с изображениями нужен файл mmproj, но он не найден: ' + str(mmproj or 'путь не задан'))
         if model.allowed_hardware_profiles and (not gpu_profile or gpu_profile.id not in model.allowed_hardware_profiles):
             errors.append('Выбранный аппаратный профиль не разрешён для этой модели.')
         if topology.discovery_error:
@@ -57,9 +60,9 @@ class CompatibilityEvaluator:
             errors.append(f'Превышено разрешённое количество GPU: максимум {model.max_gpu_count}.')
         if model.backend == 'cpu' or (not assigned and model.cpu_offload and model.min_gpu_count == 0):
             transport = 'CPU'
-            if model.weights_path and Path(model.weights_path).is_file():
+            if weights and Path(weights).is_file():
                 import psutil
-                if Path(model.weights_path).stat().st_size > psutil.virtual_memory().available:
+                if Path(weights).stat().st_size > psutil.virtual_memory().available:
                     errors.append('Недостаточно свободной RAM даже для весов модели.')
             warnings.append('CPU inference: требуется квалификация RAM с учётом KV-кэша и контекста.')
             return result()
@@ -75,8 +78,8 @@ class CompatibilityEvaluator:
         if assigned and all(g.vram_free_mib is not None for g in assigned):
             if sum(g.vram_free_mib for g in assigned) < model.min_total_vram_mib and not model.cpu_offload:
                 errors.append('Недостаточно суммарной свободной VRAM для профиля.')
-            if not topology.is_simulated and Path(model.weights_path).is_file() and not model.cpu_offload:
-                weight_mib = Path(model.weights_path).stat().st_size / 1048576
+            if not topology.is_simulated and Path(weights).is_file() and not model.cpu_offload:
+                weight_mib = Path(weights).stat().st_size / 1048576
                 if sum(g.vram_free_mib for g in assigned) < weight_mib:
                     errors.append('Свободной VRAM недостаточно даже для файла весов; KV-кэш требует дополнительной памяти.')
                 if model.min_total_vram_mib < weight_mib:

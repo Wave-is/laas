@@ -54,7 +54,7 @@ class StartupControls:
         self.startup_delay.insert(0, str(settings['delay_seconds']))
         self.startup_delay.pack(side='left', pady=10)
         self.controls.append(self.startup_delay)
-        ctk.CTkLabel(card, text='Модель', anchor='w', text_color=MUTED).pack(fill='x', padx=20)
+        ctk.CTkLabel(card, text='Модель (при загрузке автоматически запустится сервер моделей llama-swap)', anchor='w', text_color=MUTED).pack(fill='x', padx=20)
         self.startup_model = self.combo(self.row(card), list(profile_storage.model_profiles), settings['model_id'], width=560)
         ctk.CTkLabel(card, text='Агенты и интерфейсы', anchor='w', text_color=MUTED).pack(fill='x', padx=20)
         self.startup_agents_area = self.row(card)
@@ -62,13 +62,13 @@ class StartupControls:
         self.startup_services_area = self.row(card)
         self.startup_frontend_vars, self.startup_service_vars = {}, {}
         self._refresh_startup_choices(initial=settings)
-        ctk.CTkLabel(card, text='Порядок: локальные службы → готовность модели → агенты. Режимы GPU сохраняются.\n'
+        ctk.CTkLabel(card, text='Порядок: локальные службы → сервер моделей и модель → агенты. Режимы GPU не меняются.\n'
             'Удалённые сервисы уже работают отдельно; их автопроверки настраиваются в «Службах».\n'
-            'Для новой привязки модели сначала запустите агент вручную и подтвердите его настройки.',
+            'Если агент ещё не настроен на выбранную модель, один раз запустите его вручную и подтвердите изменения.',
             text_color=MUTED, wraplength=770, justify='left', anchor='w').pack(fill='x', padx=20, pady=(12, 0))
         row = self.row(card)
         self.button(row, 'Сохранить запуск', self._save_startup_settings, True, width=180)
-        self.button(row, 'Результат запуска', self._show_startup_result, width=180)
+        self.button(row, 'Отчёт последнего автозапуска', self._show_startup_result, width=240)
         self.startup_summary = ctk.CTkLabel(card, text='Изменения компонентов применяются при следующем запуске Station.',
             text_color=MUTED, wraplength=770, justify='left', anchor='w')
         self.startup_summary.pack(fill='x', padx=20, pady=(0, 14))
@@ -147,7 +147,7 @@ class StartupControls:
                 raise ValueError('Выберите хотя бы один компонент или выключите автоматический запуск компонентов.')
             config.set('startup', settings)
             self.startup_summary.configure(text='Сохранено. При следующем запуске: ' +
-                (f'{len(startup_steps(settings))} компонентов, задержка {settings["delay_seconds"]} с.' if settings['enabled'] else 'компоненты не запускаются.'))
+                (f'компонентов: {len(startup_steps(settings))}, задержка {settings["delay_seconds"]} с.' if settings['enabled'] else 'компоненты не запускаются.'))
         except Exception as exc:
             messagebox.showerror(APP_NAME, str(exc), parent=self)
 
@@ -171,7 +171,7 @@ class StartupControls:
             else:
                 self.startup_pending = False
                 self.worker(lambda: self.startup_runner.run(settings, self.startup_cancel,
-                    lambda message: self.events.put(('startup_progress', message, None))), self._startup_done)
+                    lambda message: self.events.put(('startup_progress', message, None))), self._startup_done, label='Автозапуск компонентов')
         tick(settings['delay_seconds'])
 
     def _cancel_startup(self):
@@ -185,7 +185,7 @@ class StartupControls:
     def _startup_done(self, result):
         self.startup_banner.grid_remove()
         self.startup_summary.configure(text=result['Message'])
-        self.status_label.configure(text=result['Message'][:150], text_color=ACCENT if result['Success'] else '#f8ad88')
+        self.status_label.configure(text=result['Message'][:400], text_color=ACCENT if result['Success'] else '#f8ad88')
         try:
             atomic_write(data_dir() / 'logs/startup-last.json', result, backup=False)
         except Exception:

@@ -59,7 +59,7 @@ class GpuConfirmDialog(ctk.CTkToplevel):
                 text_color='#f8bd80', anchor='w').pack(fill='x', padx=14, pady=(14, 4))
             ctk.CTkLabel(body, text=TCC_WARNING, font=('Segoe UI', 14), justify='left',
                 text_color='#f8bd80', anchor='w', wraplength=570).pack(fill='x', padx=14, pady=(0, 10))
-        notes = ['Перед переключением завершите задачи агентов. Station остановит свой сервер моделей. '
+        notes = ['Перед переключением завершите задачи агентов. Station выгрузит модель и остановит сервер моделей llama-swap, если запускала его сама. '
                  'Если драйвер потребует перезагрузку, приложение сообщит об этом.']
         notes.extend(preview.get('Warnings', []))
         ctk.CTkLabel(body, text='\n\n'.join(notes), font=('Segoe UI', 13), justify='left',
@@ -67,7 +67,7 @@ class GpuConfirmDialog(ctk.CTkToplevel):
         self.dont_show = tk.BooleanVar(self, value=False)
         ctk.CTkCheckBox(self, text='Больше не показывать', variable=self.dont_show,
             font=('Segoe UI', 14)).grid(row=3, column=0, sticky='w', padx=24, pady=(18, 6))
-        ctk.CTkLabel(self, text='Вернуть подтверждение: Настройки → Управление режимами GPU',
+        ctk.CTkLabel(self, text='Вернуть это окно: Настройки → Управление режимами GPU → «Снова спрашивать перед переключением»',
             text_color='#91a2b4', font=('Segoe UI', 12), anchor='w').grid(
                 row=4, column=0, sticky='ew', padx=24, pady=(0, 12))
         row = ctk.CTkFrame(self, fg_color='transparent')
@@ -122,11 +122,11 @@ class GpuControls:
 
     def _apply_gpu_plan(self, preview, suppress=False):
         if self.busy:
-            raise RuntimeError('Дождитесь завершения текущего действия.')
+            raise RuntimeError(f'Дождитесь завершения: {self.busy_label}.')
         if suppress:
             config.set('suppress_gpu_switch_warning', True)
         self.worker(lambda: gpu_mode_manager.apply_gpu_profile_only(
-            preview['Profile'], expected_plan=preview['Plan']), self._gpu_completed)
+            preview['Profile'], expected_plan=preview['Plan']), self._gpu_completed, label='Переключение режимов GPU')
 
     def _gpu_completed(self, result):
         from .control_center import result_message
@@ -134,7 +134,7 @@ class GpuControls:
         warnings = result.get('Warnings', [])
         if warnings:
             message += '. ' + '; '.join(warnings)
-        self.status_label.configure(text=message[:150],
+        self.status_label.configure(text=message[:400],
             text_color='#56d6b1' if result.get('Success') and not warnings else '#f8bd80')
         self.gpu_combo.set(config.get('active_gpu_profile'))
         self._refresh_tray(rebuild=True)

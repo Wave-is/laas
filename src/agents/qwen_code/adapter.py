@@ -36,19 +36,19 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
                             self.schema_confirmed = True
                             break
             except Exception as exc:
-                return Result(Support.DEGRADED, str(exc), {'installed': True})
+                return Result(Support.DEGRADED, 'Qwen Code найден, но не отвечает на проверку версии: ' + str(exc), {'installed': True})
         serve = bool(re.search(r'^\s*qwen serve\s', self.help_text, re.M))
         self.frontends.extend([
-            {'id': 'qwen-terminal', 'runtime_id': self.id, 'name': 'Qwen Code Terminal', 'type': 'terminal',
+            {'id': 'qwen-terminal', 'runtime_id': self.id, 'name': 'Qwen Code — терминал', 'type': 'terminal',
              'status': 'INSTALLED' if self.command else 'NOT INSTALLED', 'optional': False},
-            {'id': 'qwen-daemon', 'runtime_id': self.id, 'name': 'Qwen Code Daemon', 'type': 'daemon',
+            {'id': 'qwen-daemon', 'runtime_id': self.id, 'name': 'Qwen Code — фоновый сервер (serve)', 'type': 'daemon',
              'status': 'SUPPORTED (experimental)' if serve else 'UNSUPPORTED BY INSTALLED VERSION', 'optional': True},
         ])
         extensions = list((Path.home() / '.vscode/extensions').glob('*qwen*'))
-        self.frontends.append({'id': 'qwen-vscode', 'runtime_id': self.id, 'name': 'Qwen Code VS Code',
+        self.frontends.append({'id': 'qwen-vscode', 'runtime_id': self.id, 'name': 'Qwen Code — VS Code',
             'type': 'vscode', 'status': 'INSTALLED' if extensions else 'NOT INSTALLED', 'optional': True})
         return Result(Support.SUPPORTED if self.command else Support.UNSUPPORTED,
-            'Qwen CLI detected' if self.command else 'Qwen CLI is not installed',
+            'Qwen Code найден' if self.command else 'Qwen Code не установлен. Установите его и нажмите «Найти агенты заново».',
             {'installed': bool(self.command), 'version': self.version, 'frontends': self.frontends,
              'provider_schema_confirmed': self.schema_confirmed})
 
@@ -67,7 +67,7 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
 
     def configure_model_provider(self, models):
         if not self.schema_confirmed:
-            return unsupported('Installed settings schema was not confirmed; automatic provider edits disabled')
+            return unsupported('Формат настроек этой версии Qwen Code не распознан — автоматическая настройка модели отключена.')
         entries = []
         for model in models:
             if model.id == 'none' or model.status == 'disabled':
@@ -86,10 +86,23 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
 
     def configure_model_binding(self, model):
         if not self.schema_confirmed:
-            return unsupported('Installed configuration schema is unknown')
+            return unsupported('Формат настроек этой версии Qwen Code не распознан — автоматическая настройка модели отключена.')
         return Result(Support.SUPPORTED, data=preview_merge(self.get_config_locations().data['user'], [
             (['model', 'name'], model.backend_model_id), (['model', 'baseUrl'], model.endpoint),
             (['security', 'auth', 'selectedType'], 'openai')]))
+
+    def binding_ready(self, model):
+        try:
+            doc = read_document(Path(self.get_config_locations().data['user']), {})
+        except Exception:
+            return False
+        entries = doc.get('modelProviders', {}).get(MANAGED_ID, [])
+        listed = any(isinstance(e, dict) and e.get('id') == model.backend_model_id and
+                     e.get('baseUrl') == model.endpoint for e in entries)
+        selected = doc.get('model', {})
+        return (listed and selected.get('name') == model.backend_model_id and
+                selected.get('baseUrl') == model.endpoint and
+                doc.get('security', {}).get('auth', {}).get('selectedType') == 'openai')
 
     def list_model_bindings(self):
         doc = read_document(Path(self.get_config_locations().data['user']), {})
@@ -100,19 +113,20 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
             values = self.list_model_bindings()
             ids = [entry['id'] for entry in values.data]
             if len(ids) != len(set(ids)):
-                raise ValueError('Duplicate model bindings')
-            return Result(Support.SUPPORTED, 'Configuration is valid')
+                raise ValueError('В настройках Qwen Code (' + self.get_config_locations().data['user'] +
+                    ') одна и та же модель указана несколько раз. Удалите повторы и повторите синхронизацию.')
+            return Result(Support.SUPPORTED, 'Настройки Qwen Code в порядке')
         except Exception as exc:
             return Result(Support.ERROR, str(exc))
 
     def start(self, workspace=None, model=None):
         if not self.command:
-            return unsupported('Qwen CLI is not installed')
+            return unsupported('Qwen Code не установлен. Установите его и нажмите «Найти агенты заново».')
         args = list(self.command)
         if model:
             required = ('--model', '--openai-base-url', '--auth-type')
             if not all(flag in self.help_text for flag in required):
-                return unsupported('Installed CLI does not confirm provider binding flags')
+                return unsupported('Эта версия Qwen Code не поддерживает выбор модели при запуске (--model, --openai-base-url, --auth-type). Обновите Qwen Code.')
             args += ['--model', model.backend_model_id, '--openai-base-url', model.endpoint, '--auth-type', 'openai']
         try:
             environment = dict(self.process_environment(), LOCAL_AGENT_STATION_API_KEY='local-station',
@@ -125,7 +139,7 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
     def smoke(self, model, workspace, timeout=180, configuration_path=None):
         flags = ('--bare', '--safe-mode', '--max-tool-calls', '--max-wall-time', '--auth-type')
         if not self.command or not all(flag in self.help_text for flag in flags):
-            return unsupported('Safe headless smoke flags unavailable in installed CLI')
+            return unsupported('Проверка Qwen Code через модель недоступна: Qwen Code не установлен или его версия не поддерживает безопасный режим проверки. Обновите Qwen Code.')
         args = self.command + ['--bare', '--safe-mode', '--auth-type', 'openai', '--model', model.backend_model_id,
             '--openai-base-url', model.endpoint, '--prompt', 'Reply exactly STATION_OK. Do not use tools.',
             '--system-prompt', 'You are a connectivity test. Reply STATION_OK.', '--max-tool-calls', '0',
@@ -147,7 +161,8 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
             passed = p.returncode == 0 and model.backend_model_id in selected and any(
                 not e.get('is_error') and e.get('result', '').strip() == 'STATION_OK' for e in results)
             return Result(Support.SUPPORTED if passed else Support.ERROR,
-                'Qwen headless smoke passed' if passed else 'Qwen headless smoke failed',
+                'Проверка Qwen Code через модель пройдена' if passed else
+                f'Проверка Qwen Code через модель не пройдена (код выхода {p.returncode}). Убедитесь, что модель запущена, и посмотрите вывод проверки.',
                 {'exit_code': p.returncode, 'output': p.stdout[-3000:], 'stderr': p.stderr[-1500:]})
         except Exception as exc:
             return Result(Support.ERROR, str(exc))

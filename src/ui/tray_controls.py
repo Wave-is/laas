@@ -66,13 +66,13 @@ class TrayControls:
             for p in profile_storage.model_profiles.values() if p.id != 'none' and p.status != 'disabled']
         agents = []
         for id, adapter in self.controller.adapters.items():
-            entries = [command('Сделать основным', 'runtime', id, enabled=enabled,
+            entries = [command('Сделать основным агентом', 'runtime', id, enabled=enabled,
                                checked=lambda item, id=id: config.get('primary_agent_runtime') == id)]
             for frontend in self.controller.frontends.values():
                 if frontend['runtime_id'] != id:
                     continue
                 fid = frontend['id']
-                entries += [command('Открыть: ' + frontend['name'], 'frontend', fid,
+                entries += [command('Запустить: ' + frontend['name'], 'frontend', fid,
                     enabled=lambda item, available=frontend['status']=='INSTALLED': available and not self.busy),
                     command('Остановить: ' + frontend['name'], 'stop_frontend', fid, enabled=enabled)]
             entries.append(command('Официальные релизы ↗', 'install', id, enabled=enabled))
@@ -83,16 +83,19 @@ class TrayControls:
         gpu_entries += [command(p.name, 'gpu', p.id, enabled=enabled,
             checked=lambda item, id=p.id: config.get('active_gpu_profile') == id)
             for p in profile_storage.gpu_profiles.values()]
-        services = [command('Запустить backend', 'backend_start', enabled=enabled),
-                    command('Остановить backend', 'backend_stop', enabled=enabled)]
+        from .. import model_server
+        services = [Item('Сервер моделей (llama-swap)', Menu(
+            Item(lambda item: self._server_tray_text(), None, enabled=False), Menu.SEPARATOR,
+            command('Запустить сервер', 'backend_start', enabled=enabled),
+            command('Остановить сервер', 'backend_stop', enabled=enabled))), Menu.SEPARATOR]
         for id, profile in shared_services.profiles().items():
             from .service_controls import ACTION_LABELS
             services.append(Item(profile.get('name', id), Menu(*[
                 command(ACTION_LABELS[action], 'service_' + action, id, enabled=enabled)
                 for action in service_actions(profile)])))
-        services.append(command('Добавить / настроить сервисы…', 'page', 'Службы'))
+        services.append(command('Настроить службы…', 'page', 'Службы'))
         return Menu(
-            command('Открыть Station', 'page', 'Станция', default=True),
+            command('Открыть центр управления', 'page', 'Станция', default=True),
             Item(lambda item: self._tray_status_text(), None, enabled=False), Menu.SEPARATOR,
             Item('Модель', Menu(*(models or [Item('Добавьте профиль модели', None, enabled=False)]),
                  Menu.SEPARATOR, command('Выгрузить модель', 'model', 'none', enabled=enabled))),
@@ -100,18 +103,22 @@ class TrayControls:
             Item('Оборудование и режимы GPU', Menu(*gpu_entries)),
             Item('Пресеты', Menu(*[command(p.name, 'preset', p.id, enabled=enabled)
                 for p in profile_storage.station_presets.values()],
-                command('Сохранить текущую комбинацию…', 'save_preset', enabled=enabled))),
+                command('Сохранить текущее как пресет…', 'save_preset', enabled=enabled))),
             Item('Службы', Menu(*services)), Menu.SEPARATOR,
             Item('Вид значка', Menu(*[command(label, 'tray_style', key,
                 checked=lambda item, key=key: config.get('tray_style') == key) for key, label in STYLES.items()])),
             command('Настроить показатели трея…', 'page', 'Настройки'),
-            command('Журналы', 'logs'), Menu.SEPARATOR,
+            command('Папка журналов', 'logs'), Menu.SEPARATOR,
             command('Выход из Station', 'quit'))
 
     def _tray_status_text(self):
         if self.busy:
             return 'Выполняется действие…'
         return 'Модель: ' + (', '.join(self.ready_model_names) or 'не загружена')
+
+    def _server_tray_text(self):
+        from ..process_manager import pm
+        return pm.describe(self.backend_info) if getattr(self, 'backend_info', None) else 'Сервер моделей: проверка…' 
 
     def _gpu_tray_text(self, uuid):
         device = self.topology.get_device_by_uuid(uuid) if self.topology else None

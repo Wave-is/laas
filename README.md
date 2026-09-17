@@ -27,7 +27,7 @@ Ukrainian in Setup. Python is bundled; no administrator rights are required.
 The application UI is currently Russian. Agents, model weights and inference engines
 are separate installations. First launch does not automatically start them.
 
-The program uses `%LOCALAPPDATA%\Programs\Local Agent AI Station`; its data uses
+The program uses `%ProgramFiles%\Local Agent AI Station`; its data uses
 `%LOCALAPPDATA%\LocalAgentAIStation`. Start-menu and optional desktop shortcuts,
 Windows uninstall and in-place updates are supported. See the
 [quick start](docs/GETTING_STARTED.md) for setup, updates and removal.

@@ -93,5 +93,12 @@ if __name__ == '__main__':
             print(str(exc), file=sys.stderr)
         elif not any(flag in sys.argv for flag in ('--doctor', '--migrate')):
             import ctypes
-            ctypes.windll.user32.MessageBoxW(None, str(exc), 'Local Agent AI Station: startup error', 16)
+            from src.paths import data_dir
+            text = ('Local Agent AI Station не запустилась.\n\n' + str(exc) +
+                    f'\n\nНастройки: {data_dir() / "config"}\nРезервные копии: {data_dir() / "config" / "backups"}'
+                    f'\nЖурнал: {data_dir() / "logs" / "station.log"}\n\nОткрыть папку настроек?')
+            # MB_YESNO | MB_ICONERROR; IDYES = 6
+            if ctypes.windll.user32.MessageBoxW(None, text, 'Local Agent AI Station — ошибка запуска', 0x14) == 6:
+                import os
+                os.startfile(str(data_dir() / 'config'))
         raise SystemExit(1)

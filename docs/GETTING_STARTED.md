@@ -35,7 +35,7 @@ by Setup and end-to-end acceptance of the installed service is still pending.
 
 | Item | Default location |
 |---|---|
-| Program | `%LOCALAPPDATA%\Programs\Local Agent AI Station` |
+| Program | `%ProgramFiles%\Local Agent AI Station` |
 | Settings, profiles, logs | `%LOCALAPPDATA%\LocalAgentAIStation` |
 | Start menu / desktop | Ordinary current-user Windows shortcuts |
 
@@ -48,7 +48,7 @@ user data, models and external agents remain. Back up the data folder before a d
 For troubleshooting, open the logs from Station or run:
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\Local Agent AI Station\LocalAgentAIStation.exe" --doctor --output "$env:TEMP\station-doctor.json"
+& "$env:ProgramFiles\Local Agent AI Station\LocalAgentAIStation.exe" --doctor --output "$env:TEMP\station-doctor.json"
 ```
 
 Diagnostics can contain local paths, GPU identifiers and agent configuration details.

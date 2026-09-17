@@ -62,7 +62,7 @@ class ServiceEditor(ctk.CTkToplevel):
         self.exe = self.field(self.local, 'Программа для запуска', original.get('executable', ''), 'C:\\ComfyUI\\python_embeded\\python.exe')
         ctk.CTkButton(self.local, text='Выбрать программу…', fg_color=EDGE,
             command=lambda: self.browse(self.exe)).pack(anchor='w', padx=16, pady=(0, 12))
-        self.cwd = self.field(self.local, 'Рабочая папка (необязательно)', original.get('working_directory', ''), 'C:\\ComfyUI')
+        self.cwd = self.field(self.local, 'Папка, из которой запускать программу (необязательно)', original.get('working_directory', ''), 'C:\\ComfyUI')
         ctk.CTkButton(self.local, text='Выбрать папку…', fg_color=EDGE,
             command=lambda: self.browse(self.cwd, True)).pack(anchor='w', padx=16, pady=(0, 12))
         self.caption(self.local, 'Параметры запуска — каждый на отдельной строке, без кавычек')
@@ -149,13 +149,14 @@ class ServiceEditor(ctk.CTkToplevel):
 
 class ServiceControls:
     def _build_service_connections(self, page):
-        card = self.card(page, 'ComfyUI и другие сервисы',
-            'Добавьте адрес уже работающего сервиса или программу для запуска на этом ПК. Сервисы доступны независимо от выбранного агента.')
+        card = self.card(page, 'Дополнительные службы: ComfyUI и другие',
+            'Добавьте адрес уже работающей службы (например, генератора изображений) или программу для запуска на этом ПК. '
+            'Службы работают независимо от выбранного агента и модели.')
         row = self.row(card)
-        self.button(row, 'Добавить сервис', self._edit_service, True, width=160)
+        self.button(row, 'Добавить службу', self._edit_service, True, width=160)
         self.button(row, 'Как пользоваться', self._service_guide, width=170)
-        ctk.CTkLabel(card, text='1. Добавьте сервис → 2. Проверьте подключение → 3. Откройте его адрес.\n'
-            'Для генерации в ComfyUI откройте workflow в его интерфейсе. Для генерации из агента настройте его инструмент с адресом сервиса.',
+        ctk.CTkLabel(card, text='1. Добавьте службу → 2. Проверьте подключение → 3. Откройте её адрес.\n'
+            'Для генерации в ComfyUI откройте workflow в его интерфейсе. Для генерации из агента укажите адрес службы в инструменте агента.',
             text_color=MUTED, font=('Segoe UI', 13), wraplength=790, justify='left', anchor='w').pack(fill='x', padx=20, pady=(0, 18))
         self.service_cards = ctk.CTkFrame(page, fg_color='transparent')
         self.service_cards.pack(fill='x')
@@ -195,8 +196,8 @@ class ServiceControls:
             # Drop destroyed card buttons from the global busy-state list.
             self.controls = [control for control in self.controls if control.winfo_exists()]
             if not profiles:
-                card = self.card(self.service_cards, 'Сервисов пока нет',
-                    'Нажмите «Добавить сервис». Пример: ComfyUI → «Уже работает / другой компьютер» → '
+                card = self.card(self.service_cards, 'Дополнительных служб пока нет',
+                    'Нажмите «Добавить службу». Пример: ComfyUI → «Уже работает / другой компьютер» → '
                     'http://192.168.1.10:8188 → «Сохранить». Адрес замените своим.')
             for id, p in profiles.items():
                 remote = p.get('type', 'local') == 'remote'

@@ -1,5 +1,18 @@
 # Work log
 
+## 2026-09-17 — clarity, single model server, folders, Program Files installer
+
+Audit found: Services/tray "start server" used the legacy user llama-swap JSON while model
+load used the generated YAML; autostart of Qwen Code Desktop always failed because a hand-
+edited ~/.qwen/settings.json made the whole managed block differ; an unknown field in
+model_profiles.yaml crashed Station at import (2026-09-16); 0.0.0.0 bind was hard-coded;
+no address/PID/owner was shown anywhere; ~100 English messages leaked into the UI.
+Fixed all of the above (see CHANGELOG 3.0.0-alpha.2). New module src/model_server.py.
+Leftovers (old Hermes copy, .station-audit, runtime/, logs) moved to ../_archive/2026-09-17.
+Validation: 187 pytest passed; source UI rendered and screenshotted against a copy of the
+real configuration; live backend_info against the running server reported 0.0.0.0:9292.
+
+
 ## 2026-09-13 — first installer release preparation
 
 Added a shared version source, Windows file metadata and an application lifetime mutex
