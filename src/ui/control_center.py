@@ -35,6 +35,8 @@ from .pages.monitoring import MonitoringPage
 from .pages.logs import LogsPage
 from .pages.schedules import SchedulesPage
 from .pages.maintenance import MaintenancePage
+from .pages.watchdog import WatchdogSection
+from .pages.wizard import FirstRunWizard
 
 from .common import BG, PANEL, EDGE, TEXT, MUTED, ACCENT, WARNING, number
 
@@ -108,7 +110,7 @@ class ProfileCombo(ctk.CTkComboBox):
             kwargs['values'] = list(self.labels.values())
         return super().configure(require_redraw=require_redraw, **kwargs)
 
-class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, SchedulesPage, MaintenancePage, AgentControls, StartupControls, ServiceControls, GpuControls, TrayControls, ctk.CTk):
+class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, SchedulesPage, MaintenancePage, WatchdogSection, FirstRunWizard, AgentControls, StartupControls, ServiceControls, GpuControls, TrayControls, ctk.CTk):
     def __init__(self, start_minimized=False, no_tray=False, skip_startup=False):
         super().__init__()
         ctk.set_appearance_mode('dark')
@@ -173,6 +175,12 @@ class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, Schedule
             self.after(3000, lambda: self.status_label.configure(text=tr('Предупреждение: {details}', details='; '.join(profile_storage.warnings)[:380]), text_color='#f8ad88'))
         if (start_minimized or config.get('startup', {}).get('minimized', False)) and self.tray:
             self.withdraw()
+        # Page modules may define _after_build_<name>(self) for work that needs the finished window.
+        for name in sorted(n for n in dir(self) if n.startswith('_after_build_')):
+            try:
+                getattr(self, name)()
+            except Exception:
+                logging.getLogger(__name__).exception('After-build hook failed: %s', name)
 
     def _build_sidebar(self):
         sidebar = ctk.CTkFrame(self, width=215, fg_color='#141d27', corner_radius=0)
@@ -774,6 +782,8 @@ class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, Schedule
                         self.status_label.configure(text=result_message(value)[:400],
                             text_color=ACCENT if value.get('Success') else '#f8ad88')
                     self._refresh_agent_launch_states()
+                elif kind == 'call':
+                    value()
                 elif kind == 'startup_progress':
                     self.startup_banner_label.configure(text=value)
                 elif kind == 'telemetry':
@@ -960,6 +970,13 @@ class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, Schedule
     @staticmethod
     def set_text(widget, content):
         widget.configure(state='normal'); widget.delete('1.0', 'end'); widget.insert('1.0', content); widget.configure(state='disabled')
+
+    def call_in_ui(self, function):
+        """Run function on the Tk thread; safe to call from poll hooks and worker threads."""
+        try:
+            self.events.put_nowait(('call', function, None))
+        except queue.Full:
+            logging.getLogger(__name__).warning('UI event queue is full; call dropped')
 
     def notify(self, message, title='LAAS'):
         """Tray balloon when available, otherwise the status line. Safe to call from the UI thread only."""
