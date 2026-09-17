@@ -106,5 +106,8 @@
   "загрузка": "load",
   "видеопамять": "VRAM",
   "Максимум GPU": "GPU max",
-  "Среднее GPU": "GPU average"
+  "Среднее GPU": "GPU average",
+  "Мощность: {draw}{limit}": "Power: {draw}{limit}",
+  "Вентилятор: {fan}": "Fan: {fan}",
+  "Троттлинг: {reasons}": "Throttling: {reasons}"
 }
