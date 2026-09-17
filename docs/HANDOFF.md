@@ -1,4 +1,16 @@
-# Development handoff
+﻿# Development handoff
+
+Updated: 2026-09-17. **3.0.0-alpha.2 built locally (not published, not installed yet)** on branch
+`feature/clarity-and-paths`. Installer: `dist/release/LocalAgentAIStation-3.0.0-alpha.2-Setup-x64.exe`.
+Changes and audit findings: CHANGELOG.md (alpha.2) and WORKLOG.md (2026-09-17).
+
+Next steps: owner exits the running alpha.1 via tray, runs the alpha.2 installer (UAC, Program Files;
+it removes the per-user copy and keeps the Startup shortcut), then in Settings → «Папки и сервер
+моделей» checks engine/models folders and the LAN checkbox (the old build forced 0.0.0.0; the
+owner's Qwen settings contain a provider on 192.168.1.100:9292). Then one manual «Запустить агента»
+for Qwen Code Desktop, or «Модели → Синхронизировать с агентами» to drop stale model entries.
+Installer lifecycle under Program Files has not been exercised yet; tools/test_installer.ps1 uses /CURRENTUSER.
+## Previous release (alpha.1)
 
 Updated: 2026-09-13. **3.0.0-alpha.1 released**.
 Read AGENTS.md, then this file and ignored handoff-local/README.md when available.
@@ -55,3 +67,4 @@ follow RELEASING.md for each new release. Do not change repository visibility im
 Commands: `python -m pytest -q`, `build_installer.ps1`, `python tools/handoff_snapshot.py`.
 The installer test refuses an existing installation: do not force it over a user's
 working copy. Source map: ARCHITECTURE.md. Public validation: VALIDATION.md.
+
