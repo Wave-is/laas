@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0-beta.5
+
+### English
+
+- **Automated Skill Distribution to AI Agents**: Added `SkillDistributor` (`src/skill_distributor.py`) which automatically detects installed AI agent runtimes (Qwen Code Desktop / CLI, Google Antigravity, OpenClaw, Hermes Agent) and deploys the `comfyui-image-gen` skill with zero-dependency CLI execution script, enabling agents to autonomously generate images, logos, UI designs, and mockups via the cluster's RTX 3060 ComfyUI worker.
+- **UI Integration**: Added "📢 Share with Agents" button in the cluster header and "📢 Deploy Skill" button directly on ComfyUI node cards.
+- **Auto-deployment Hooks**: Automatic skill deployment whenever a ComfyUI node or service is added, updated, or imported via XML.
+- **Telegraf Telemetry Restored & Firewall Hardened**: Pinned `hostname = "ollama-1"` in friend's Telegraf config restoring existing InfluxDB/Grafana dashboards after system hostname change, restricted allowed IP range to exact required IPs (`192.0.2.2/32`, `192.0.2.3/32`, `127.0.0.1/32`), and ensured dual InfluxDB + Prometheus export without disruption.
+
+### Русский
+
+- **Автоматическая дистрибуция навыков агентам**: добавлен модуль `SkillDistributor` (`src/skill_distributor.py`), автоматически находящий установленные среды агентов (Qwen Code Desktop / CLI, Google Antigravity, OpenClaw, Hermes Agent) и внедряющий навык `comfyui-image-gen` со скриптом вызова без внешних зависимостей.
+- **Интеграция в UI**: добавлена кнопка «📢 Рассказать агентам» в шапке страницы кластера и кнопка «📢 Навык агентам» на карточке узла ComfyUI.
+- **Хуки авторазвертывания**: навык автоматически развертывается при импорте XML или обновлении узлов/сервисов ComfyUI.
+- **Восстановление телеметрии InfluxDB и сужение доступа Telegraf**: зафиксирован `hostname = "ollama-1"` в конфигурации Telegraf на хосте друга, что восстановило сбор в существующие дашборды InfluxDB/Grafana, доступ к метрикам ограничен точными IP-адресами (`192.0.2.2/32`, `192.0.2.3/32`, `127.0.0.1/32`), сохранен одновременный экспорт в InfluxDB и Prometheus.
+
+### Українська
+
+- **Автоматична дистрибуція навичок агентам**: додано модуль `SkillDistributor` (`src/skill_distributor.py`), що автоматично виявляє встановлені середовища агентів (Qwen Code Desktop / CLI, Google Antigravity, OpenClaw, Hermes Agent) та впроваджує навичку `comfyui-image-gen` зі скриптом виклику без зовнішніх залежностей.
+- **Інтеграція в UI**: додано кнопку «📢 Оповістити агентів» у шапці сторінки кластера та кнопку «📢 Навичка агентам» на картці вузла ComfyUI.
+- **Хуки авторозгортання**: навичка автоматично розгортається при імпорті XML або оновленні вузлів/сервісів ComfyUI.
+- **Відновлення телеметрії InfluxDB та звуження доступу Telegraf**: зафіксовано `hostname = "ollama-1"` у конфігурації Telegraf на хості друга, що відновило збір у наявні дашборди InfluxDB/Grafana, доступ до метрик обмежено точними IP-адресами (`192.0.2.2/32`, `192.0.2.3/32`, `127.0.0.1/32`), збережено одночасний експорт в InfluxDB та Prometheus.
+
 ## 0.2.0-beta.4
 
 ### English

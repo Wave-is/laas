@@ -115,17 +115,31 @@ class ClusterManager:
             self._nodes.append(node_data)
             self._history["node_gpu_utils"][nid] = deque(maxlen=HISTORY_MAX)
             self.save_nodes()
-            return nid
+        if node_data.get("type") == "comfyui":
+            try:
+                from .skill_distributor import skill_distributor
+                skill_distributor.deploy(server_url=node_data.get("url"))
+            except Exception as ex:
+                log.debug("Auto-deploy comfyui skill failed in add_node: %s", ex)
+        return nid
 
     def update_node(self, node_id, new_data):
+        updated = False
         with self._lock:
             for i, n in enumerate(self._nodes):
                 if n["id"] == node_id:
                     new_data["id"] = node_id
                     self._nodes[i] = new_data
                     self.save_nodes()
-                    return True
-        return False
+                    updated = True
+                    break
+        if updated and new_data.get("type") == "comfyui":
+            try:
+                from .skill_distributor import skill_distributor
+                skill_distributor.deploy(server_url=new_data.get("url"))
+            except Exception as ex:
+                log.debug("Auto-deploy comfyui skill failed in update_node: %s", ex)
+        return updated
 
     def remove_node(self, node_id):
         with self._lock:
@@ -308,6 +322,14 @@ class ClusterManager:
                 count += 1
 
             self.save_nodes()
+            try:
+                for n in imported_nodes:
+                    if n.get("type") == "comfyui":
+                        from .skill_distributor import skill_distributor
+                        skill_distributor.deploy(server_url=n.get("url"))
+                        break
+            except Exception as ex:
+                log.debug("Auto-deploy comfyui skill failed in import_nodes_xml: %s", ex)
             return count
 
     def start(self):

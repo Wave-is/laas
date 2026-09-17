@@ -61,6 +61,12 @@ class ClusterPage:
         ).pack(side='left', padx=(0, 8))
 
         ctk.CTkButton(
+            btn_box, text=tr('📢 Рассказать агентам'), fg_color='#8957e5', hover_color='#a371f7',
+            height=34, corner_radius=7, font=('Segoe UI', 12, 'bold'),
+            command=lambda: self._share_comfyui_with_agents()
+        ).pack(side='left', padx=(0, 8))
+
+        ctk.CTkButton(
             btn_box, text=tr('+ Добавить узел'), fg_color='#1f6feb', hover_color='#238636',
             height=34, corner_radius=7, font=('Segoe UI', 12, 'bold'),
             command=lambda: self._open_cluster_node_dialog()
@@ -195,6 +201,12 @@ class ClusterPage:
 
         ctk.CTkLabel(right_hdr, text=status_text, font=('Segoe UI', 11, 'bold'),
                      text_color=status_color).pack(side='left', padx=(0, 14))
+
+        if node.get('type') == 'comfyui':
+            ctk.CTkButton(
+                right_hdr, text=tr('📢 Навык агентам'), width=120, height=26, fg_color='#8957e5', hover_color='#a371f7',
+                font=('Segoe UI', 11, 'bold'), command=lambda n=node: self._share_comfyui_with_agents(n)
+            ).pack(side='left', padx=(0, 6))
 
         ctk.CTkButton(
             right_hdr, text=tr('Редактировать'), width=95, height=26, fg_color=EDGE, hover_color='#364a60',
@@ -473,3 +485,35 @@ class ClusterPage:
             messagebox.showinfo(tr('Импорт XML'), tr('Импортировано {count} узлов кластера', count=count))
         except Exception as e:
             messagebox.showerror(tr('Ошибка импорта XML'), str(e))
+
+    def _share_comfyui_with_agents(self, node=None):
+        target_url = None
+        if node and node.get('url'):
+            target_url = node.get('url')
+        else:
+            for n in self.cluster_manager.get_nodes():
+                if n.get('type') == 'comfyui' or ':8188' in n.get('url', ''):
+                    target_url = n.get('url')
+                    break
+
+        from src.skill_distributor import skill_distributor
+        if not target_url:
+            target_url = skill_distributor.get_comfy_endpoint()
+
+        try:
+            res = skill_distributor.deploy(server_url=target_url)
+            agents = res.get('agents_updated', [])
+            if agents:
+                agents_str = "\n".join(f"• {a}" for a in agents)
+                messagebox.showinfo(
+                    tr('Оповестить агентов'),
+                    tr('Навык генерации изображений ComfyUI успешно внедрен в агентов ({count}):\n{agents}',
+                       count=len(agents), agents=agents_str)
+                )
+            else:
+                messagebox.showwarning(
+                    tr('Оповестить агентов'),
+                    tr('Не найдено ни одного поддерживаемого агента (Qwen, Antigravity, OpenClaw, Hermes).')
+                )
+        except Exception as ex:
+            messagebox.showerror(tr('Ошибка'), str(ex))

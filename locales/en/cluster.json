@@ -49,5 +49,11 @@
   "URL телеметрии (Telegraf :9273/metrics или Exporter):": "Telemetry URL (Telegraf :9273/metrics or Exporter):",
   "⚡ ГЕНЕРАЦИЯ КАРТИНКИ (в очереди: {q})": "⚡ GENERATING IMAGE (queue: {q})",
   "IDLE (ГОТОВ К ГЕНЕРАЦИИ)": "IDLE (READY TO GENERATE)",
-  "ComfyUI (Генератор изображений)": "ComfyUI (Image Generator)"
+  "ComfyUI (Генератор изображений)": "ComfyUI (Image Generator)",
+  "📢 Рассказать агентам": "📢 Share with Agents",
+  "📢 Навык агентам": "📢 Deploy Skill",
+  "Оповестить агентов": "Share with Agents",
+  "Навык генерации изображений ComfyUI успешно внедрен в агентов ({count}):\n{agents}": "ComfyUI image generation skill successfully deployed to agents ({count}):\n{agents}",
+  "Не найдено ни одного поддерживаемого агента (Qwen, Antigravity, OpenClaw, Hermes).": "No supported AI agents found (Qwen, Antigravity, OpenClaw, Hermes).",
+  "В кластере не найден запущенный или настроенный узел ComfyUI.": "No ComfyUI service configured or found in cluster."
 }

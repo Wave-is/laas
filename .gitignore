@@ -29,3 +29,4 @@ secrets.*.yaml
 # Local machine files
 _archive/
 START_HERE.md
+scratch/

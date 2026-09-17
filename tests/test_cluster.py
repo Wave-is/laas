@@ -148,6 +148,47 @@ class TestCluster(unittest.TestCase):
         fresh_cm = ClusterManager()
         fresh_cm.import_nodes_xml(xml_text, merge=True)
 
+    def test_skill_distributor_deployment(self):
+        import tempfile
+        from pathlib import Path
+        from src.skill_distributor import SkillDistributor
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            mock_home = tmp_path / "user_home"
+            (mock_home / ".qwen").mkdir(parents=True)
+            (mock_home / ".gemini" / "config").mkdir(parents=True)
+
+            dist = SkillDistributor()
+            # Monkeypatch Path.home for test
+            orig_home = Path.home
+            try:
+                Path.home = lambda: mock_home
+                detected = dist.detect_agent_skills_dirs()
+                self.assertIn("Qwen Code Desktop / CLI", detected)
+                self.assertIn("Google Antigravity", detected)
+
+                res = dist.deploy("http://127.0.0.1:8188")
+                self.assertTrue(res["success"])
+                self.assertEqual(len(res["agents_updated"]), 2)
+
+                qwen_skill = mock_home / ".qwen" / "skills" / "comfyui-image-gen"
+                self.assertTrue((qwen_skill / "SKILL.md").is_file())
+                self.assertTrue((qwen_skill / "scripts" / "generate_image.py").is_file())
+                self.assertTrue((qwen_skill / "config.json").is_file())
+
+                skill_content = (qwen_skill / "SKILL.md").read_text(encoding="utf-8")
+                self.assertIn("comfyui-image-gen", skill_content)
+                self.assertIn("http://127.0.0.1:8188", skill_content)
+            finally:
+                Path.home = orig_home
+
+    def test_skill_distribution_i18n(self):
+        self.assertIn("📢 Рассказать агентам", catalog("uk"))
+        self.assertIn("📢 Рассказать агентам", catalog("en"))
+        self.assertEqual(catalog("uk").get("📢 Рассказать агентам"), "📢 Оповістити агентів")
+        self.assertEqual(catalog("en").get("📢 Рассказать агентам"), "📢 Share with Agents")
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -41,6 +41,12 @@ class SharedServices:
             atomic_write(self.path, list(rows.values()), expected_digest=expected_digest)
             self._health.pop(id, None)
             self._next_probe.pop(id, None)
+            if profile.get('kind') == 'comfyui' and profile.get('url'):
+                try:
+                    from .skill_distributor import skill_distributor
+                    skill_distributor.deploy(server_url=profile.get('url'))
+                except Exception as ex:
+                    log.debug("Auto-deploy comfyui skill failed in SharedServices.save: %s", ex)
 
     def remove(self, id, expected_digest):
         with self._lock:
