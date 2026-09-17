@@ -1,6 +1,17 @@
 # Work log
 
-## 2026-09-17 — release 0.2.0-beta.2: installer language selection, UI polish, and GitHub release
+## 2026-09-17 — dashboard layout polish: block reordering & vertical compaction
+
+1. Dashboard Block Reordering:
+   - In `src/ui/control_center.py` (`_build_station`), moved «Оборудование сейчас» (GPU tiles) directly under the top stats tiles, and placed «Модель и агент» below it per user request.
+2. Vertical Compacting & Scrollbar Elimination:
+   - Applied `height=0` to single-line labels (`heading`, `status_label`, `card` headers, `stats` tiles, GPU tile rows, server status label, and prompt label) to override CustomTkinter's default 28px/42px label height constraint.
+   - Reduced button/combo row vertical padding from 14px to `(4, 5)`, eliminating the huge 28px gaps between consecutive rows.
+   - Reduced GPU tile and card header margins (`pady`), saving ~168px vertically at 150% DPI scaling (content height reduced from 867px to 699px).
+   - Dynamic auto-hiding scrollbar now remains completely unmapped/hidden at standard window resolutions without awkward vertical scrolling.
+3. Verification:
+   - Verified programmatically that `station_page._scrollbar.winfo_ismapped() == False` with simulated 3-device topology.
+   - All 258 pytest tests pass with zero regressions.
 
 1. Installer Language Prompt:
    - Configured `installer/Station.iss` with `ShowLanguageDialog=yes` and `UsePreviousLanguage=no` so that

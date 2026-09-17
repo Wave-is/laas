@@ -154,14 +154,14 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             logging.getLogger(__name__).exception('Cannot fill engine/models folders')
         self._build_sidebar()
         self.body = ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
-        self.body.grid(row=0, column=1, sticky='nsew', padx=28, pady=22)
+        self.body.grid(row=0, column=1, sticky='nsew', padx=24, pady=(14, 14))
         self.body.grid_columnconfigure(0, weight=1)
         self.body.grid_rowconfigure(2, weight=1)
-        self.heading = ctk.CTkLabel(self.body, text=tr('Ваша локальная AI-станция'), font=('Segoe UI', 27, 'bold'), anchor='w')
+        self.heading = ctk.CTkLabel(self.body, text=tr('Ваша локальная AI-станция'), font=('Segoe UI', 24, 'bold'), anchor='w', height=0)
         self.heading.grid(row=0, column=0, sticky='ew')
         self.status_label = ctk.CTkLabel(self.body, text=tr('Обнаружение оборудования и агентов…'), text_color=MUTED, anchor='w',
-            justify='left', wraplength=900)
-        self.status_label.grid(row=1, column=0, sticky='ew', pady=(4, 18))
+            justify='left', wraplength=900, height=0)
+        self.status_label.grid(row=1, column=0, sticky='ew', pady=(2, 8))
         for page_id in PAGE_IDS:
             getattr(self, '_build_' + page_id)()
         self.show_page('station')
@@ -255,16 +255,16 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
 
     def card(self, parent, title, description=''):
         frame = ctk.CTkFrame(parent, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
-        frame.pack(fill='x', padx=1, pady=(0, 14))
-        ctk.CTkLabel(frame, text=title, font=('Segoe UI', 18, 'bold'), anchor='w').pack(fill='x', padx=20, pady=(15, 2))
+        frame.pack(fill='x', padx=1, pady=(0, 10))
+        ctk.CTkLabel(frame, text=title, font=('Segoe UI', 16, 'bold'), anchor='w', height=0).pack(fill='x', padx=20, pady=(10, 2))
         if description:
-            ctk.CTkLabel(frame, text=description, text_color=MUTED, wraplength=760, justify='left', anchor='w').pack(fill='x', padx=20, pady=(0, 12))
+            ctk.CTkLabel(frame, text=description, text_color=MUTED, wraplength=760, justify='left', anchor='w', height=0).pack(fill='x', padx=20, pady=(0, 6))
         return frame
 
-    def button(self, parent, text, command, primary=False, width=140):
+    def button(self, parent, text, command, primary=False, width=140, pady=(4, 5)):
         button = StationButton(parent, text=text, command=command, height=36, corner_radius=7,
             width=width, primary=primary)
-        button.pack(side='left', padx=(0, 10), pady=14)
+        button.pack(side='left', padx=(0, 10), pady=pady)
         self.controls.append(button)
         return button
 
@@ -273,7 +273,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         frame.pack(fill='x', padx=20)
         return frame
 
-    def combo(self, parent, values, value=None, width=365):
+    def combo(self, parent, values, value=None, width=365, pady=(4, 5)):
         def label(id):
             for collection in (profile_storage.gpu_profiles, profile_storage.model_profiles, profile_storage.station_presets):
                 if id in collection:
@@ -283,26 +283,32 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             return self.controller.frontends.get(id, {}).get('name', id)
         widget = ProfileCombo(parent, resolver=label, values=values or ['—'], width=width, height=36, state='readonly',
             fg_color='#111b25', border_color=EDGE, button_color=EDGE, dropdown_fg_color=PANEL)
-        widget.pack(side='left', padx=(0, 12), pady=14)
+        widget.pack(side='left', padx=(0, 12), pady=pady)
         widget.set(value if value in values else values[0] if values else '—')
         return widget
 
     def _build_station(self):
         page = self.page('station')
         stats = ctk.CTkFrame(page, fg_color='transparent')
-        stats.pack(fill='x', pady=(0, 14))
+        stats.pack(fill='x', pady=(0, 10))
         stats.grid_columnconfigure((0, 1, 2), weight=1, uniform='stats')
         self.dashboard_stats = {}
         for column, (key, label) in enumerate((('backend', tr('СЕРВЕР МОДЕЛЕЙ · LLAMA-SWAP')), ('model', tr('ЗАГРУЖЕННАЯ МОДЕЛЬ')), ('agent', tr('АГЕНТ')))):
             tile = ctk.CTkFrame(stats, fg_color=PANEL, border_color=EDGE, border_width=1, corner_radius=12)
             tile.grid(row=0, column=column, sticky='nsew', padx=(0, 10 if column < 2 else 0))
-            ctk.CTkLabel(tile, text=label, font=('Segoe UI', 10, 'bold'), text_color=MUTED, anchor='w').pack(fill='x', padx=15, pady=(12, 0))
-            value = ctk.CTkLabel(tile, text=tr('Проверка…'), font=('Segoe UI', 18, 'bold'), anchor='w', wraplength=230, justify='left')
-            value.pack(fill='x', padx=15, pady=(4, 1))
+            ctk.CTkLabel(tile, text=label, font=('Segoe UI', 10, 'bold'), text_color=MUTED, anchor='w', height=0).pack(fill='x', padx=15, pady=(8, 0))
+            value = ctk.CTkLabel(tile, text=tr('Проверка…'), font=('Segoe UI', 17, 'bold'), anchor='w', wraplength=230, justify='left', height=0)
+            value.pack(fill='x', padx=15, pady=(3, 1))
             detail = ctk.CTkLabel(tile, text=tr('Ожидание данных'), font=('Segoe UI', 11), text_color=MUTED, anchor='w',
-                justify='left', wraplength=300)
-            detail.pack(fill='x', padx=15, pady=(0, 12))
+                justify='left', wraplength=300, height=0)
+            detail.pack(fill='x', padx=15, pady=(0, 8))
             self.dashboard_stats[key] = (value, detail)
+        ctk.CTkLabel(page, text=tr('Оборудование сейчас'), anchor='w', font=('Segoe UI', 16, 'bold'), height=0).pack(fill='x', pady=(0, 6))
+        self.dashboard_gpu_area = ctk.CTkFrame(page, fg_color='transparent')
+        self.dashboard_gpu_area.pack(fill='x', pady=(0, 10))
+        self.dashboard_gpu_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='gpu')
+        self.dashboard_empty = ctk.CTkLabel(self.dashboard_gpu_area, text=tr('Обнаружение GPU…'), text_color=MUTED, height=0)
+        self.dashboard_empty.grid(row=0, column=0, columnspan=3)
         card = self.card(page, tr('Модель и агент'), tr('Загрузка модели при необходимости сама запускает сервер моделей llama-swap.'))
         row = self.row(card)
         self.model_combo = self.combo(row, [id for id, m in profile_storage.model_profiles.items() if id != 'none' and m.status != 'disabled'],
@@ -320,22 +326,16 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         row = self.row(card)
         # Same field look as the selectors above: a read-only status box, then primary/secondary buttons.
         box = ctk.CTkFrame(row, width=395, height=36, fg_color='#111b25', border_color=EDGE, border_width=2, corner_radius=6)
-        box.pack(side='left', padx=(0, 12), pady=14)
+        box.pack(side='left', padx=(0, 12), pady=(4, 5))
         box.pack_propagate(False)
-        self.dashboard_server_dot = ctk.CTkLabel(box, text='●', text_color=MUTED, width=18)
+        self.dashboard_server_dot = ctk.CTkLabel(box, text='●', text_color=MUTED, width=18, height=0)
         self.dashboard_server_dot.pack(side='left', padx=(10, 2))
-        self.dashboard_server_label = ctk.CTkLabel(box, text=tr('Сервер моделей: проверка…'), anchor='w', text_color=TEXT)
+        self.dashboard_server_label = ctk.CTkLabel(box, text=tr('Сервер моделей: проверка…'), anchor='w', text_color=TEXT, height=0)
         self.dashboard_server_label.pack(side='left', fill='x', expand=True)
         self.dashboard_server_start = self.button(row, tr('Запустить сервер'), lambda: self.worker(gpu_mode_manager.start_backend, label=tr('Запуск сервера моделей')), True, width=150)
         self.dashboard_server_stop = self.button(row, tr('Остановить сервер'), lambda: (self._notify_watchdog_stop(), self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей'))), width=150)
-        self.combination_label = ctk.CTkLabel(card, text=tr('Выберите модель и нажмите «Загрузить модель».'), anchor='w', justify='left', text_color=MUTED)
-        self.combination_label.pack(fill='x', padx=20, pady=(0, 12))
-        ctk.CTkLabel(page, text=tr('Оборудование сейчас'),anchor='w', font=('Segoe UI', 18, 'bold')).pack(fill='x', pady=(0, 8))
-        self.dashboard_gpu_area = ctk.CTkFrame(page, fg_color='transparent')
-        self.dashboard_gpu_area.pack(fill='x', pady=(0, 14))
-        self.dashboard_gpu_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='gpu')
-        self.dashboard_empty = ctk.CTkLabel(self.dashboard_gpu_area, text=tr('Обнаружение GPU…'), text_color=MUTED)
-        self.dashboard_empty.grid(row=0, column=0, columnspan=3)
+        self.combination_label = ctk.CTkLabel(card, text=tr('Выберите модель и нажмите «Загрузить модель».'), anchor='w', justify='left', text_color=MUTED, height=0)
+        self.combination_label.pack(fill='x', padx=20, pady=(2, 8))
 
     def _build_agents(self):
         page = self.page('agents')
@@ -923,17 +923,17 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             self.dashboard_gpus = {}
             for index, d in enumerate(top.devices):
                 tile = ctk.CTkFrame(self.dashboard_gpu_area, fg_color=PANEL, border_width=1, border_color=EDGE, corner_radius=12)
-                tile.grid(row=index//3, column=index%3, sticky='nsew', padx=(0, 8), pady=(0, 8))
+                tile.grid(row=index//3, column=index%3, sticky='nsew', padx=(0, 8), pady=(0, 4))
                 name = d.name.replace('NVIDIA ', '').replace('Intel(R) ', '')
-                ctk.CTkLabel(tile, text=f'{d.index} · {name}', anchor='w', font=('Segoe UI', 13, 'bold'), wraplength=240).pack(fill='x', padx=14, pady=(12, 0))
-                mode = ctk.CTkLabel(tile, text='', anchor='w', text_color=MUTED, font=('Segoe UI', 11))
+                ctk.CTkLabel(tile, text=f'{d.index} · {name}', anchor='w', font=('Segoe UI', 12, 'bold'), wraplength=240, height=0).pack(fill='x', padx=14, pady=(8, 0))
+                mode = ctk.CTkLabel(tile, text='', anchor='w', text_color=MUTED, font=('Segoe UI', 11), height=0)
                 mode.pack(fill='x', padx=14)
-                temp = ctk.CTkLabel(tile, text='', anchor='w', font=('Segoe UI', 17, 'bold'))
-                temp.pack(fill='x', padx=14, pady=4)
-                memory = ctk.CTkLabel(tile, text='', anchor='w', text_color=MUTED, font=('Segoe UI', 11))
+                temp = ctk.CTkLabel(tile, text='', anchor='w', font=('Segoe UI', 16, 'bold'), height=0)
+                temp.pack(fill='x', padx=14, pady=(2, 2))
+                memory = ctk.CTkLabel(tile, text='', anchor='w', text_color=MUTED, font=('Segoe UI', 11), height=0)
                 memory.pack(fill='x', padx=14)
                 bar = ctk.CTkProgressBar(tile, height=5, fg_color=EDGE, progress_color=ACCENT)
-                bar.pack(fill='x', padx=14, pady=(7, 14))
+                bar.pack(fill='x', padx=14, pady=(4, 8))
                 self.dashboard_gpus[d.uuid] = (mode, temp, memory, bar)
             if not ids:
                 ctk.CTkLabel(self.dashboard_gpu_area, text=tr('GPU не обнаружены. Доступны CPU-профили и внешние серверы.'),

@@ -1,9 +1,15 @@
 # Development handoff
 
-Updated: 2026-09-17. **Release 0.2.0-beta.2 published on GitHub. Repository is now public.**
-All 245 tests pass with zero failures.
+Updated: 2026-09-17.
+All 258 tests pass with zero failures.
+
+## Текущая работа
+- **Цель**: перестановка блоков на главной странице «Обзор станции» и уплотнение интерфейса по вертикали.
+- **Статус**: Выполнено. Блоки поменяны местами («Оборудование сейчас» поднято наверх над блоком «Модель и агент»). Разметка уплотнена (отступы, `height=0` для меток, компактные `pady=(4, 5)` между рядами), сэкономлено ~168px по вертикали при 150% DPI scaling (высота контента 699px при высоте канвы 1056px). Полоса прокрутки на странице «Обзор станции» скрыта.
+- **Проверка**: Все 258 тестов pytest пройдены без ошибок. Проверено состояние `scrollbar.winfo_ismapped() == False`.
 
 Current progress:
+- **Dashboard Layout Reorder & Compaction**: swapped «Оборудование сейчас» and «Модель и агент», compacted vertical paddings and label heights so the page fits without triggering the scrollbar.
 - **Repository Visibility**: switched to `public` per owner request.
 - **Latest Release**: `v0.2.0-beta.2` published at [Wave-is/laas/releases/tag/v0.2.0-beta.2](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.2)
   with all 4 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt).
