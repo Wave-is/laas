@@ -1,4 +1,4 @@
-﻿"""Local Agent AI Station desktop entry point and read-only diagnostics."""
+"""Local Agent AI Station desktop entry point and read-only diagnostics."""
 import argparse
 import json
 import logging
