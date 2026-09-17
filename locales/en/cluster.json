@@ -46,5 +46,8 @@
   "Конфигурация кластера успешно сохранена в {path}": "Cluster topology successfully saved to {path}",
   "Импортировано {count} узлов кластера": "Successfully imported {count} cluster nodes",
   "Ошибка импорта XML": "XML Import Error",
-  "URL телеметрии (Telegraf :9273/metrics или Exporter):": "Telemetry URL (Telegraf :9273/metrics or Exporter):"
+  "URL телеметрии (Telegraf :9273/metrics или Exporter):": "Telemetry URL (Telegraf :9273/metrics or Exporter):",
+  "⚡ ГЕНЕРАЦИЯ КАРТИНКИ (в очереди: {q})": "⚡ GENERATING IMAGE (queue: {q})",
+  "IDLE (ГОТОВ К ГЕНЕРАЦИИ)": "IDLE (READY TO GENERATE)",
+  "ComfyUI (Генератор изображений)": "ComfyUI (Image Generator)"
 }

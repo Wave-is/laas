@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0-beta.4
+
+### English
+
+- **Windows Telegraf-Compatible Telemetry Server**: Built-in zero-dependency telemetry server listening on `:9273/metrics` providing standard Telegraf Prometheus metrics (`nvidia_smi_*`, `cpu_usage_active`, `mem_*`, etc.) on Windows nodes.
+- **ComfyUI Image Generation Integration**: Native support for ComfyUI nodes in the cluster with live queue status monitoring (`/prompt`), active generation badges, and hardware stats.
+- **Service Profiles in XML Topology**: `<services>` section added to `cluster_topology.xml`, enabling automated registration and management of local/remote worker services (e.g. ComfyUI) on cluster import.
+- **Clean Service Management**: Removed legacy Windows startup shortcut for ComfyUI, transferring its lifecycle directly into LAAS managed shared services (`services.yaml`).
+
+### Русский
+
+- **Встроенный Telegraf-совместимый сервер телеметрии для Windows**: встроенный HTTP-сервер на порту `:9273/metrics`, отдающий метрики оборудования в стандартном формате Telegraf Prometheus (`nvidia_smi_*`, `cpu_usage_active`, `mem_*`), объединяющий Windows- и Linux-машины под единым протоколом.
+- **Интеграция ComfyUI в кластер**: полноценная поддержка узлов генерации изображений ComfyUI с отслеживанием очереди задач (`/prompt`), визуальными бейджами статуса генерации и мониторингом оборудования.
+- **Сервисы в XML-топологии**: добавлена секция `<services>` в `cluster_topology.xml`, позволяющая автоматически переносить и регистрировать профили сервисов (ComfyUI) при импорте настроек кластера.
+- **Чистое управление сервисами**: удален устаревший ярлык автозапуска ComfyUI из автозагрузки Windows, запуск и контроль сервиса полностью переведены в менеджер сервисов LAAS (`services.yaml`).
+
+### Українська
+
+- **Вбудований Telegraf-сумісний сервер телеметрії для Windows**: вбудований HTTP-сервер на порту `:9273/metrics`, що віддає метрики обладнання у стандартному форматі Telegraf Prometheus (`nvidia_smi_*`, `cpu_usage_active`, `mem_*`), об'єднуючи Windows- та Linux-машини під єдиним протоколом.
+- **Інтеграція ComfyUI до кластера**: повноцінна підтримка вузлів генерації зображень ComfyUI з відстеженням черги завдань (`/prompt`), візуальними бейджами статусу генерації та моніторингом обладнання.
+- **Сервіси в XML-топології**: додано секцію `<services>` до `cluster_topology.xml`, що дозволяє автоматично переносити та реєструвати профілі сервісів (ComfyUI) при імпорті налаштувань кластера.
+- **Чисте керування сервісами**: видалено застарілий ярлик автозапуску ComfyUI з автозавантаження Windows, запуск та контроль сервісу повністю переведено в менеджер сервісів LAAS (`services.yaml`).
+
 ## 0.2.0-beta.3
 
 ### English

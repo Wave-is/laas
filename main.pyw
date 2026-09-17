@@ -101,6 +101,11 @@ def main():
     try:
         app.mainloop()
     finally:
+        try:
+            from src.telemetry_server import telemetry_server
+            telemetry_server.stop()
+        except Exception:
+            pass
         instance.close()
     return 0
 

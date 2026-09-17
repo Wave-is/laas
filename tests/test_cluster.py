@@ -81,13 +81,75 @@ class TestCluster(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.cm.import_nodes_xml("<wrong-root><nodes></nodes></wrong-root>")
 
-    def test_friend_node_uses_telegraf(self):
-        nodes = self.cm.get_nodes()
-        friend = next((n for n in nodes if n['id'] == 'remote-worker'), None)
-        self.assertIsNotNone(friend)
-        self.assertIn(':9273', friend.get('telemetry_url', ''))
+    def test_telegraf_prometheus_parser(self):
+        sample_metrics = (
+            '# HELP nvidia_smi_utilization_gpu Telegraf collected metric\n'
+            '# TYPE nvidia_smi_utilization_gpu untyped\n'
+            'nvidia_smi_utilization_gpu{host="RenderPC",index="0",name="NVIDIA GeForce RTX 3060"} 45\n'
+            'nvidia_smi_memory_used{host="RenderPC",index="0",name="NVIDIA GeForce RTX 3060"} 2048\n'
+            'nvidia_smi_memory_total{host="RenderPC",index="0",name="NVIDIA GeForce RTX 3060"} 12288\n'
+            'nvidia_smi_temperature_gpu{host="RenderPC",index="0",name="NVIDIA GeForce RTX 3060"} 52\n'
+            'nvidia_smi_power_draw{host="RenderPC",index="0",name="NVIDIA GeForce RTX 3060"} 38.5\n'
+            'cpu_usage_active{cpu="cpu0",host="RenderPC"} 12.0\n'
+            'cpu_usage_active{cpu="cpu1",host="RenderPC"} 8.0\n'
+            'mem_used{host="RenderPC"} 17179869184\n'
+            'mem_total{host="RenderPC"} 34359738368\n'
+        )
+        parsed = self.cm._parse_telegraf_prometheus(sample_metrics)
+        self.assertEqual(len(parsed.get('gpus', [])), 1)
+        gpu = parsed['gpus'][0]
+        self.assertEqual(gpu['name'], 'NVIDIA GeForce RTX 3060')
+        self.assertEqual(gpu['util_percent'], 45.0)
+        self.assertEqual(gpu['vram_used_gb'], 2.0)
+        self.assertEqual(gpu['vram_total_gb'], 12.0)
+        self.assertEqual(gpu['temp_c'], 52.0)
+        self.assertEqual(gpu['power_w'], 38.5)
+        self.assertEqual(parsed['cpu_util'], 10.0)
+        self.assertEqual(parsed['ram_used_gb'], 16.0)
+        self.assertEqual(parsed['ram_total_gb'], 32.0)
+
+    def test_telemetry_server_generation(self):
+        from src.telemetry_server import telemetry_server
+        prom_text = telemetry_server.get_prometheus_text()
+        self.assertIn('mem_total', prom_text)
+        self.assertIn('cpu_usage_active', prom_text)
+
+        t_dict = telemetry_server.get_telemetry_dict()
+        self.assertIn('cpu', t_dict)
+        self.assertIn('ram', t_dict)
+        self.assertIn('gpus', t_dict)
+
+    def test_cluster_i18n_comfyui_keys(self):
+        self.assertIn('ComfyUI (Генератор изображений)', catalog('uk'))
+        self.assertIn('ComfyUI (Генератор изображений)', catalog('en'))
+        self.assertEqual(catalog('uk').get('ComfyUI (Генератор изображений)'), 'ComfyUI (Генератор зображень)')
+        self.assertEqual(catalog('en').get('ComfyUI (Генератор изображений)'), 'ComfyUI (Image Generator)')
+
+    def test_xml_export_and_import_services(self):
+        from src.shared_services import SharedServices
+        ss = SharedServices()
+        _, exp = ss.edit_snapshot("comfyui-test")
+        ss.save({
+            "id": "comfyui-test",
+            "name": "ComfyUI Test",
+            "kind": "comfyui",
+            "type": "local",
+            "url": "http://127.0.0.1:8188",
+            "health_url": "http://127.0.0.1:8188/system_stats",
+            "executable": "python.exe",
+            "arguments": ["main.py", "--port", "8188"],
+            "monitor_enabled": True
+        }, exp)
+        xml_text = self.cm.export_nodes_xml()
+        self.assertIn('<services>', xml_text)
+        self.assertIn('comfyui-test', xml_text)
+
+        # Verify import parses services element without crashing
+        fresh_cm = ClusterManager()
+        fresh_cm.import_nodes_xml(xml_text, merge=True)
 
 
 if __name__ == '__main__':
     unittest.main()
+
 

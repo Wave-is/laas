@@ -25,6 +25,11 @@ class ClusterPage:
         page = self.page('cluster')
         self.cluster_manager = cluster_manager
         self.cluster_manager.start()
+        try:
+            from ...telemetry_server import telemetry_server
+            telemetry_server.start()
+        except Exception as e:
+            log.warning("Could not start telemetry server: %s", e)
 
         # Top summary card
         self.cluster_summary_card = ctk.CTkFrame(page, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
@@ -267,28 +272,54 @@ class ClusterPage:
             r_inf.pack(fill='x', padx=12, pady=6)
 
             is_proc = inf.get('is_processing', False)
-            badge_text = tr('⚡ ГЕНЕРАЦИЯ') if is_proc else tr('IDLE (ОЖИДАНИЕ)')
-            badge_color = '#56d6b1' if is_proc else MUTED
+            node_type = node.get('type', '')
+            inf_type = inf.get('type', '')
 
-            ctk.CTkLabel(r_inf, text=f"LLM Engine: {badge_text}", font=('Segoe UI', 11, 'bold'), text_color=badge_color).pack(side='left', padx=(0, 14))
+            if node_type == 'comfyui' or inf_type == 'comfyui':
+                q_rem = inf.get('queue_remaining', 0)
+                if is_proc:
+                    badge_text = tr("⚡ ГЕНЕРАЦИЯ КАРТИНКИ (в очереди: {q})", q=q_rem)
+                    badge_color = '#e3b341'
+                else:
+                    badge_text = tr("IDLE (ГОТОВ К ГЕНЕРАЦИИ)")
+                    badge_color = '#56d6b1'
 
-            p_tok = inf.get('prompt_tokens', 0)
-            d_tok = inf.get('decoded_tokens', 0)
-            r_tok = inf.get('remain_tokens', 0)
-            n_ctx = inf.get('n_ctx', 65536)
+                ctk.CTkLabel(
+                    r_inf,
+                    text=f"{tr('ComfyUI (Генератор изображений)')}: {badge_text}",
+                    font=('Segoe UI', 11, 'bold'),
+                    text_color=badge_color
+                ).pack(side='left', padx=(0, 14))
 
-            ctk.CTkLabel(
-                r_inf,
-                text=tr(
-                    'Промпт: {p_tok} токенов • Генерация: {d_tok} • Остаток: {r_tok} • Контекст: {n_ctx}K',
-                    p_tok=p_tok,
-                    d_tok=d_tok,
-                    r_tok=r_tok,
-                    n_ctx=n_ctx // 1024,
-                ),
-                font=('Consolas', 10),
-                text_color=MUTED
-            ).pack(side='right')
+                ctk.CTkLabel(
+                    r_inf,
+                    text=f"Queue: {q_rem} tasks • SDXL / FLUX / Z-Image",
+                    font=('Consolas', 10),
+                    text_color=MUTED
+                ).pack(side='right')
+            else:
+                badge_text = tr('⚡ ГЕНЕРАЦИЯ') if is_proc else tr('IDLE (ОЖИДАНИЕ)')
+                badge_color = '#56d6b1' if is_proc else MUTED
+
+                ctk.CTkLabel(r_inf, text=f"LLM Engine: {badge_text}", font=('Segoe UI', 11, 'bold'), text_color=badge_color).pack(side='left', padx=(0, 14))
+
+                p_tok = inf.get('prompt_tokens', 0)
+                d_tok = inf.get('decoded_tokens', 0)
+                r_tok = inf.get('remain_tokens', 0)
+                n_ctx = inf.get('n_ctx', 65536)
+
+                ctk.CTkLabel(
+                    r_inf,
+                    text=tr(
+                        'Промпт: {p_tok} токенов • Генерация: {d_tok} • Остаток: {r_tok} • Контекст: {n_ctx}K',
+                        p_tok=p_tok,
+                        d_tok=d_tok,
+                        r_tok=r_tok,
+                        n_ctx=n_ctx // 1024,
+                    ),
+                    font=('Consolas', 10),
+                    text_color=MUTED
+                ).pack(side='right')
 
         # Notes
         notes = node.get('notes', '')
@@ -330,7 +361,7 @@ class ClusterPage:
 
         # Type dropdown
         ctk.CTkLabel(form, text=tr('Тип протокола:'), font=('Segoe UI', 12), text_color=MUTED).pack(anchor='w', pady=(8, 2))
-        types = ['llama_server', 'llama_swap', 'local', 'laas_exporter']
+        types = ['llama_server', 'llama_swap', 'comfyui', 'local', 'laas_exporter']
         type_combo = ctk.CTkComboBox(form, values=types, fg_color='#111b25', border_color=EDGE, height=32, state='readonly')
         type_combo.pack(fill='x')
         if node:
