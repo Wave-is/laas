@@ -11,6 +11,7 @@ from .paths import legacy_dir, data_dir
 from .profile_storage import get_default_gpu_profiles, get_default_model_profiles, get_default_station_presets
 from .profiles_schema import ModelProfile, GpuHardwareProfile, StationPreset
 from .storage import read_document, atomic_write, digest
+from .i18n import tr
 
 @dataclass
 class MigrationPlan:
@@ -76,7 +77,7 @@ def preview_migration(source=None, destination=None, swap_config=None):
             model.status = 'disabled'
         models[model.id] = model
         if not Path(model.weights_path).is_file():
-            plan.warnings.append(f'{model.id}: weights file missing')
+            plan.warnings.append(tr('{id}: файл весов модели не найден', id=model.id))
     if swap_config:
         swap_config = Path(swap_config)
         for model in models_from_swap(swap_config):
@@ -111,26 +112,26 @@ def preview_migration(source=None, destination=None, swap_config=None):
     if existing_dir.exists():
         files = [p for p in existing_dir.iterdir() if p.name != 'backups']
         if any(p.name != 'station.yaml' or not p.is_file() for p in files):
-            raise ValueError('Station 3 profile registries already exist. Import into a new data directory to preserve them.')
+            raise ValueError(tr('Профили Station 3 уже существуют. Чтобы сохранить их, импортируйте данные в новую папку.'))
         for p in files:
             plan.destination_hashes[p.name] = digest(p)
         if files:
             current = read_document(existing_dir / 'station.yaml', {})
             plan.documents['station.yaml'].update(current)
-            plan.warnings.append('Existing Station 3 preferences and selected executable paths are preserved.')
+            plan.warnings.append(tr('Текущие настройки Station 3 и выбранные пути к программам сохранены.'))
     for path in source.glob('*.json'):
         plan.sources[str(path)] = digest(path)
-    plan.warnings.append('Imported models require validation; no services, agents or GPU changes start during migration.')
+    plan.warnings.append(tr('Импортированные модели нужно проверить. Во время переноса службы, агенты и режим видеокарт не запускаются и не меняются.'))
     return plan
 
 def apply_migration(plan):
     config_dir = plan.destination / 'config'
     current = {p.name: digest(p) for p in config_dir.iterdir() if p.is_file()} if config_dir.exists() else {}
     if current != plan.destination_hashes or (config_dir.exists() and any(p.is_dir() and p.name != 'backups' for p in config_dir.iterdir())):
-        raise ValueError('Destination configuration changed after preview. Review migration again.')
+        raise ValueError(tr('Настройки в папке назначения изменились после просмотра. Просмотрите перенос заново.'))
     for source, expected in plan.sources.items():
         if digest(Path(source)) != expected:
-            raise ValueError(f'Source changed after preview: {source}')
+            raise ValueError(tr('Исходный файл изменился после просмотра: {path}', path=source))
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     backup = plan.destination / 'backups' / ('migration-' + stamp)
     backup.mkdir(parents=True)
@@ -145,7 +146,7 @@ def apply_migration(plan):
         prior = backup / 'prior-station-config'
         for path in (config_dir, prior, staging):
             if not path.resolve().is_relative_to(plan.destination.resolve()):
-                raise ValueError('Migration paths escaped the destination directory')
+                raise ValueError(tr('Пути переноса выходят за пределы папки назначения'))
         if config_dir.exists():
             os.replace(config_dir, prior)
         try:

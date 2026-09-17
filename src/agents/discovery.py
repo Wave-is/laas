@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import shutil
 import json
+from ..i18n import tr
 
 
 def npm_installation(binary, packages, settings=None):
@@ -17,10 +18,10 @@ def npm_installation(binary, packages, settings=None):
     if found:
         executable = Path(found).expanduser()
         if configured and not executable.is_file():
-            raise ValueError(f'Указанный файл агента не найден: {executable}. Исправьте путь в настройках агента.')
+            raise ValueError(tr('Указанный файл агента не найден: {path}. Исправьте путь в настройках агента.', path=executable))
         if executable.suffix.lower() in ('.js', '.mjs', '.cjs'):
             if not node:
-                raise ValueError('Для этого агента нужен Node.js, но он не найден. Установите Node.js и нажмите «Найти агенты заново».')
+                raise ValueError(tr('Для этого агента нужен Node.js, но он не найден. Установите Node.js и нажмите «Найти агенты заново».'))
             return [str(node), str(executable)], None
         # POSIX npm shims are symlinks to scripts; inspect their package metadata.
         if executable.is_symlink():
@@ -50,14 +51,14 @@ def npm_installation(binary, packages, settings=None):
             continue
         path = (root / entry).resolve()
         if not path.is_relative_to(root.resolve()) or not path.is_file():
-            raise ValueError(f'Файл запуска пакета {meta.get("name")} отсутствует или находится вне папки пакета: {path}. '
-                'Переустановите агент.')
+            raise ValueError(tr('Файл запуска пакета {package} отсутствует или находится вне папки пакета: {path}. '
+                'Переустановите агент.', package=meta.get('name'), path=path))
         if not node:
-            raise ValueError('Для этого агента нужен Node.js, но он не найден. Установите Node.js и нажмите «Найти агенты заново».')
+            raise ValueError(tr('Для этого агента нужен Node.js, но он не найден. Установите Node.js и нажмите «Найти агенты заново».'))
         return [str(node), str(path)], root
     if configured or settings.get('package_root'):
-        raise ValueError(f'Пакет {" или ".join(packages)} не найден по указанному пути. '
-            'Проверьте путь к программе или папке пакета в настройках агента.')
+        raise ValueError(tr('Пакет {packages} не найден по указанному пути. '
+            'Проверьте путь к программе или папке пакета в настройках агента.', packages=' / '.join(packages)))
     return [], None
 
 def local_appdata():

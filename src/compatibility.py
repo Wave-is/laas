@@ -5,6 +5,7 @@ from typing import List, Any
 from .profiles_schema import CompatibilityStatus as Status
 from .hardware_topology import GpuDeviceInfo
 from .model_server import resolve_model_file
+from .i18n import tr
 
 @dataclass
 class CompatibilityResult:
@@ -25,65 +26,65 @@ class CompatibilityEvaluator:
         assigned, errors, warnings, unknown = [], [], [], []
         def result():
             status = Status.INCOMPATIBLE if errors else Status.UNKNOWN if unknown else Status.COMPATIBLE_WITH_WARNING if warnings else Status.COMPATIBLE
-            reasons = errors or unknown or ['Проверенные требования профиля удовлетворены.']
-            return CompatibilityResult(status, not errors and not unknown, ' '.join(reasons[:3]) + (f' (и ещё {len(reasons) - 3})' if len(reasons) > 3 else ''), reasons, warnings, assigned, transport)
+            reasons = errors or unknown or [tr('Проверенные требования профиля удовлетворены.')]
+            return CompatibilityResult(status, not errors and not unknown, ' '.join(reasons[:3]) + (' ' + tr('(и ещё {count})', count=len(reasons) - 3) if len(reasons) > 3 else ''), reasons, warnings, assigned, transport)
         transport = 'None'
         if model.id == 'none':
-            return CompatibilityResult(Status.COMPATIBLE, True, 'Модель не выбрана', [], [], [])
+            return CompatibilityResult(Status.COMPATIBLE, True, tr('Модель не выбрана'), [], [], [])
         if model.status == 'disabled':
-            errors.append('Профиль модели отключён.')
+            errors.append(tr('Профиль модели отключён.'))
         if model.provider_type in ('openai_compatible', 'ollama'):
             if not model.endpoint:
-                errors.append('Endpoint модели не задан.')
+                errors.append(tr('Endpoint модели не задан.'))
             transport = 'HTTP'
             return result()
         weights = resolve_model_file(model.weights_path)
         mmproj = resolve_model_file(model.mmproj_path)
         if not model.weights_path:
-            errors.append('Путь к файлу весов не задан.')
+            errors.append(tr('Путь к файлу весов не задан.'))
         elif not topology.is_simulated and not Path(weights).is_file():
-            errors.append('Файл весов модели не найден: ' + weights)
+            errors.append(tr('Файл весов модели не найден: {path}', path=weights))
         if model.vision and (not model.mmproj_path or (not topology.is_simulated and not Path(mmproj).is_file())):
-            errors.append('Для работы с изображениями нужен файл mmproj, но он не найден: ' + str(mmproj or 'путь не задан'))
+            errors.append(tr('Для работы с изображениями нужен файл mmproj, но он не найден: {path}', path=str(mmproj or tr('путь не задан'))))
         if model.allowed_hardware_profiles and (not gpu_profile or gpu_profile.id not in model.allowed_hardware_profiles):
-            errors.append('Выбранный аппаратный профиль не разрешён для этой модели.')
+            errors.append(tr('Выбранный аппаратный профиль не разрешён для этой модели.'))
         if topology.discovery_error:
-            unknown.append('Опрос оборудования не завершён: ' + topology.discovery_error)
+            unknown.append(tr('Опрос оборудования не завершён: {error}', error=topology.discovery_error))
         assigned = self._resolve_assigned_gpus(model, topology, gpu_profile)
         if model.gpu_selection_policy == 'explicit_uuid_list':
             wanted = {s.lower() for s in model.explicit_gpu_uuids}
             if not wanted or wanted != {g.uuid.lower() for g in assigned}:
-                errors.append('Явно выбранные GPU отсутствуют, исключены или несовместимы с backend.')
+                errors.append(tr('Явно выбранные GPU отсутствуют, исключены или несовместимы с backend.'))
         if len(assigned) < model.min_gpu_count:
-            errors.append(f'Недостаточно доступных GPU: требуется {model.min_gpu_count}, выбрано {len(assigned)}.')
+            errors.append(tr('Недостаточно доступных GPU: требуется {required}, выбрано {selected}.', required=model.min_gpu_count, selected=len(assigned)))
         if model.max_gpu_count is not None and len(assigned) > model.max_gpu_count:
-            errors.append(f'Превышено разрешённое количество GPU: максимум {model.max_gpu_count}.')
+            errors.append(tr('Превышено разрешённое количество GPU: максимум {maximum}.', maximum=model.max_gpu_count))
         if model.backend == 'cpu' or (not assigned and model.cpu_offload and model.min_gpu_count == 0):
             transport = 'CPU'
             if weights and Path(weights).is_file():
                 import psutil
                 if Path(weights).stat().st_size > psutil.virtual_memory().available:
-                    errors.append('Недостаточно свободной RAM даже для весов модели.')
-            warnings.append('CPU inference: требуется квалификация RAM с учётом KV-кэша и контекста.')
+                    errors.append(tr('Недостаточно свободной RAM даже для весов модели.'))
+            warnings.append(tr('CPU inference: требуется квалификация RAM с учётом KV-кэша и контекста.'))
             return result()
         if any(g.vram_total_mib is None for g in assigned):
-            unknown.append('Объём VRAM выбранных GPU неизвестен.')
+            unknown.append(tr('Объём VRAM выбранных GPU неизвестен.'))
         elif sum(g.vram_total_mib for g in assigned) < model.min_total_vram_mib:
-            errors.append(f'Недостаточно видеопамяти: требуется {model.min_total_vram_mib} MiB.')
+            errors.append(tr('Недостаточно видеопамяти: требуется {required} MiB.', required=model.min_total_vram_mib))
         for g in assigned:
             if g.vram_free_mib is None:
-                unknown.append(f'{g.name}: свободная VRAM неизвестна.')
+                unknown.append(tr('{gpu}: свободная VRAM неизвестна.', gpu=g.name))
             elif g.vram_free_mib < model.min_free_vram_per_gpu_mib:
-                errors.append(f'{g.name}: недостаточно свободной VRAM ({g.vram_free_mib} MiB).')
+                errors.append(tr('{gpu}: недостаточно свободной VRAM ({free} MiB).', gpu=g.name, free=g.vram_free_mib))
         if assigned and all(g.vram_free_mib is not None for g in assigned):
             if sum(g.vram_free_mib for g in assigned) < model.min_total_vram_mib and not model.cpu_offload:
-                errors.append('Недостаточно суммарной свободной VRAM для профиля.')
+                errors.append(tr('Недостаточно суммарной свободной VRAM для профиля.'))
             if not topology.is_simulated and Path(weights).is_file() and not model.cpu_offload:
                 weight_mib = Path(weights).stat().st_size / 1048576
                 if sum(g.vram_free_mib for g in assigned) < weight_mib:
-                    errors.append('Свободной VRAM недостаточно даже для файла весов; KV-кэш требует дополнительной памяти.')
+                    errors.append(tr('Свободной VRAM недостаточно даже для файла весов; KV-кэш требует дополнительной памяти.'))
                 if model.min_total_vram_mib < weight_mib:
-                    warnings.append('Профиль не задаёт полный бюджет VRAM. Фактическая загрузка и контекст требуют smoke-проверки.')
+                    warnings.append(tr('Профиль не задаёт полный бюджет VRAM. Фактическая загрузка и контекст требуют smoke-проверки.'))
         split = model.tensor_split_policy
         if split not in ('auto', 'none', ''):
             try:
@@ -93,26 +94,26 @@ class CompatibilityEvaluator:
                 if not model.cpu_offload and model.min_total_vram_mib:
                     for g, ratio in zip(assigned, ratios):
                         if g.vram_free_mib is not None and model.min_total_vram_mib * ratio / sum(ratios) > g.vram_free_mib:
-                            errors.append(f'Tensor split выделяет {g.name} больше памяти, чем доступно.')
+                            errors.append(tr('Tensor split выделяет {gpu} больше памяти, чем доступно.', gpu=g.name))
             except (ValueError, ZeroDivisionError):
-                errors.append('Tensor split должен содержать положительный вес для каждой выбранной GPU.')
+                errors.append(tr('Tensor split должен содержать положительный вес для каждой выбранной GPU.'))
         p2p = len(assigned) > 1 and all(topology.is_p2p_active_between(a.index, b.index)
             for i, a in enumerate(assigned) for b in assigned[i+1:])
-        transport = 'CUDA Direct P2P (проверена доступность)' if p2p else 'PCIe / Host Fallback Transport' if len(assigned) > 1 else 'Single device'
+        transport = tr('CUDA Direct P2P (проверена доступность)') if p2p else 'PCIe / Host Fallback Transport' if len(assigned) > 1 else 'Single device'
         if (model.require_p2p or (gpu_profile and gpu_profile.require_p2p)) and not p2p:
-            errors.append('Профиль строго требует аппаратный CUDA Direct P2P; доступность не подтверждена.')
+            errors.append(tr('Профиль строго требует аппаратный CUDA Direct P2P; доступность не подтверждена.'))
         elif len(assigned) > 1 and not p2p:
-            warnings.append('CUDA P2P не подтверждён. Допускается fallback transport, если его поддерживает runtime.')
+            warnings.append(tr('CUDA P2P не подтверждён. Допускается fallback transport, если его поддерживает runtime.'))
         nvlink = len(assigned) > 1 and all(b.index in a.nvlink_peers and a.index in b.nvlink_peers
             for i, a in enumerate(assigned) for b in assigned[i+1:])
         if gpu_profile and gpu_profile.require_nvlink and not nvlink:
-            errors.append('Аппаратный профиль строго требует NVLink между выбранными GPU; наличие не подтверждено.')
+            errors.append(tr('Аппаратный профиль строго требует NVLink между выбранными GPU; наличие не подтверждено.'))
         if any(g.display_active is True for g in assigned):
-            warnings.append('На выбранной GPU активен рабочий стол Windows; учитывайте графическую нагрузку.')
+            warnings.append(tr('На выбранной GPU активен рабочий стол Windows; учитывайте графическую нагрузку.'))
         if any(g.display_active is None for g in assigned):
-            warnings.append('Состояние подключённых дисплеев неизвестно.')
+            warnings.append(tr('Состояние подключённых дисплеев неизвестно.'))
         if model.status in ('manual', 'experimental') or not model.qualified:
-            warnings.append('Модель ещё не квалифицирована smoke-тестом Station.')
+            warnings.append(tr('Модель ещё не квалифицирована smoke-тестом Station.'))
         return result()
 
     def _resolve_assigned_gpus(self, model, topology, gpu_profile):

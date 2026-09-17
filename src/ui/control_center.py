@@ -23,6 +23,7 @@ from ..agent_sync import apply_preview
 from ..tray_renderer import renderer
 from ..shared_services import shared_services
 from ..branding import mark_image
+from ..i18n import LANGUAGES, current_language, tr
 from .tray_controls import TrayControls
 from .gpu_confirmation import GpuControls
 from .service_controls import ServiceControls
@@ -40,11 +41,38 @@ def number(value, suffix=''):
     return '—' if value is None else f'{value:g}{suffix}'
 
 def result_message(value):
-    text = str(value.get('Message', 'Готово'))
-    return {'Frontend process started': 'Агент запущен', 'Terminal opened': 'Терминал агента открыт',
-            'No driver changes required': 'Переключение GPU не требуется: режимы уже соответствуют профилю',
-            'Agent runtime selected': 'Основной агент выбран', 'Frontend selected': 'Способ запуска агента выбран',
-            'Finish and close active agent sessions before changing GPU drivers': 'Перед переключением GPU завершите и закройте сеансы агентов'}.get(text, text)
+    if 'Message' not in value:
+        return tr('Готово')
+    text = str(value['Message'])
+    return {'Frontend process started': tr('Агент запущен'), 'Terminal opened': tr('Терминал агента открыт'),
+            'No driver changes required': tr('Переключение GPU не требуется: режимы уже соответствуют профилю'),
+            'Agent runtime selected': tr('Основной агент выбран'), 'Frontend selected': tr('Способ запуска агента выбран'),
+            'Finish and close active agent sessions before changing GPU drivers': tr('Перед переключением GPU завершите и закройте сеансы агентов')}.get(text, text)
+
+# Stable page ids; titles are translated only for display.
+PAGE_IDS = ('station', 'hardware', 'models', 'agents', 'services', 'startup', 'settings')
+
+def page_title(page_id):
+    return {'station': tr('Станция'), 'hardware': tr('Оборудование'), 'models': tr('Модели'),
+            'agents': tr('Агенты'), 'services': tr('Службы'), 'startup': tr('Автозапуск'),
+            'settings': tr('Настройки')}.get(page_id, page_id)
+
+def testing_guide_path(language=None):
+    """Testing guide in the interface language, falling back to the Russian original."""
+    language = language or current_language()
+    suffix = {'en': 'EN', 'uk': 'UK'}.get(language)
+    if suffix:
+        localized = resource_path(f'docs/TESTING_GUIDE_{suffix}.md')
+        if localized.is_file():
+            return localized
+    return resource_path('docs/TESTING_GUIDE_RU.md')
+
+def restart_command():
+    """Command line that starts Station again with the same arguments."""
+    import sys
+    if getattr(sys, 'frozen', False):
+        return [sys.executable, *sys.argv[1:]]
+    return [sys.executable, str(Path(sys.argv[0]).resolve()), *sys.argv[1:]]
 
 class StationButton(ctk.CTkButton):
     """A disabled button must look inactive: grey fill and muted text, never a pale accent."""
@@ -83,7 +111,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
     def __init__(self, start_minimized=False, no_tray=False, skip_startup=False):
         super().__init__()
         ctk.set_appearance_mode('dark')
-        self.title(APP_NAME + ' — центр управления')
+        self.title(tr('{app} — центр управления', app=APP_NAME))
         self.geometry('1180x790')
         self.minsize(1080, 680)
         self.configure(fg_color=BG)
@@ -120,9 +148,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.body.grid(row=0, column=1, sticky='nsew', padx=28, pady=22)
         self.body.grid_columnconfigure(0, weight=1)
         self.body.grid_rowconfigure(2, weight=1)
-        self.heading = ctk.CTkLabel(self.body, text='Ваша локальная AI-станция', font=('Segoe UI', 27, 'bold'), anchor='w')
+        self.heading = ctk.CTkLabel(self.body, text=tr('Ваша локальная AI-станция'), font=('Segoe UI', 27, 'bold'), anchor='w')
         self.heading.grid(row=0, column=0, sticky='ew')
-        self.status_label = ctk.CTkLabel(self.body, text='Обнаружение оборудования и агентов…', text_color=MUTED, anchor='w',
+        self.status_label = ctk.CTkLabel(self.body, text=tr('Обнаружение оборудования и агентов…'), text_color=MUTED, anchor='w',
             justify='left', wraplength=900)
         self.status_label.grid(row=1, column=0, sticky='ew', pady=(4, 18))
         self._build_station()
@@ -130,8 +158,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self._build_models()
         self._build_agents()
         self._build_services()
+        self._build_startup()
         self._build_settings()
-        self.show_page('Станция')
+        self.show_page('station')
         self.protocol('WM_DELETE_WINDOW', self.hide_to_tray)
         self.after(250, self._set_window_icon)
         self.after(100, self._drain_events)
@@ -140,7 +169,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         if not no_tray:
             self._create_tray()
         if profile_storage.warnings:
-            self.after(3000, lambda: self.status_label.configure(text='Предупреждение: ' + '; '.join(profile_storage.warnings)[:380], text_color='#f8ad88'))
+            self.after(3000, lambda: self.status_label.configure(text=tr('Предупреждение: {details}', details='; '.join(profile_storage.warnings)[:380]), text_color='#f8ad88'))
         if (start_minimized or config.get('startup', {}).get('minimized', False)) and self.tray:
             self.withdraw()
 
@@ -154,14 +183,14 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         brand.bind('<Button-3>', self._show_quick_menu)
         ctk.CTkLabel(sidebar, text='LOCAL AGENT\nAI STATION', font=('Segoe UI', 16, 'bold'), justify='left').pack(anchor='w', padx=24, pady=(8, 30))
         self.nav_buttons = {}
-        for label in ('Станция', 'Оборудование', 'Модели', 'Агенты', 'Службы', 'Настройки'):
-            button = ctk.CTkButton(sidebar, text=label, anchor='w', height=42, corner_radius=7,
-                fg_color='transparent', hover_color=EDGE, command=lambda name=label: self.show_page(name))
+        for page_id in PAGE_IDS:
+            button = ctk.CTkButton(sidebar, text=page_title(page_id), anchor='w', height=42, corner_radius=7,
+                fg_color='transparent', hover_color=EDGE, command=lambda name=page_id: self.show_page(name))
             button.pack(fill='x', padx=12, pady=3)
-            self.nav_buttons[label] = button
-        ctk.CTkButton(sidebar, text='Меню действий', fg_color=EDGE, command=self._show_quick_menu).pack(fill='x', padx=20, pady=(25, 0))
-        ctk.CTkButton(sidebar, text='Свернуть в трей', fg_color='transparent', hover_color=EDGE, command=self.hide_to_tray).pack(fill='x', padx=20, pady=(8, 0))
-        ctk.CTkLabel(sidebar, text='Независимый локальный\nцентр управления\n\nv' + VERSION, justify='left',
+            self.nav_buttons[page_id] = button
+        ctk.CTkButton(sidebar, text=tr('Меню действий'), fg_color=EDGE, command=self._show_quick_menu).pack(fill='x', padx=20, pady=(25, 0))
+        ctk.CTkButton(sidebar, text=tr('Свернуть в трей'), fg_color='transparent', hover_color=EDGE, command=self.hide_to_tray).pack(fill='x', padx=20, pady=(8, 0))
+        ctk.CTkLabel(sidebar, text=tr('Независимый локальный\nцентр управления') + '\n\nv' + VERSION, justify='left',
             text_color=MUTED, font=('Segoe UI', 12)).pack(side='bottom', anchor='w', padx=24, pady=25)
 
     def page(self, name):
@@ -171,14 +200,17 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         return page
 
     def show_page(self, name):
-        if name == 'Настройки':
+        """Show a page by its ASCII id: station, hardware, models, agents, services or settings."""
+        if name not in self.pages:
+            return
+        if name == 'startup':
             self._refresh_startup_choices()
+        if name == 'settings':
             self._refresh_helper_status()
         for page in self.pages.values():
             page.grid_remove()
-        if name in self.pages:
-            self.pages[name].grid(row=2, column=0, sticky='nsew')
-        self.heading.configure(text={'Станция': 'Обзор станции'}.get(name, name))
+        self.pages[name].grid(row=2, column=0, sticky='nsew')
+        self.heading.configure(text=tr('Обзор станции') if name == 'station' else page_title(name))
         for label, button in self.nav_buttons.items():
             button.configure(fg_color=EDGE if label == name else 'transparent', text_color=ACCENT if label == name else TEXT)
 
@@ -225,35 +257,35 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         return widget
 
     def _build_station(self):
-        page = self.page('Станция')
+        page = self.page('station')
         stats = ctk.CTkFrame(page, fg_color='transparent')
         stats.pack(fill='x', pady=(0, 14))
         stats.grid_columnconfigure((0, 1, 2), weight=1, uniform='stats')
         self.dashboard_stats = {}
-        for column, (key, label) in enumerate((('backend', 'СЕРВЕР МОДЕЛЕЙ · LLAMA-SWAP'), ('model', 'ЗАГРУЖЕННАЯ МОДЕЛЬ'), ('agent', 'АГЕНТ'))):
+        for column, (key, label) in enumerate((('backend', tr('СЕРВЕР МОДЕЛЕЙ · LLAMA-SWAP')), ('model', tr('ЗАГРУЖЕННАЯ МОДЕЛЬ')), ('agent', tr('АГЕНТ')))):
             tile = ctk.CTkFrame(stats, fg_color=PANEL, border_color=EDGE, border_width=1, corner_radius=12)
             tile.grid(row=0, column=column, sticky='nsew', padx=(0, 10 if column < 2 else 0))
             ctk.CTkLabel(tile, text=label, font=('Segoe UI', 10, 'bold'), text_color=MUTED, anchor='w').pack(fill='x', padx=15, pady=(12, 0))
-            value = ctk.CTkLabel(tile, text='Проверка…', font=('Segoe UI', 18, 'bold'), anchor='w', wraplength=230, justify='left')
+            value = ctk.CTkLabel(tile, text=tr('Проверка…'), font=('Segoe UI', 18, 'bold'), anchor='w', wraplength=230, justify='left')
             value.pack(fill='x', padx=15, pady=(4, 1))
-            detail = ctk.CTkLabel(tile, text='Ожидание данных', font=('Segoe UI', 11), text_color=MUTED, anchor='w',
+            detail = ctk.CTkLabel(tile, text=tr('Ожидание данных'), font=('Segoe UI', 11), text_color=MUTED, anchor='w',
                 justify='left', wraplength=300)
             detail.pack(fill='x', padx=15, pady=(0, 12))
             self.dashboard_stats[key] = (value, detail)
-        card = self.card(page, 'Модель и агент', 'Загрузка модели при необходимости сама запускает сервер моделей llama-swap.')
+        card = self.card(page, tr('Модель и агент'), tr('Загрузка модели при необходимости сама запускает сервер моделей llama-swap.'))
         row = self.row(card)
         self.model_combo = self.combo(row, [id for id, m in profile_storage.model_profiles.items() if id != 'none' and m.status != 'disabled'],
             config.get('selected_model_profile', config.get('active_model_profile')), 395)
-        self.dashboard_model_start = self.button(row, 'Загрузить модель', lambda: self._run_selection(self.model_combo, gpu_mode_manager.apply_model_profile_only, 'Загрузка модели'), True, width=150)
+        self.dashboard_model_start = self.button(row, tr('Загрузить модель'), lambda: self._run_selection(self.model_combo, gpu_mode_manager.apply_model_profile_only, tr('Загрузка модели')), True, width=150)
         self.model_combo.configure(command=lambda value: self._refresh_dashboard_buttons())
-        self.dashboard_model_stop = self.button(row, 'Выгрузить модель', lambda: self.worker(lambda: gpu_mode_manager.apply_model_profile_only('none'), label='Выгрузка модели'), width=150)
+        self.dashboard_model_stop = self.button(row, tr('Выгрузить модель'), lambda: self.worker(lambda: gpu_mode_manager.apply_model_profile_only('none'), label=tr('Выгрузка модели')), width=150)
         row = self.row(card)
         self.runtime_combo = self.combo(row, list(self.controller.adapters), config.get('primary_agent_runtime'), 175)
         self.runtime_combo.configure(command=lambda value: self._select_runtime(self.runtime_combo.get()))
         self.frontend_combo = self.combo(row, [], width=208)
         self.frontend_combo.configure(command=lambda value: self._refresh_dashboard_buttons())
-        self.dashboard_agent_start = self.button(row, 'Запустить агента', self._launch_frontend, True, width=150)
-        self.dashboard_agent_stop = self.button(row, 'Остановить агента', lambda: self._run_selection(self.frontend_combo, self.controller.stop_frontend, 'Остановка агента'), width=150)
+        self.dashboard_agent_start = self.button(row, tr('Запустить агента'), self._launch_frontend, True, width=150)
+        self.dashboard_agent_stop = self.button(row, tr('Остановить агента'), lambda: self._run_selection(self.frontend_combo, self.controller.stop_frontend, tr('Остановка агента')), width=150)
         row = self.row(card)
         # Same field look as the selectors above: a read-only status box, then primary/secondary buttons.
         box = ctk.CTkFrame(row, width=395, height=36, fg_color='#111b25', border_color=EDGE, border_width=2, corner_radius=6)
@@ -261,71 +293,71 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         box.pack_propagate(False)
         self.dashboard_server_dot = ctk.CTkLabel(box, text='●', text_color=MUTED, width=18)
         self.dashboard_server_dot.pack(side='left', padx=(10, 2))
-        self.dashboard_server_label = ctk.CTkLabel(box, text='Сервер моделей: проверка…', anchor='w', text_color=TEXT)
+        self.dashboard_server_label = ctk.CTkLabel(box, text=tr('Сервер моделей: проверка…'), anchor='w', text_color=TEXT)
         self.dashboard_server_label.pack(side='left', fill='x', expand=True)
-        self.dashboard_server_start = self.button(row, 'Запустить сервер', lambda: self.worker(gpu_mode_manager.start_backend, label='Запуск сервера моделей'), True, width=150)
-        self.dashboard_server_stop = self.button(row, 'Остановить сервер', lambda: self.worker(gpu_mode_manager.stop_backend, label='Остановка сервера моделей'), width=150)
-        self.combination_label = ctk.CTkLabel(card, text='Выберите модель и нажмите «Загрузить модель».', anchor='w', justify='left', text_color=MUTED)
+        self.dashboard_server_start = self.button(row, tr('Запустить сервер'), lambda: self.worker(gpu_mode_manager.start_backend, label=tr('Запуск сервера моделей')), True, width=150)
+        self.dashboard_server_stop = self.button(row, tr('Остановить сервер'), lambda: self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей')), width=150)
+        self.combination_label = ctk.CTkLabel(card, text=tr('Выберите модель и нажмите «Загрузить модель».'), anchor='w', justify='left', text_color=MUTED)
         self.combination_label.pack(fill='x', padx=20, pady=(0, 12))
-        ctk.CTkLabel(page, text='Оборудование сейчас', anchor='w', font=('Segoe UI', 18, 'bold')).pack(fill='x', pady=(0, 8))
+        ctk.CTkLabel(page, text=tr('Оборудование сейчас'),anchor='w', font=('Segoe UI', 18, 'bold')).pack(fill='x', pady=(0, 8))
         self.dashboard_gpu_area = ctk.CTkFrame(page, fg_color='transparent')
         self.dashboard_gpu_area.pack(fill='x', pady=(0, 14))
         self.dashboard_gpu_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='gpu')
-        self.dashboard_empty = ctk.CTkLabel(self.dashboard_gpu_area, text='Обнаружение GPU…', text_color=MUTED)
+        self.dashboard_empty = ctk.CTkLabel(self.dashboard_gpu_area, text=tr('Обнаружение GPU…'), text_color=MUTED)
         self.dashboard_empty.grid(row=0, column=0, columnspan=3)
 
     def _build_hardware(self):
-        page = self.page('Оборудование')
-        card = self.card(page, 'Профиль оборудования', 'Выберите режимы GPU. Перед переключением появится список изменений, если подтверждение не отключено. При совпадении режимов переключение не выполняется.')
+        page = self.page('hardware')
+        card = self.card(page, tr('Профиль оборудования'), tr('Выберите режимы GPU. Перед переключением появится список изменений, если подтверждение не отключено. При совпадении режимов переключение не выполняется.'))
         row = self.row(card)
         self.gpu_combo = self.combo(row, list(profile_storage.gpu_profiles), config.get('active_gpu_profile'))
-        self.button(row, 'Применить GPU-профиль', self._preview_gpu, True, width=190)
+        self.button(row, tr('Применить GPU-профиль'),self._preview_gpu, True, width=190)
         self.gpu_area = ctk.CTkFrame(page, fg_color='transparent')
         self.gpu_area.pack(fill='x')
         self.topology_label = ctk.CTkLabel(page, text='', text_color=MUTED, anchor='w', justify='left', wraplength=790)
         self.topology_label.pack(fill='x', pady=8)
 
     def _build_models(self):
-        page = self.page('Модели')
-        card = self.card(page, 'Реестр моделей', 'Профили хранятся отдельно от агентов. Наличие файлов и возможности модели проверяются независимо.')
+        page = self.page('models')
+        card = self.card(page, tr('Реестр моделей'), tr('Профили хранятся отдельно от агентов. Наличие файлов и возможности модели проверяются независимо.'))
         row = self.row(card)
-        self.button(row, 'Редактировать профили (YAML)', lambda: self.edit_document('model_profiles.yaml'), True, width=230)
-        self.button(row, 'Синхронизировать с агентами', self._sync_models, width=230)
+        self.button(row, tr('Редактировать профили (YAML)'), lambda: self.edit_document('model_profiles.yaml'), True, width=230)
+        self.button(row, tr('Синхронизировать с агентами'), self._sync_models, width=230)
         row = self.row(card)
         self.test_model_combo = self.combo(row, list(profile_storage.model_profiles), config.get('selected_model_profile', config.get('active_model_profile')))
-        self.button(row, 'Загрузить и проверить модель', self._qualify_model, width=230)
+        self.button(row, tr('Загрузить и проверить модель'),self._qualify_model, width=230)
         self.models_text = ctk.CTkTextbox(page, height=430, fg_color=PANEL, font=('Consolas', 13))
         self.models_text.pack(fill='both', expand=True)
         self._refresh_models_text()
 
     def _build_agents(self):
-        page = self.page('Агенты')
-        card = self.card(page, 'Запуск и установка агентов', 'В карточке агента выберите способ запуска (Desktop, терминал и т. д.) и нажмите «Запустить агента». «Установить ↗» открывает официальные релизы; после установки нажмите «Найти агенты заново».')
+        page = self.page('agents')
+        card = self.card(page, tr('Запуск и установка агентов'), tr('В карточке агента выберите способ запуска (Desktop, терминал и т. д.) и нажмите «Запустить агента». «Установить ↗» открывает официальные релизы; после установки нажмите «Найти агенты заново».'))
         row = self.row(card)
-        self.button(row, 'Найти агенты заново', lambda: self.worker(self.controller.discover_agents, self._agents_discovered, label='Поиск агентов'), True, width=180)
-        self.button(row, 'Настройки агентов (YAML)', lambda: self.edit_document('agent_runtimes.yaml'), width=200)
-        self.button(row, 'Способы запуска (YAML)', lambda: self.edit_document('agent_frontends.yaml'), width=200)
+        self.button(row, tr('Найти агенты заново'), lambda: self.worker(self.controller.discover_agents, self._agents_discovered, label=tr('Поиск агентов')), True, width=180)
+        self.button(row, tr('Настройки агентов (YAML)'), lambda: self.edit_document('agent_runtimes.yaml'), width=200)
+        self.button(row, tr('Способы запуска (YAML)'),lambda: self.edit_document('agent_frontends.yaml'), width=200)
         self.agent_cards = ctk.CTkFrame(page, fg_color='transparent')
         self.agent_cards.pack(fill='both', expand=True)
 
     def _build_services(self):
-        page = self.page('Службы')
+        page = self.page('services')
         card = self.card(page, model_server.SERVER_TITLE,
-            'llama-swap — сервер, к которому подключаются агенты (Qwen Code, Hermes и другие). Он слушает один порт и по запросу '
+            tr('llama-swap — сервер, к которому подключаются агенты (Qwen Code, Hermes и другие). Он слушает один порт и по запросу '
             'сам запускает llama-server из llama.cpp с нужной моделью. Конфигурацию Station создаёт из профилей моделей, '
-            'поэтому обычно сервер запускается автоматически при загрузке модели.')
-        self.server_status_label = ctk.CTkLabel(card, text='Проверка…', anchor='w', font=('Segoe UI', 16, 'bold'))
+            'поэтому обычно сервер запускается автоматически при загрузке модели.'))
+        self.server_status_label = ctk.CTkLabel(card, text=tr('Проверка…'), anchor='w', font=('Segoe UI', 16, 'bold'))
         self.server_status_label.pack(fill='x', padx=20)
         self.server_detail_label = ctk.CTkLabel(card, text='', anchor='w', justify='left', text_color=MUTED, wraplength=900)
         self.server_detail_label.pack(fill='x', padx=20, pady=(4, 0))
         row = self.row(card)
-        self.button(row, 'Запустить сервер', lambda: self.worker(gpu_mode_manager.start_backend, label='Запуск сервера моделей'), True, width=160)
-        self.button(row, 'Остановить сервер', lambda: self.worker(gpu_mode_manager.stop_backend, label='Остановка сервера моделей'), width=160)
-        self.button(row, 'Веб-панель ↗', lambda: self._open_url(model_server.local_url() + '/ui'), width=130)
-        self.button(row, 'Скопировать адрес', self._copy_server_address, width=160)
+        self.button(row, tr('Запустить сервер'), lambda: self.worker(gpu_mode_manager.start_backend, label=tr('Запуск сервера моделей')), True, width=160)
+        self.button(row, tr('Остановить сервер'), lambda: self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей')), width=160)
+        self.button(row, tr('Веб-панель ↗'), lambda: self._open_url(model_server.local_url() + '/ui'), width=130)
+        self.button(row, tr('Скопировать адрес'), self._copy_server_address, width=160)
         row = self.row(card)
-        self.button(row, 'Журнал сервера', self._open_server_log, width=160)
-        self.button(row, 'Конфигурация', lambda: self._open_path(model_server.generated_config_path()), width=160)
+        self.button(row, tr('Журнал сервера'), self._open_server_log, width=160)
+        self.button(row, tr('Конфигурация'),lambda: self._open_path(model_server.generated_config_path()), width=160)
         self._build_service_connections(page)
 
     def _open_url(self, url):
@@ -337,30 +369,71 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         if path.exists():
             os.startfile(str(path))
         else:
-            self.status_label.configure(text=f'Файл ещё не создан: {path}', text_color='#f8ad88')
+            self.status_label.configure(text=tr('Файл ещё не создан: {path}', path=path), text_color='#f8ad88')
 
     def _open_server_log(self):
         log = supervisor.records.get('service:llama-swap', {}).get('log')
         if log and Path(log).is_file():
             os.startfile(log)
         else:
-            self.status_label.configure(text='Журнал сервера появится после его первого запуска через Station.', text_color=MUTED)
+            self.status_label.configure(text=tr('Журнал сервера появится после его первого запуска через Station.'), text_color=MUTED)
 
     def _copy_server_address(self):
         self.clipboard_clear()
         self.clipboard_append(model_server.api_url())
-        self.status_label.configure(text=f'Скопирован адрес для агентов: {model_server.api_url()} (OpenAI-совместимый API)', text_color=ACCENT)
+        self.status_label.configure(text=tr('Скопирован адрес для агентов: {url} (OpenAI-совместимый API)', url=model_server.api_url()), text_color=ACCENT)
+
+    def _build_startup(self):
+        self._build_startup_settings(self.page('startup'))
+
+    def _build_language_settings(self, page):
+        self.interface_language = current_language()  # The language this window was built with.
+        card = self.card(page, tr('Язык интерфейса'))
+        row = self.row(card)
+        names = {name: code for code, name in LANGUAGES.items()}
+        self.language_combo = ctk.CTkComboBox(row, values=list(LANGUAGES.values()), width=240, height=36, state='readonly',
+            fg_color='#111b25', border_color=EDGE, button_color=EDGE, dropdown_fg_color=PANEL,
+            command=lambda name: self._select_language(names.get(name)))
+        self.language_combo.pack(side='left', padx=(0, 12), pady=14)
+        self.language_combo.set(LANGUAGES[self.interface_language])
+        self.language_restart = ctk.CTkFrame(card, fg_color='transparent')
+        ctk.CTkLabel(self.language_restart, text=tr('Язык изменится после перезапуска Station.'), anchor='w',
+            text_color='#f8ad88').pack(side='left', padx=(20, 12))
+        StationButton(self.language_restart, text=tr('Перезапустить Station'), command=self._restart_app, height=36,
+            corner_radius=7, width=190, primary=True).pack(side='left', pady=(0, 14))
+
+    def _select_language(self, code):
+        if code not in LANGUAGES:
+            return
+        config.set('language', code)
+        if code == self.interface_language:
+            self.language_restart.pack_forget()
+        else:
+            self.language_restart.pack(fill='x', pady=(0, 4))
+
+    def _restart_app(self):
+        """Start a fresh Station process, then quit; the new one waits for this PID before taking the instance lock."""
+        import subprocess
+        environment = dict(os.environ, LOCAL_AGENT_STATION_RESTART_WAIT=str(os.getpid()))
+        environment.pop('LOCAL_AGENT_STATION_LANGUAGE', None)
+        try:
+            subprocess.Popen(restart_command(), env=environment, close_fds=True, cwd=os.getcwd(),
+                creationflags=getattr(subprocess, 'DETACHED_PROCESS', 0) | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0))
+        except OSError as exc:
+            messagebox.showerror(APP_NAME, tr('Не удалось перезапустить Station: {error}', error=exc), parent=self)
+            return
+        self.quit_app()
 
     def _build_settings(self):
-        page = self.page('Настройки')
-        self._build_startup_settings(page)
+        page = self.page('settings')
+        self._build_language_settings(page)
         self._build_tray_settings(page)
-        card = self.card(page, 'Папки и сервер моделей', f'Данные и настройки Station: {data_dir()}')
+        card = self.card(page, tr('Папки и сервер моделей'), tr('Данные и настройки Station: {path}', path=data_dir()))
         self.path_entries = {}
         for key, title, hint in [
-                ('runtime_dir', 'Папка движка', 'Программы, которые запускают модели: llama-swap.exe и llama-server.exe (llama.cpp). Встроенный движок ставится вместе со Station — оставьте поле пустым, чтобы использовать его. Другую папку указывайте, только если нужна своя сборка llama.cpp.'),
-                ('models_dir', 'Папка моделей', 'Где лежат файлы моделей .gguf. Если в профиле модели указано только имя файла, он ищется здесь.'),
-                ('workspace', 'Рабочая папка агентов', 'Папка ваших проектов: в ней открываются Qwen Code, Hermes и другие агенты. Пусто — домашняя папка пользователя.')]:
+                ('runtime_dir', tr('Папка движка'), tr('Программы, которые запускают модели: llama-swap.exe и llama-server.exe (llama.cpp). Встроенный движок ставится вместе со Station — оставьте поле пустым, чтобы использовать его. Другую папку указывайте, только если нужна своя сборка llama.cpp.')),
+                ('models_dir', tr('Папка моделей'), tr('Где лежат файлы моделей .gguf. Если в профиле модели указано только имя файла, он ищется здесь.')),
+                ('workspace', tr('Рабочая папка агентов'), tr('Папка ваших проектов: в ней открываются Qwen Code, Hermes и другие агенты. Пусто — домашняя папка пользователя.'))]:
             ctk.CTkLabel(card, text=title, anchor='w', font=('Segoe UI', 13, 'bold')).pack(fill='x', padx=20, pady=(8, 0))
             ctk.CTkLabel(card, text=hint, anchor='w', text_color=MUTED, wraplength=900, justify='left').pack(fill='x', padx=20)
             row = self.row(card)
@@ -368,32 +441,32 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             entry.insert(0, config.get(key, ''))
             entry.pack(side='left', fill='x', expand=True, pady=(4, 4), padx=(0, 12))
             self.path_entries[key] = entry
-            ctk.CTkButton(row, text='Обзор', width=90, fg_color=EDGE,
+            ctk.CTkButton(row, text=tr('Обзор'), width=90, fg_color=EDGE,
                 command=lambda e=entry: self._browse(e, True)).pack(side='left')
         self.workspace_warning = ctk.CTkLabel(card, text='', anchor='w', justify='left', text_color='#f8ad88', wraplength=900)
         self.workspace_warning.pack(fill='x', padx=20)
         self.runtime_found_label = ctk.CTkLabel(card, text='', anchor='w', justify='left', text_color=MUTED, wraplength=900)
         self.runtime_found_label.pack(fill='x', padx=20, pady=(6, 0))
-        ctk.CTkLabel(card, text='Сеть', anchor='w', font=('Segoe UI', 13, 'bold')).pack(fill='x', padx=20, pady=(12, 0))
+        ctk.CTkLabel(card, text=tr('Сеть'), anchor='w', font=('Segoe UI', 13, 'bold')).pack(fill='x', padx=20, pady=(12, 0))
         self.lan_var = tk.BooleanVar(value=config.get('llama_swap_lan_access') is True)
-        ctk.CTkCheckBox(card, text='Разрешить доступ к серверу моделей из локальной сети (без пароля)', variable=self.lan_var,
+        ctk.CTkCheckBox(card, text=tr('Разрешить доступ к серверу моделей из локальной сети (без пароля)'), variable=self.lan_var,
             command=self._refresh_path_hints).pack(anchor='w', padx=20, pady=(4, 0))
         self.lan_label = ctk.CTkLabel(card, text='', anchor='w', justify='left', text_color=MUTED, wraplength=900)
         self.lan_label.pack(fill='x', padx=20, pady=(2, 0))
         self._refresh_path_hints()
         row = self.row(card)
-        self.button(row, 'Сохранить', self._save_paths, True)
-        self.button(row, 'Открыть папку данных', lambda: self._open_path(data_dir()), width=190)
-        card = self.card(page, 'Управление режимами GPU', 'Переключать видеокарты между WDDM и TCC может только администратор. '
+        self.button(row, tr('Сохранить'), self._save_paths, True)
+        self.button(row, tr('Открыть папку данных'), lambda: self._open_path(data_dir()), width=190)
+        card = self.card(page, tr('Управление режимами GPU'), tr('Переключать видеокарты между WDDM и TCC может только администратор. '
             'Служба переключения ставится установщиком Station и выполняет только эту операцию, без окна подтверждения прав. '
-            'Если службы нет, при каждом переключении Windows один раз спросит права администратора.')
-        self.helper_status_label = ctk.CTkLabel(card, text='Проверка службы…', anchor='w', justify='left', wraplength=900)
+            'Если службы нет, при каждом переключении Windows один раз спросит права администратора.'))
+        self.helper_status_label = ctk.CTkLabel(card, text=tr('Проверка службы…'), anchor='w', justify='left', wraplength=900)
         self.helper_status_label.pack(fill='x', padx=20)
         row = self.row(card)
-        self.button(row, 'Установить или восстановить службу', self._install_helper, width=280)
-        self.button(row, 'Снова спрашивать перед переключением', self._reset_gpu_confirmation, width=280)
+        self.button(row, tr('Установить или восстановить службу'), self._install_helper, width=280)
+        self.button(row, tr('Снова спрашивать перед переключением'), self._reset_gpu_confirmation, width=280)
         row = self.row(card)
-        self.button(row, 'GPU-профили (YAML)', lambda: self.edit_document('hardware_profiles.yaml'), width=180)
+        self.button(row, tr('GPU-профили (YAML)'), lambda: self.edit_document('hardware_profiles.yaml'), width=180)
 
     def _refresh_helper_status(self):
         from ..services.gpu_mode_client import gpu_service_client
@@ -404,9 +477,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                 return False, False
         running, installed = check()
         self.helper_status_label.configure(
-            text='Служба работает: переключение режимов GPU без запроса прав.' if running else
-                 'Служба установлена, но не запущена. Нажмите «Установить или восстановить службу».' if installed else
-                 'Служба не установлена. Переключение режимов будет каждый раз запрашивать права администратора.',
+            text=tr('Служба работает: переключение режимов GPU без запроса прав.') if running else
+                 tr('Служба установлена, но не запущена. Нажмите «Установить или восстановить службу».') if installed else
+                 tr('Служба не установлена. Переключение режимов будет каждый раз запрашивать права администратора.'),
             text_color=ACCENT if running else '#f8ad88')
 
     def _browse(self, entry, directory):
@@ -416,29 +489,30 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
 
     def _refresh_path_hints(self):
         workspace, engine = config.get('workspace'), model_server.runtime_dir()
-        self.workspace_warning.configure(text='Сейчас агенты открываются в папке движка. Лучше выбрать папку с вашими проектами.'
+        self.workspace_warning.configure(text=tr('Сейчас агенты открываются в папке движка. Лучше выбрать папку с вашими проектами.')
             if workspace and engine and os.path.normcase(workspace) == os.path.normcase(str(engine)) else '')
         swap, server = model_server.swap_executable(), model_server.llama_server_executable()
         bundled = model_server.bundled_runtime_dir()
         engine = model_server.runtime_dir()
-        source = ('встроенный движок Station' if bundled and engine == bundled else f'папка {engine}' if engine else 'папка не выбрана')
+        source = (tr('встроенный движок Station') if bundled and engine == bundled else tr('папка {path}', path=engine) if engine else tr('папка не выбрана'))
         cuda_name, cuda_path = model_server.cuda_runtime_status()
-        cuda = (f'\nCUDA: {cuda_name} найден ({cuda_path.parent})' if cuda_path else
-                f'\nCUDA: не найден {cuda_name} — установите NVIDIA CUDA Toolkit этой версии' if cuda_name else '')
+        cuda = ('\n' + tr('CUDA: {name} найден ({path})', name=cuda_name, path=cuda_path.parent) if cuda_path else
+                '\n' + tr('CUDA: не найден {name} — установите NVIDIA CUDA Toolkit этой версии', name=cuda_name) if cuda_name else '')
+        missing = tr('не найден')
         self.runtime_found_label.configure(
-            text=f'Используется: {source}\nllama-swap.exe: {swap or "не найден"}\nllama-server.exe: {server or "не найден"}' + cuda,
+            text=tr('Используется: {source}', source=source) + f'\nllama-swap.exe: {swap or missing}\nllama-server.exe: {server or missing}' + cuda,
             text_color=MUTED if swap and server and (cuda_path or not cuda_name) else '#f8ad88')
-        addresses = ', '.join(f'http://{ip}:{model_server.port()}/v1' for ip in model_server.lan_addresses()) or 'сетевые адреса не найдены'
-        self.lan_label.configure(text=f'С этого ПК: {model_server.api_url()}. ' + (
-            f'Из сети: {addresses}. Брандмауэр Windows должен разрешать порт {model_server.port()}.'
-            if self.lan_var.get() else 'Другие компьютеры подключиться не смогут.'))
+        addresses = ', '.join(f'http://{ip}:{model_server.port()}/v1' for ip in model_server.lan_addresses()) or tr('сетевые адреса не найдены')
+        self.lan_label.configure(text=tr('С этого ПК: {url}.', url=model_server.api_url()) + ' ' + (
+            tr('Из сети: {addresses}. Брандмауэр Windows должен разрешать порт {port}.', addresses=addresses, port=model_server.port())
+            if self.lan_var.get() else tr('Другие компьютеры подключиться не смогут.')))
 
     def _save_paths(self):
         try:
             values = {key: entry.get().strip() for key, entry in self.path_entries.items()}
             for key in ('runtime_dir', 'models_dir', 'workspace'):
                 if values[key] and not Path(values[key]).is_dir():
-                    raise ValueError(f'Папка не найдена: {values[key]}')
+                    raise ValueError(tr('Папка не найдена: {path}', path=values[key]))
             lan_changed = (config.get('llama_swap_lan_access') is True) != self.lan_var.get()
             values['llama_swap_lan_access'] = self.lan_var.get()
             if values['runtime_dir'] != config.get('runtime_dir'):
@@ -449,9 +523,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                         values[key] = ''
             config.update(values)
             self._refresh_path_hints()
-            message = 'Настройки папок сохранены.'
+            message = tr('Настройки папок сохранены.')
             if lan_changed and self.backend_online:
-                message += ' Сетевой доступ применится после перезапуска сервера моделей (Службы → Остановить сервер → Запустить сервер).'
+                message += ' ' + tr('Сетевой доступ применится после перезапуска сервера моделей (Службы → Остановить сервер → Запустить сервер).')
             self.status_label.configure(text=message, text_color=ACCENT)
         except Exception as exc:
             messagebox.showerror(APP_NAME, str(exc), parent=self)
@@ -463,33 +537,35 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                 continue
             weights = model_server.resolve_model_file(model.weights_path)
             exists = bool(weights) and Path(weights).is_file()
-            status = {'production': 'основная', 'stable': 'стабильная', 'fallback': 'запасная', 'experimental': 'экспериментальная',
-                      'manual': 'ручная', 'disabled': 'отключена'}.get(model.status, model.status)
-            lines.append(f'{model.name}\n  id для агентов: {model.backend_model_id} · статус: {status}\n'
-                f'  Файл: {weights or "не задан"} — {"найден" if exists else "НЕ НАЙДЕН"}\n'
-                f'  Контекст: {model.context:,} токенов · изображения: {"да" if model.vision else "нет"} · вычисления: {model.backend.upper()}\n'
-                f'  Проверка запросом: {"пройдена" if model.qualified else "не выполнялась"}\n')
-        self.set_text(self.models_text, '\n'.join(lines) or 'Добавьте модель через «Редактировать профили» и укажите путь к файлу весов.')
+            status = {'production': tr('основная'), 'stable': tr('стабильная'), 'fallback': tr('запасная'), 'experimental': tr('экспериментальная'),
+                      'manual': tr('ручная'), 'disabled': tr('отключена')}.get(model.status, model.status)
+            lines.append(model.name + '\n'
+                + '  ' + tr('id для агентов: {id} · статус: {status}', id=model.backend_model_id, status=status) + '\n'
+                + '  ' + tr('Файл: {path} — {state}', path=weights or tr('не задан'), state=tr('найден') if exists else tr('НЕ НАЙДЕН')) + '\n'
+                + '  ' + tr('Контекст: {tokens} токенов · изображения: {vision} · вычисления: {backend}', tokens=f'{model.context:,}',
+                    vision=tr('да') if model.vision else tr('нет'), backend=model.backend.upper()) + '\n'
+                + '  ' + tr('Проверка запросом: {state}', state=tr('пройдена') if model.qualified else tr('не выполнялась')) + '\n')
+        self.set_text(self.models_text, '\n'.join(lines) or tr('Добавьте модель через «Редактировать профили» и укажите путь к файлу весов.'))
 
     def _agents_discovered(self, result):
         if not all(id in self.controller.adapters for id in result):
-            self.status_label.configure(text=result.get('Message', 'Не удалось обнаружить агенты.'), text_color='#f8ad88')
+            self.status_label.configure(text=result.get('Message', tr('Не удалось обнаружить агенты.')), text_color='#f8ad88')
             return
         for child in self.agent_cards.winfo_children():
             child.destroy()
         self.controls = [control for control in self.controls if control.winfo_exists()]
         self.agent_launch_widgets = {}
-        states = {'SUPPORTED': 'Установлен', 'UNSUPPORTED': 'Не установлен',
-                  'DEGRADED': 'Требует внимания', 'ERROR': 'Ошибка'}
-        installed = {'INSTALLED': 'Установлен', 'NOT INSTALLED': 'Не установлен',
-                     'UNSUPPORTED BY INSTALLED VERSION': 'Не поддерживается этой версией',
-                     'SUPPORTED (experimental)': 'Экспериментальный режим'}
+        states = {'SUPPORTED': tr('Установлен'), 'UNSUPPORTED': tr('Не установлен'),
+                  'DEGRADED': tr('Требует внимания'), 'ERROR': tr('Ошибка')}
+        installed = {'INSTALLED': tr('Установлен'), 'NOT INSTALLED': tr('Не установлен'),
+                     'UNSUPPORTED BY INSTALLED VERSION': tr('Не поддерживается этой версией'),
+                     'SUPPORTED (experimental)': tr('Экспериментальный режим')}
         for id, status in sorted(result.items(), key=lambda item: item[0] != config.get('primary_agent_runtime')):
             adapter = self.controller.adapters[id]
-            version = (adapter.version or 'версия неизвестна').splitlines()[0]
+            version = (adapter.version or tr('версия неизвестна')).splitlines()[0]
             title = adapter.manifest.get('name', id)
             has_frontend = any(f.get('status') == 'INSTALLED' for f in self.controller.frontends.values() if f['runtime_id'] == id)
-            state = states.get(status['status'], status['status']) if adapter.command else 'Установлен' if has_frontend else 'Не установлен'
+            state = states.get(status['status'], status['status']) if adapter.command else tr('Установлен') if has_frontend else tr('Не установлен')
             card = ctk.CTkFrame(self.agent_cards, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
             card.pack(fill='x', pady=(0, 10))
             header = ctk.CTkFrame(card, fg_color='transparent')
@@ -532,7 +608,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.worker(lambda: self.controller.select_runtime(runtime), done)
 
     def _testing_guide(self):
-        self.review('Как проверить Local Agent AI Station', resource_path('docs/TESTING_GUIDE_RU.md').read_text(encoding='utf-8'))
+        self.review(tr('Как проверить Local Agent AI Station'), testing_guide_path().read_text(encoding='utf-8'))
 
     def review(self, title, content, apply=None, callback=None, label=None):
         window = ctk.CTkToplevel(self)
@@ -544,8 +620,8 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         text.insert('1.0', content); text.configure(state='disabled')
         row = ctk.CTkFrame(window, fg_color='transparent'); row.pack(fill='x', padx=20)
         if apply:
-            self.button(row, 'Применить показанные изменения', lambda: (window.destroy(), self.worker(apply, callback, label=label or title)), True, width=260)
-        self.button(row, 'Отмена' if apply else 'Закрыть', window.destroy)
+            self.button(row, tr('Применить показанные изменения'), lambda: (window.destroy(), self.worker(apply, callback, label=label or title)), True, width=260)
+        self.button(row, tr('Отмена') if apply else tr('Закрыть'), window.destroy)
 
 
     def _sync_models(self):
@@ -555,15 +631,15 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             try:
                 model = gpu_mode_manager.get_active_model_profile()
                 if not model or model.id == 'none':
-                    raise ValueError('Сначала загрузите модель: после синхронизации агент проверяется тестовым запросом к ней.')
+                    raise ValueError(tr('Сначала загрузите модель: после синхронизации агент проверяется тестовым запросом к ней.'))
                 preview = self.controller.preview_sync(id, model)
                 previews.append((id, preview))
             except Exception as exc:
                 errors.append(id + ': ' + str(exc))
         if not previews:
-            messagebox.showinfo(APP_NAME, '\n'.join(errors) or 'Нет доступных агентов', parent=self)
+            messagebox.showinfo(APP_NAME, '\n'.join(errors) or tr('Нет доступных агентов'), parent=self)
             return
-        states = {'IN SYNC': 'уже совпадает', 'OUT OF SYNC': 'требуется обновление', 'CUSTOM MODIFIED': 'файл изменён вручную — проверьте разницу'}
+        states = {'IN SYNC': tr('уже совпадает'), 'OUT OF SYNC': tr('требуется обновление'), 'CUSTOM MODIFIED': tr('файл изменён вручную — проверьте разницу')}
         content = '\n\n'.join(self.controller.adapters[id].manifest.get('name', id) + ' — ' + states.get(preview.status, preview.status)
             + '\n' + preview.diff for id, preview in previews)
         content += '\n\n' + '\n'.join(errors)
@@ -579,14 +655,14 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                         raise RuntimeError(check.message + ': ' + str(check.data))
                     return True
                 results[id] = apply_preview(preview, accept_custom=True, smoke=smoke)
-            return {'Success': True, 'Message': 'Профили синхронизированы и проверены запросом к модели.', 'Details': results}
-        self.review('Синхронизация моделей с агентами', content, apply, label='Синхронизация с агентами')
+            return {'Success': True, 'Message': tr('Профили синхронизированы и проверены запросом к модели.'), 'Details': results}
+        self.review(tr('Синхронизация моделей с агентами'), content, apply, label=tr('Синхронизация с агентами'))
 
     def _qualify_model(self):
         selected = self.test_model_combo.get()
         model = profile_storage.get_model_profile(selected)
         if not model or model.id == 'none':
-            messagebox.showinfo(APP_NAME, 'Выберите установленную модель.', parent=self)
+            messagebox.showinfo(APP_NAME, tr('Выберите установленную модель.'), parent=self)
             return
         def run():
             from ..qualification import qualify_model
@@ -601,12 +677,13 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             updated.qualified = report['passed']
             updated.tool_calling = report['checks']['tool_calling'].get('passed', False)
             profile_storage.save_model_profile(updated)
-            return {'Success': report['passed'], 'Message': f'Проверка модели «{model.name}» ' + ('пройдена' if report['passed'] else 'не пройдена') + f'. Отчёт: {target}', 'Report': report}
+            return {'Success': report['passed'], 'Message': (tr('Проверка модели «{name}» пройдена. Отчёт: {path}', name=model.name, path=target) if report['passed'] else
+                tr('Проверка модели «{name}» не пройдена. Отчёт: {path}', name=model.name, path=target)), 'Report': report}
         def done(result):
             self._refresh_models_text()
             self.status_label.configure(text=result['Message'][:400], text_color=ACCENT if result.get('Success') else '#f8ad88')
-            self.review('Результаты проверки модели', json.dumps(result, ensure_ascii=False, indent=2))
-        self.worker(run, done, label=f'Проверка модели «{model.name}»')
+            self.review(tr('Результаты проверки модели'), json.dumps(result, ensure_ascii=False, indent=2))
+        self.worker(run, done, label=tr('Проверка модели «{name}»', name=model.name))
 
     def _launch_frontend(self, frontend_id=None):
         frontend_id = frontend_id or self.frontend_combo.get()
@@ -616,16 +693,16 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             return
         current = self.controller.frontend_status(frontend_id)
         if current['running']:
-            self._agent_frontend_done({'Success': True, 'Message': frontend['name'] + (' уже запущен из Station' if current['owned'] else
-                ' уже открыт (запущен не из Station)') + (f', PID {current["pid"]}' if current['pid'] else '') + '.'})
+            self._agent_frontend_done({'Success': True, 'Message': (tr('{name} уже запущен из Station', name=frontend['name']) if current['owned'] else
+                tr('{name} уже открыт (запущен не из Station)', name=frontend['name'])) + (f', PID {current["pid"]}' if current['pid'] else '') + '.'})
             return
         adapter = self.controller.adapters.get(frontend['runtime_id'])
         if model and model.id != 'none' and adapter and adapter.manifest.get('provider_sync', True):
             state = self.controller.model_binding_state(adapter.id, model)
             if state == 'READY_STALE':
                 self.worker(lambda: self.controller.launch_frontend(frontend_id), lambda result: self._agent_frontend_done(dict(result,
-                    Message=result.get('Message', '') + '. Список моделей в настройках агента устарел — обновите его: Модели → Синхронизировать с агентами.')),
-                    label='Запуск ' + frontend['name'])
+                    Message=result_message(result) + '. ' + tr('Список моделей в настройках агента устарел — обновите его: Модели → Синхронизировать с агентами.'))),
+                    label=tr('Запуск: {name}', name=frontend['name']))
                 return
             try:
                 preview = self.controller.preview_sync(adapter.id, model)
@@ -644,10 +721,11 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                         return True
                     apply_preview(preview, accept_custom=True, smoke=smoke)
                     return self.controller.launch_frontend(frontend_id)
-                self.review(f'Подключить модель «{model.name}» к {frontend["name"]}', f'Файл настроек агента: {preview.path}\n'
-                    'Будут изменены только блоки, которыми управляет Station. Перед записью создаётся резервная копия.\n\n' + preview.diff, apply, self._agent_frontend_done)
+                self.review(tr('Подключить модель «{model}» к {agent}', model=model.name, agent=frontend['name']),
+                    tr('Файл настроек агента: {path}', path=preview.path) + '\n'
+                    + tr('Будут изменены только блоки, которыми управляет Station. Перед записью создаётся резервная копия.') + '\n\n' + preview.diff, apply, self._agent_frontend_done)
                 return
-        self.worker(lambda: self.controller.launch_frontend(frontend_id), self._agent_frontend_done, label='Запуск ' + frontend['name'])
+        self.worker(lambda: self.controller.launch_frontend(frontend_id), self._agent_frontend_done, label=tr('Запуск: {name}', name=frontend['name']))
 
     def edit_document(self, filename):
         path = data_dir() / 'config' / filename
@@ -666,7 +744,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                 from ..storage import UniqueLoader
                 value = yaml.load(editor.get('1.0', 'end'), Loader=UniqueLoader)
                 if not isinstance(value, list):
-                    raise ValueError('Ожидается YAML-список профилей')
+                    raise ValueError(tr('Ожидается YAML-список профилей'))
                 from ..validation import validate_registry
                 validate_registry(filename, value)
                 if filename == 'model_profiles.yaml':
@@ -688,7 +766,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                 window.destroy()
             except Exception as exc:
                 messagebox.showerror(APP_NAME, str(exc), parent=window)
-        ctk.CTkButton(window, text='Проверить и сохранить', command=save, fg_color=ACCENT, text_color=BG).pack(pady=(0, 16))
+        ctk.CTkButton(window, text=tr('Проверить и сохранить'), command=save, fg_color=ACCENT, text_color=BG).pack(pady=(0, 16))
 
     def _install_helper(self):
         import ctypes
@@ -702,7 +780,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         app_dir = Path(sys.executable).parent
         script = app_dir / 'tools/install_helper.ps1' if getattr(sys, 'frozen', False) else resource_path('src/services/install_helper.ps1')
         if not script.is_file():
-            messagebox.showerror(APP_NAME, f'Не найден сценарий установки службы: {script}. Переустановите Station.', parent=self)
+            messagebox.showerror(APP_NAME, tr('Не найден сценарий установки службы: {path}. Переустановите Station.', path=script), parent=self)
             return
         system = Path(os.environ['SystemRoot']) / 'System32'
         identity = subprocess.run([str(system / 'whoami.exe'), '/user', '/fo', 'csv', '/nh'],
@@ -714,9 +792,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         powershell = system / 'WindowsPowerShell/v1.0/powershell.exe'
         result = ctypes.windll.shell32.ShellExecuteW(None, 'runas', str(powershell), params, None, 0)
         if result <= 32:
-            messagebox.showerror(APP_NAME, 'Установка службы отменена или не удалась.', parent=self)
+            messagebox.showerror(APP_NAME, tr('Установка службы отменена или не удалась.'), parent=self)
         else:
-            self.status_label.configure(text='Открыт установщик службы переключения GPU. Подтвердите запрос прав администратора.', text_color=MUTED)
+            self.status_label.configure(text=tr('Открыт установщик службы переключения GPU. Подтвердите запрос прав администратора.'), text_color=MUTED)
 
     def _run_selection(self, combo, action, label=None):
         selected = combo.get()
@@ -724,21 +802,21 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
 
     def worker(self, action, callback=None, label=None):
         if self.busy:
-            self.status_label.configure(text=f'Дождитесь завершения: {self.busy_label}.', text_color=MUTED)
+            self.status_label.configure(text=tr('Дождитесь завершения: {action}.', action=self.busy_label), text_color=MUTED)
             return
         self.busy = True
-        self.busy_label = label or 'текущее действие' 
+        self.busy_label = label or tr('текущее действие')
         self._refresh_agent_launch_states()
         for control in self.controls:
             if control.winfo_exists():
                 control.configure(state='disabled')
-        self.status_label.configure(text=(label + '…') if label else 'Выполняется…', text_color=MUTED)
+        self.status_label.configure(text=(label + '…') if label else tr('Выполняется…'), text_color=MUTED)
         def work():
             try:
                 self.events.put(('result', action(), callback))
             except Exception as exc:
                 logging.getLogger(__name__).exception('Action failed: %s', label)
-                self.events.put(('result', {'Success': False, 'Message': ((label + ': ') if label else 'Ошибка: ') + str(exc)}, None))
+                self.events.put(('result', {'Success': False, 'Message': ((label + ': ') if label else tr('Ошибка: ')) + str(exc)}, None))
         threading.Thread(target=work, daemon=True).start()
 
     def _poll(self):
@@ -800,14 +878,14 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                         return
                 elif kind == 'tray_error':
                     self.deiconify()
-                    self.status_label.configure(text='Трей недоступен: ' + value[:120], text_color='#f8ad88')
+                    self.status_label.configure(text=tr('Трей недоступен: {error}', error=value[:120]), text_color='#f8ad88')
         except queue.Empty:
             pass
         except Exception as exc:
             self.busy = False
             logging.getLogger(__name__).exception('UI event failed')
             if not self.stop_event.is_set():
-                self.status_label.configure(text='Ошибка: ' + str(exc)[:140], text_color='#f8ad88')
+                self.status_label.configure(text=tr('Ошибка: ') + str(exc)[:140], text_color='#f8ad88')
         finally:
             if not self.stop_event.is_set():
                 self.after(100, self._drain_events)
@@ -831,15 +909,17 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                 label = ctk.CTkLabel(card, text='', anchor='w', font=('Segoe UI', 14)); label.pack(fill='x', padx=20, pady=(0, 16))
                 self.gpu_widgets[device.uuid] = label
         for d in top.devices:
-            self.gpu_widgets[d.uuid].configure(text=f'{d.driver_mode}    {number(d.temp_c, "°C")}    Нагрузка {number(d.load_percent, "%")}    '
-                f'VRAM свободно {number(d.vram_free_mib)} / {number(d.vram_total_mib)} MiB' + ('    Дисплей активен' if d.display_active else ''))
-        p2p = str(top.cuda_p2p_cliques) if top.cuda_p2p_cliques else 'нет' if top.p2p_verified else 'неизвестно'
-        nvlink = str(top.physical_nvlink_cliques) if top.physical_nvlink_cliques else 'нет' if top.nvlink_verified else 'неизвестно'
-        self.topology_label.configure(text=f'GPU: {top.gpu_count}  ·  CUDA P2P: {p2p}  ·  NVLink: {nvlink}\nТрафик NVLink не измерялся.' +
-            ('\n' + top.discovery_error if top.discovery_error else '') + ('\nВидеокарты не обнаружены: доступен только CPU.' if not top.devices else ''))
-        self.combination_label.configure(text=(f'Модель готова. Адрес для агентов: {model_server.api_url()}, id модели: {", ".join(running)}' if running else
-            f'Сервер моделей работает ({model_server.api_url()}), модель не загружена. Выберите модель и нажмите «Загрузить модель».' if backend else
-            'Выберите модель и нажмите «Загрузить модель».'))
+            self.gpu_widgets[d.uuid].configure(text=f'{d.driver_mode}    {number(d.temp_c, "°C")}    '
+                + tr('Нагрузка {load}', load=number(d.load_percent, '%')) + '    '
+                + tr('VRAM свободно {free} / {total} MiB', free=number(d.vram_free_mib), total=number(d.vram_total_mib))
+                + ('    ' + tr('Дисплей активен') if d.display_active else ''))
+        p2p = str(top.cuda_p2p_cliques) if top.cuda_p2p_cliques else tr('нет') if top.p2p_verified else tr('неизвестно')
+        nvlink = str(top.physical_nvlink_cliques) if top.physical_nvlink_cliques else tr('нет') if top.nvlink_verified else tr('неизвестно')
+        self.topology_label.configure(text=f'GPU: {top.gpu_count}  ·  CUDA P2P: {p2p}  ·  NVLink: {nvlink}\n' + tr('Трафик NVLink не измерялся.') +
+            ('\n' + top.discovery_error if top.discovery_error else '') + ('\n' + tr('Видеокарты не обнаружены: доступен только CPU.') if not top.devices else ''))
+        self.combination_label.configure(text=(tr('Модель готова. Адрес для агентов: {url}, id модели: {ids}', url=model_server.api_url(), ids=', '.join(running)) if running else
+            tr('Сервер моделей работает ({url}), модель не загружена. Выберите модель и нажмите «Загрузить модель».', url=model_server.api_url()) if backend else
+            tr('Выберите модель и нажмите «Загрузить модель».')))
         self._update_server_card(backend_info)
         self._update_dashboard(top, backend, running)
         self._refresh_service_cards(service_states)
@@ -854,55 +934,55 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
     def _update_server_card(self, info):
         if info and hasattr(self, 'dashboard_server_label'):
             where = (info.get('listen') or info['url'].removeprefix('http://')) if info['online'] else ''
-            owner = ('Station' if info['owned'] else 'не Station') + (f', PID {info["pid"]}' if info.get('pid') else '')
-            self.dashboard_server_label.configure(text=f'llama-swap · {where} · {owner}' if info['online'] else 'llama-swap · остановлен')
+            owner = ('Station' if info['owned'] else tr('не Station')) + (f', PID {info["pid"]}' if info.get('pid') else '')
+            self.dashboard_server_label.configure(text=f'llama-swap · {where} · {owner}' if info['online'] else tr('llama-swap · остановлен'))
             self.dashboard_server_dot.configure(text_color=ACCENT if info['online'] else MUTED)
         if not info or not hasattr(self, 'server_status_label'):
             return
         self.server_status_label.configure(text=pm.describe(info), text_color=ACCENT if info['online'] else MUTED)
-        lines = [f'Адрес для агентов на этом ПК: {info["api_url"]}']
+        lines = [tr('Адрес для агентов на этом ПК: {url}', url=info['api_url'])]
         if info['lan_urls']:
-            lines.append('Адреса из локальной сети: ' + ', '.join(info['lan_urls']))
+            lines.append(tr('Адреса из локальной сети: {urls}', urls=', '.join(info['lan_urls'])))
         elif info['online'] and info['owned']:
-            lines.append('Доступ из сети выключен (включается в «Настройки → Папки и сервер моделей»).')
-        lines.append(f'Конфигурация: {info["config_path"]}')
+            lines.append(tr('Доступ из сети выключен (включается в «Настройки → Папки и сервер моделей»).'))
+        lines.append(tr('Конфигурация: {path}', path=info['config_path']))
         if info['stale_config']:
-            lines.append('Внимание: сервер запущен со старой конфигурацией. Остановите и запустите его снова.')
-        lines.append(f'Программа: {info["executable"] or "llama-swap.exe не найден — укажите папку движка в настройках"}')
+            lines.append(tr('Внимание: сервер запущен со старой конфигурацией. Остановите и запустите его снова.'))
+        lines.append(tr('Программа: {path}', path=info['executable'] or tr('llama-swap.exe не найден — укажите папку движка в настройках')))
         if info.get('loading'):
-            lines.append('Загружается модель: ' + ', '.join(info['loading']))
+            lines.append(tr('Загружается модель: {models}', models=', '.join(info['loading'])))
         self.server_detail_label.configure(text='\n'.join(lines))
 
     def _update_dashboard(self, top, backend, running):
         value, detail = self.dashboard_stats['backend']
         info = self.backend_info or {}
-        value.configure(text=('Работает' if info.get('owned') else 'Работает (не Station)') if backend else 'Остановлен',
+        value.configure(text=(tr('Работает') if info.get('owned') else tr('Работает (не Station)')) if backend else tr('Остановлен'),
             text_color=ACCENT if backend else MUTED)
         if backend:
             lines = [info.get('listen') or info.get('url', model_server.local_url()).removeprefix('http://')]
             lines[0] += f' · PID {info["pid"]}' if info.get('pid') else ''
             if info.get('lan_urls'):
-                lines.append('Сеть: ' + ', '.join(u.removeprefix('http://').removesuffix('/v1') for u in info['lan_urls']))
+                lines.append(tr('Сеть: {addresses}', addresses=', '.join(u.removeprefix('http://').removesuffix('/v1') for u in info['lan_urls'])))
             detail.configure(text='\n'.join(lines))
         else:
             ready = model_server.swap_executable() and model_server.llama_server_executable()
-            detail.configure(text=f'Запустится при загрузке модели на {model_server.local_url().removeprefix("http://")}' if ready else
-                'Не найден движок: укажите папку в «Настройках»')
+            detail.configure(text=tr('Запустится при загрузке модели на {address}', address=model_server.local_url().removeprefix('http://')) if ready else
+                tr('Не найден движок: укажите папку в «Настройках»'))
         value, detail = self.dashboard_stats['model']
         names = self.ready_model_names or running
-        title = names[0] if names else 'Не загружена'
+        title = names[0] if names else tr('Не загружена')
         value.configure(text=title if len(title) < 45 else title[:42]+'…', text_color=TEXT if names else MUTED)
         loading = (self.backend_info or {}).get('loading') or []
         profile = next((m for m in profile_storage.model_profiles.values() if m.backend_model_id in running), None)
-        detail.configure(text=(f'id: {profile.backend_model_id} · контекст {profile.context // 1024}K' if profile else
-            f'Готово моделей: {len(running)}') if running else ('Загружается: ' + ', '.join(loading)) if loading else 'Выберите модель ниже')
+        detail.configure(text=(tr('id: {id} · контекст {context}K', id=profile.backend_model_id, context=profile.context // 1024) if profile else
+            tr('Готово моделей: {count}', count=len(running))) if running else tr('Загружается: {models}', models=', '.join(loading)) if loading else tr('Выберите модель ниже'))
         value, detail = self.dashboard_stats['agent']
         fid = self.frontend_combo.get()
         frontend = self.controller.frontends.get(fid, {})
-        value.configure(text=frontend.get('name', 'Не выбран'))
+        value.configure(text=frontend.get('name', tr('Не выбран')))
         from .agent_controls import frontend_state_text
         state = self.frontend_states.get(fid, {})
-        detail.configure(text=frontend_state_text(frontend, state) if frontend else 'Выберите агента ниже')
+        detail.configure(text=frontend_state_text(frontend, state) if frontend else tr('Выберите агента ниже'))
         value.configure(text_color=ACCENT if state.get('running') else TEXT)
         ids = tuple(d.uuid for d in top.devices)
         if self.dashboard_gpu_ids != ids:
@@ -925,14 +1005,14 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                 bar.pack(fill='x', padx=14, pady=(7, 14))
                 self.dashboard_gpus[d.uuid] = (mode, temp, memory, bar)
             if not ids:
-                ctk.CTkLabel(self.dashboard_gpu_area, text='GPU не обнаружены. Доступны CPU-профили и внешние серверы.',
+                ctk.CTkLabel(self.dashboard_gpu_area, text=tr('GPU не обнаружены. Доступны CPU-профили и внешние серверы.'),
                     text_color=MUTED).grid(row=0, column=0, columnspan=3, sticky='w')
         for d in top.devices:
             mode, temp, memory, bar = self.dashboard_gpus[d.uuid]
-            mode.configure(text=d.driver_mode + (' · подключён экран' if d.display_active else ''))
+            mode.configure(text=d.driver_mode + (' · ' + tr('подключён экран') if d.display_active else ''))
             temp.configure(text=f'{number(d.temp_c, "°C")}  ·  {number(d.load_percent, "%")} GPU')
             known = d.vram_total_mib and d.vram_used_mib is not None
-            memory.configure(text=f'VRAM  {d.vram_used_mib/1024:.1f} / {d.vram_total_mib/1024:.1f} ГБ' if known else 'VRAM: измерение недоступно')
+            memory.configure(text=tr('VRAM  {used} / {total} ГБ', used=f'{d.vram_used_mib/1024:.1f}', total=f'{d.vram_total_mib/1024:.1f}') if known else tr('VRAM: измерение недоступно'))
             bar.configure(progress_color=ACCENT if known else EDGE)
             bar.set(max(0, min(1, d.vram_used_mib/d.vram_total_mib)) if known else 0)
 
@@ -949,11 +1029,11 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         elif getattr(self, 'service_editor', None) and self.service_editor.winfo_exists():
             self.service_editor.lift()
         elif self.busy:
-            self.status_label.configure(text='Дождитесь завершения текущего действия.')
+            self.status_label.configure(text=tr('Дождитесь завершения текущего действия.'))
         elif action == 'model':
             if value != 'none':
                 self.model_combo.set(value)
-            self.worker(lambda: gpu_mode_manager.apply_model_profile_only(value), label='Выгрузка модели' if value == 'none' else 'Загрузка модели')
+            self.worker(lambda: gpu_mode_manager.apply_model_profile_only(value), label=tr('Выгрузка модели') if value == 'none' else tr('Загрузка модели'))
         elif action == 'runtime':
             self._select_runtime(value)
         elif action == 'frontend':
@@ -965,9 +1045,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         elif action == 'install':
             self.worker(lambda: self.controller.open_installation_page(value))
         elif action == 'backend_start':
-            self.worker(gpu_mode_manager.start_backend, label='Запуск сервера моделей')
+            self.worker(gpu_mode_manager.start_backend, label=tr('Запуск сервера моделей'))
         elif action == 'backend_stop':
-            self.worker(gpu_mode_manager.stop_backend, label='Остановка сервера моделей')
+            self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей'))
         elif action.startswith('service_'):
             self._service_action(action.removeprefix('service_'), value)
         elif action == 'tray_style':

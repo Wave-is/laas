@@ -2,6 +2,7 @@
 import ctypes as C
 from ctypes import wintypes as W
 import uuid
+from .i18n import tr
 
 class LUID(C.Structure):
     _fields_ = [('LowPart', W.DWORD), ('HighPart', W.LONG)]
@@ -31,7 +32,7 @@ def enumerate_adapters():
     create.argtypes = [C.c_void_p, C.POINTER(C.c_void_p)]
     create.restype = W.LONG
     if create(C.byref(iid), C.byref(factory)) < 0:
-        raise RuntimeError('DXGI factory unavailable')
+        raise RuntimeError(tr('DXGI недоступен: не удалось перечислить видеоадаптеры'))
     rows = []
     try:
         index = 0

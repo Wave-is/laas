@@ -5,10 +5,11 @@ from tkinter import messagebox
 import customtkinter as ctk
 from ..config import config
 from ..gpu_modes import gpu_mode_manager
+from ..i18n import tr
 from ..paths import APP_NAME, resource_path
 
 
-TCC_WARNING = ('Отключите все мониторы от карт, переводимых в TCC. Подключите их '
+TCC_WARNING = tr('Отключите все мониторы от карт, переводимых в TCC. Подключите их '
     'к другой видеокарте или встроенной графике, остающейся в WDDM. '
     'В режиме TCC видеовыходы этих карт не работают. Не подключайте к ним мониторы, '
     'пока не вернёте WDDM.')
@@ -21,11 +22,11 @@ def change_lines(preview):
         d = details.get(entry['gpu_stable_id'], {})
         name = f"GPU {d['index']} · {d['name']}" if d else entry['gpu_stable_id']
         current = d.get('current_mode', 'UNKNOWN')
-        current = 'режим неизвестен' if current == 'UNKNOWN' else current
+        current = tr('режим неизвестен') if current == 'UNKNOWN' else current
         line = f"{name}\n{current} → {entry['target_mode']}"
         pending = d.get('pending_mode', 'UNKNOWN')
         if pending not in ('UNKNOWN', d.get('current_mode')):
-            line += f' · отложенный режим: {pending}'
+            line += tr(' · отложенный режим: {mode}', mode=pending)
         lines.append(line)
     return lines
 
@@ -34,7 +35,7 @@ class GpuConfirmDialog(ctk.CTkToplevel):
     def __init__(self, parent, preview, on_confirm):
         super().__init__(parent)
         self.on_confirm = on_confirm
-        self.title('Переключение режимов GPU')
+        self.title(tr('Переключение режимов GPU'))
         self.geometry('680x600')
         self.minsize(640, 550)
         self.configure(fg_color='#10161e')
@@ -44,7 +45,7 @@ class GpuConfirmDialog(ctk.CTkToplevel):
         self.after(250, self._set_icon)
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(2, weight=1)
-        ctk.CTkLabel(self, text='Переключить режимы GPU?', font=('Segoe UI', 23, 'bold'),
+        ctk.CTkLabel(self, text=tr('Переключить режимы GPU?'), font=('Segoe UI', 23, 'bold'),
             anchor='w').grid(row=0, column=0, sticky='ew', padx=24, pady=(20, 4))
         ctk.CTkLabel(self, text=preview.get('ProfileName', preview['Profile']),
             font=('Segoe UI', 14), text_color='#91a2b4', anchor='w').grid(
@@ -55,26 +56,26 @@ class GpuConfirmDialog(ctk.CTkToplevel):
             ctk.CTkLabel(body, text=line, font=('Segoe UI', 15), justify='left',
                 anchor='w', wraplength=570).pack(fill='x', padx=14, pady=10)
         if any(p['target_mode'] == 'TCC' for p in preview['Plan']):
-            ctk.CTkLabel(body, text='Важно: мониторы и TCC', font=('Segoe UI', 16, 'bold'),
+            ctk.CTkLabel(body, text=tr('Важно: мониторы и TCC'), font=('Segoe UI', 16, 'bold'),
                 text_color='#f8bd80', anchor='w').pack(fill='x', padx=14, pady=(14, 4))
             ctk.CTkLabel(body, text=TCC_WARNING, font=('Segoe UI', 14), justify='left',
                 text_color='#f8bd80', anchor='w', wraplength=570).pack(fill='x', padx=14, pady=(0, 10))
-        notes = ['Перед переключением завершите задачи агентов. Station выгрузит модель и остановит сервер моделей llama-swap, если запускала его сама. '
-                 'Если драйвер потребует перезагрузку, приложение сообщит об этом.']
+        notes = [tr('Перед переключением завершите задачи агентов. Station выгрузит модель и остановит сервер моделей llama-swap, если запускала его сама. '
+                 'Если драйвер потребует перезагрузку, приложение сообщит об этом.')]
         notes.extend(preview.get('Warnings', []))
         ctk.CTkLabel(body, text='\n\n'.join(notes), font=('Segoe UI', 13), justify='left',
             text_color='#91a2b4', anchor='w', wraplength=570).pack(fill='x', padx=14, pady=10)
         self.dont_show = tk.BooleanVar(self, value=False)
-        ctk.CTkCheckBox(self, text='Больше не показывать', variable=self.dont_show,
+        ctk.CTkCheckBox(self, text=tr('Больше не показывать'), variable=self.dont_show,
             font=('Segoe UI', 14)).grid(row=3, column=0, sticky='w', padx=24, pady=(18, 6))
-        ctk.CTkLabel(self, text='Вернуть это окно: Настройки → Управление режимами GPU → «Снова спрашивать перед переключением»',
+        ctk.CTkLabel(self, text=tr('Вернуть это окно: Настройки → Управление режимами GPU → «Снова спрашивать перед переключением»'),
             text_color='#91a2b4', font=('Segoe UI', 12), anchor='w').grid(
                 row=4, column=0, sticky='ew', padx=24, pady=(0, 12))
         row = ctk.CTkFrame(self, fg_color='transparent')
         row.grid(row=5, column=0, sticky='ew', padx=24, pady=(0, 24))
-        ctk.CTkButton(row, text='Отмена', fg_color='#28394a', height=38,
+        ctk.CTkButton(row, text=tr('Отмена'), fg_color='#28394a', height=38,
             command=self.destroy).pack(side='left')
-        ctk.CTkButton(row, text='Переключить', fg_color='#56d6b1', text_color='#10161e',
+        ctk.CTkButton(row, text=tr('Переключить'), fg_color='#56d6b1', text_color='#10161e',
             height=38, command=self._confirm).pack(side='right')
         self.grab_set()
         self.focus_set()
@@ -122,11 +123,11 @@ class GpuControls:
 
     def _apply_gpu_plan(self, preview, suppress=False):
         if self.busy:
-            raise RuntimeError(f'Дождитесь завершения: {self.busy_label}.')
+            raise RuntimeError(tr('Дождитесь завершения: {action}.', action=self.busy_label))
         if suppress:
             config.set('suppress_gpu_switch_warning', True)
         self.worker(lambda: gpu_mode_manager.apply_gpu_profile_only(
-            preview['Profile'], expected_plan=preview['Plan']), self._gpu_completed, label='Переключение режимов GPU')
+            preview['Profile'], expected_plan=preview['Plan']), self._gpu_completed, label=tr('Переключение режимов GPU'))
 
     def _gpu_completed(self, result):
         from .control_center import result_message
@@ -142,7 +143,7 @@ class GpuControls:
         if self.state() == 'withdrawn':
             if self.tray and self.tray.HAS_NOTIFICATION:
                 try:
-                    self.tray.notify(message, APP_NAME)
+                    self.tray.notify(message, 'LAAS')  # Short name: notification titles are narrow.
                     return
                 except Exception:
                     logging.getLogger(__name__).exception('GPU tray notification failed')
@@ -152,6 +153,6 @@ class GpuControls:
     def _reset_gpu_confirmation(self):
         try:
             config.set('suppress_gpu_switch_warning', False)
-            self.status_label.configure(text='Подтверждение переключения GPU снова включено', text_color='#56d6b1')
+            self.status_label.configure(text=tr('Подтверждение переключения GPU снова включено'), text_color='#56d6b1')
         except Exception as exc:
             messagebox.showerror(APP_NAME, str(exc), parent=self)

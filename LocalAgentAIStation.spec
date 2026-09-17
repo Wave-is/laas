@@ -1,4 +1,4 @@
-# -*- mode: python ; coding: utf-8 -*-
+﻿# -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 root=Path(SPECPATH)
@@ -24,8 +24,9 @@ for name in ('install_helper.ps1','uninstall_helper.ps1','LocalAgentGpuModeHelpe
     datas.append((str(root/'src/services'/name),'src/services'))
 datas += [(str(root/'docs/examples'),'docs/examples')]
 datas += [(str(root/'docs/TESTING_GUIDE_RU.md'),'docs')]
-datas += [(str(root/'docs/SERVICES_GUIDE_RU.md'),'docs')]
+datas += [(str(root/'docs'/name),'docs') for name in ('SERVICES_GUIDE_RU.md','SERVICES_GUIDE_EN.md','SERVICES_GUIDE_UK.md')]
 datas += [(str(root/'assets/brand'),'assets/brand')]
+datas += [(str(p), str(p.parent.relative_to(root))) for p in (root/'locales').glob('*/*.json')]
 a=Analysis(['main.pyw'],pathex=[str(root)],datas=datas,
     hiddenimports=collect_submodules('src.agents') + ['src.agents.'+p.parent.name+'.adapter' for p in (root/'src/agents').glob('*/manifest.yaml')],
     excludes=['torch','tensorflow','matplotlib','pandas','numpy','scipy','IPython','pytest'],

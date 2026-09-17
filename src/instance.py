@@ -3,6 +3,7 @@ import hashlib
 import socket
 import threading
 from .paths import data_dir
+from .i18n import tr
 
 class StationInstance:
     def __init__(self, directory=None):
@@ -19,7 +20,7 @@ class StationInstance:
                     peer.sendall(b'SHOW\n')
                     if peer.recv(64)==b'LOCAL_AGENT_AI_STATION\n':return False
             except OSError:pass
-            raise RuntimeError('Station instance channel is occupied. Close the previous instance and try again.')
+            raise RuntimeError(tr('Канал связи Station занят. Закройте предыдущий экземпляр и повторите попытку.'))
         self.server=server;return True
     def listen(self,show):
         def run():

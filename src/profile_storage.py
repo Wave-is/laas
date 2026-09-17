@@ -2,6 +2,7 @@
 from pathlib import Path
 from threading import RLock
 from .paths import data_dir
+from .i18n import tr
 from .storage import atomic_write, read_document, digest, ConfigurationError
 from .profiles_schema import GpuHardwareProfile, ModelProfile, StationPreset
 
@@ -12,28 +13,28 @@ STATION_PRESETS_FILE = STORAGE_DIR / 'station_presets.yaml'
 
 def get_default_gpu_profiles():
     return [
-        GpuHardwareProfile(id='gpu-unchanged', name='Текущая конфигурация', general_policy='unchanged'),
-        GpuHardwareProfile(id='gpu-all-wddm', name='Все GPU в WDDM', general_policy='all_wddm'),
-        GpuHardwareProfile(id='gpu-first-wddm-rest-tcc', name='Первая GPU в WDDM, остальные в TCC', general_policy='first_wddm_rest_tcc'),
-        GpuHardwareProfile(id='gpu-one-graphics-rest-compute', name='GPU с монитором в WDDM, остальные в TCC', general_policy='one_graphics_rest_compute'),
-        GpuHardwareProfile(id='gpu-all-tcc', name='Все GPU в TCC', general_policy='all_tcc', prefer_p2p=True),
-        GpuHardwareProfile(id='gpu-largest-vram-only', name='GPU с наибольшей памятью', general_policy='largest_vram'),
-        GpuHardwareProfile(id='gpu-nvlink-clique', name='Лучшая подтверждённая P2P группа', general_policy='best_p2p_clique', prefer_p2p=True),
+        GpuHardwareProfile(id='gpu-unchanged', name=tr('Текущая конфигурация'), general_policy='unchanged'),
+        GpuHardwareProfile(id='gpu-all-wddm', name=tr('Все GPU в WDDM'), general_policy='all_wddm'),
+        GpuHardwareProfile(id='gpu-first-wddm-rest-tcc', name=tr('Первая GPU в WDDM, остальные в TCC'), general_policy='first_wddm_rest_tcc'),
+        GpuHardwareProfile(id='gpu-one-graphics-rest-compute', name=tr('GPU с монитором в WDDM, остальные в TCC'), general_policy='one_graphics_rest_compute'),
+        GpuHardwareProfile(id='gpu-all-tcc', name=tr('Все GPU в TCC'), general_policy='all_tcc', prefer_p2p=True),
+        GpuHardwareProfile(id='gpu-largest-vram-only', name=tr('GPU с наибольшей памятью'), general_policy='largest_vram'),
+        GpuHardwareProfile(id='gpu-nvlink-clique', name=tr('Лучшая подтверждённая P2P группа'), general_policy='best_p2p_clique', prefer_p2p=True),
     ]
 
 def get_default_model_profiles():
-    return [ModelProfile(id='none', name='Без модели', weights_path='', min_gpu_count=0,
+    return [ModelProfile(id='none', name=tr('Без модели'), weights_path='', min_gpu_count=0,
         min_total_vram_mib=0, min_free_vram_per_gpu_mib=0, split_mode='none', backend='cpu',
         status='stable', qualified=True)]
 
 def get_default_station_presets():
     return [
-        StationPreset(id='work', name='Работа', gpu_profile_id='gpu-all-wddm', is_builtin=True,
-            description='Графический режим. Выберите установленную модель и агента.'),
-        StationPreset(id='compromise', name='Компромисс', gpu_profile_id='gpu-one-graphics-rest-compute',
-            is_builtin=True, description='Графическая GPU и доступные вычислительные GPU. Требуется выбор модели.'),
-        StationPreset(id='super-ai', name='Супер ИИ', gpu_profile_id='gpu-all-tcc', is_builtin=True,
-            description='Совместимые GPU в вычислительном режиме. Агент и модель выбираются независимо.'),
+        StationPreset(id='work', name=tr('Работа'), gpu_profile_id='gpu-all-wddm', is_builtin=True,
+            description=tr('Графический режим. Выберите установленную модель и агента.')),
+        StationPreset(id='compromise', name=tr('Компромисс'), gpu_profile_id='gpu-one-graphics-rest-compute',
+            is_builtin=True, description=tr('Графическая GPU и доступные вычислительные GPU. Требуется выбор модели.')),
+        StationPreset(id='super-ai', name=tr('Супер ИИ'), gpu_profile_id='gpu-all-tcc', is_builtin=True,
+            description=tr('Совместимые GPU в вычислительном режиме. Агент и модель выбираются независимо.')),
     ]
 
 class ProfileStorage:
@@ -61,18 +62,18 @@ class ProfileStorage:
                 values = defaults()
             else:
                 if not isinstance(rows, list):
-                    raise ConfigurationError(f'Expected a list: {path}')
+                    raise ConfigurationError(tr('Ожидался список: {path}', path=path))
                 from .validation import validate_registry
                 unknown = {}
                 validate_registry(filename, rows, strict=False, unknown_fields=unknown)
                 values = [cls.from_dict(row) for row in rows]
                 # Fields written by other tools are preserved on save and reported, never fatal.
                 extras[name] = {row['id']: {k: row[k] for k in unknown[row['id']]} for row in rows if row['id'] in unknown}
-                warnings += [f'{filename}: профиль «{id}» содержит поля, которые Station не использует: {", ".join(keys)}'
+                warnings += [tr('{file}: профиль «{id}» содержит поля, которые Station не использует: {fields}', file=filename, id=id, fields=', '.join(keys))
                              for id, keys in unknown.items()]
             ids = [p.id for p in values]
             if len(ids) != len(set(ids)):
-                raise ConfigurationError(f'Duplicate profile ID: {path}')
+                raise ConfigurationError(tr('Повторяющийся ID профиля: {path}', path=path))
             if name == 'gpu_profiles':
                 known = {p.id for p in values}
                 values += [p for p in defaults() if p.id in ('gpu-all-wddm', 'gpu-all-tcc', 'gpu-first-wddm-rest-tcc') and p.id not in known]

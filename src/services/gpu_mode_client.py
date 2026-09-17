@@ -5,22 +5,23 @@ import os
 import re
 import time
 from ctypes import wintypes as W
+from ..i18n import tr
 
 PIPE_NAME = r'\\.\pipe\LocalAgentGpuModeHelper'
 ACTIONS = {'GetHardwareStatus', 'GetDriverModes', 'ApplyDriverModePlan', 'CancelSwitch'}
 
 def validate_plan(plan):
     if not isinstance(plan, list) or len(plan) > 64:
-        raise ValueError('Plan must contain at most 64 GPU entries')
+        raise ValueError(tr('План может содержать не более 64 GPU'))
     seen = set()
     for item in plan:
         if not isinstance(item, dict) or set(item) != {'gpu_stable_id', 'target_mode'}:
-            raise ValueError('Plan only accepts gpu_stable_id and target_mode')
+            raise ValueError(tr('План принимает только gpu_stable_id и target_mode'))
         uid = item['gpu_stable_id']
         if not isinstance(uid, str) or not re.fullmatch(r'GPU-[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}', uid):
-            raise ValueError('Expected a complete NVIDIA GPU UUID')
+            raise ValueError(tr('Ожидался полный UUID GPU NVIDIA'))
         if uid.lower() in seen or item['target_mode'] not in ('WDDM', 'TCC', 'UNCHANGED'):
-            raise ValueError('Duplicate GPU or invalid target mode')
+            raise ValueError(tr('GPU указана дважды или целевой режим недопустим'))
         seen.add(uid.lower())
     return plan
 
@@ -42,17 +43,17 @@ class GpuModeServiceClient:
             timeout=3, **hidden_options()).returncode == 0
     def send_request(self, action, payload=None, timeout_ms=5000):
         if action not in ACTIONS:
-            return {'Success': False, 'Message': 'Unsupported helper action'}
+            return {'Success': False, 'Message': tr('Служба GPU не поддерживает это действие')}
         request = {'Action': action}
         if payload:
             if action != 'ApplyDriverModePlan' or set(payload) != {'Plan'}:
-                return {'Success': False, 'Message': 'Invalid request payload'}
+                return {'Success': False, 'Message': tr('Некорректные данные запроса к службе GPU')}
             try:
                 request['Plan'] = validate_plan(payload['Plan'])
             except ValueError as exc:
                 return {'Success': False, 'Message': str(exc)}
         if os.name != 'nt':
-            return {'Success': False, 'Message': 'GPU driver mode helper requires Windows'}
+            return {'Success': False, 'Message': tr('Переключение режимов GPU доступно только в Windows.')}
         try:
             return self._exchange(json.dumps(request).encode('utf-8') + b'\n', timeout_ms)
         except (OSError, TimeoutError, ValueError) as exc:
@@ -75,47 +76,47 @@ class GpuModeServiceClient:
             getattr(kernel, name).argtypes = [W.HANDLE, C.c_void_p, W.DWORD, C.POINTER(W.DWORD), C.POINTER(OVERLAPPED)]
         deadline = time.monotonic() + timeout_ms / 1000
         if not kernel.WaitNamedPipeW(self.pipe_name, min(timeout_ms, 1000)):
-            raise OSError('LocalAgentGpuModeHelper is unavailable; install the helper in Settings')
+            raise OSError(tr('Служба LocalAgentGpuModeHelper недоступна; установите её в настройках'))
         handle = kernel.CreateFileW(self.pipe_name, 0xc0000000, 0, None, 3, 0x40000000, None)
         if handle == C.c_void_p(-1).value:
-            raise OSError(C.get_last_error(), 'Cannot connect to GPU helper')
+            raise OSError(C.get_last_error(), tr('Не удалось подключиться к службе GPU'))
         def io(write, buffer, size):
             event = kernel.CreateEventW(None, True, False, None)
             if not event:
-                raise OSError('Cannot create pipe I/O event')
+                raise OSError(tr('Не удалось создать событие ввода-вывода для канала службы GPU'))
             overlapped = OVERLAPPED(hEvent=event)
             count = W.DWORD()
             try:
                 ok = (kernel.WriteFile if write else kernel.ReadFile)(handle, buffer, size, C.byref(count), C.byref(overlapped))
                 if not ok:
                     if C.get_last_error() != 997:
-                        raise OSError(C.get_last_error(), 'GPU helper I/O failed')
+                        raise OSError(C.get_last_error(), tr('Ошибка обмена данными со службой GPU'))
                     remaining = max(0, int((deadline - time.monotonic()) * 1000))
                     if kernel.WaitForSingleObject(event, remaining) != 0:
                         kernel.CancelIoEx(handle, C.byref(overlapped))
                         kernel.GetOverlappedResult(handle, C.byref(overlapped), C.byref(count), True)
-                        raise TimeoutError('GPU helper response timed out; refresh hardware status before retrying')
+                        raise TimeoutError(tr('Служба GPU не ответила вовремя; обновите состояние оборудования перед повтором'))
                     if not kernel.GetOverlappedResult(handle, C.byref(overlapped), C.byref(count), False):
-                        raise OSError(C.get_last_error(), 'GPU helper I/O completion failed')
+                        raise OSError(C.get_last_error(), tr('Не удалось завершить обмен данными со службой GPU'))
                 return count.value
             finally:
                 kernel.CloseHandle(event)
         try:
             out = C.create_string_buffer(data)
             if io(True, out, len(data)) != len(data):
-                raise OSError('Incomplete GPU helper write')
+                raise OSError(tr('Запрос к службе GPU отправлен не полностью'))
             result = bytearray()
             while b'\n' not in result:
                 buf = C.create_string_buffer(4096)
                 count = io(False, buf, len(buf))
                 if not count:
-                    raise OSError('GPU helper disconnected')
+                    raise OSError(tr('Служба GPU разорвала соединение'))
                 result.extend(buf.raw[:count])
                 if len(result) > 65536:
-                    raise ValueError('GPU helper response too large')
+                    raise ValueError(tr('Слишком большой ответ службы GPU'))
             response = json.loads(result.split(b'\n')[0])
             if not isinstance(response, dict):
-                raise ValueError('Invalid GPU helper response')
+                raise ValueError(tr('Некорректный ответ службы GPU'))
             return response
         finally:
             kernel.CloseHandle(handle)

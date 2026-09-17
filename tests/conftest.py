@@ -11,3 +11,6 @@ _sandbox = tempfile.TemporaryDirectory(prefix='station-tests-')
 os.environ['LOCAL_AGENT_STATION_HOME'] = _sandbox.name
 os.environ['APPDATA'] = str(Path(_sandbox.name) / 'legacy-appdata')
 atexit.register(_sandbox.cleanup)
+
+# Tests assert the Russian source texts.
+os.environ['LOCAL_AGENT_STATION_LANGUAGE'] = 'ru'

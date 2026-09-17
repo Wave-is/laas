@@ -4,6 +4,7 @@ import urllib.request
 from urllib.parse import urlsplit
 from .base import BaseEngine
 from ..config import config
+from ..i18n import tr
 
 class LlamaSwapEngine(BaseEngine):
     def __init__(self, base_url=None):
@@ -43,7 +44,7 @@ class LlamaSwapEngine(BaseEngine):
                 'messages': [{'role': 'user', 'content': 'Reply OK.'}], 'max_tokens': 8,
                 'temperature': 0, 'chat_template_kwargs': {'enable_thinking': False}}, timeout=timeout)
             if not response.get('choices') or not response['choices'][0].get('message', {}).get('content'):
-                raise ValueError('Backend returned no text answer')
+                raise ValueError(tr('Сервер моделей не вернул текстовый ответ'))
             self._active_model = model_id
             self.last_error = None
             return True

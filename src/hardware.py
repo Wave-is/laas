@@ -8,6 +8,7 @@ import subprocess
 import threading
 import time
 from typing import Any
+from .i18n import tr
 
 NVML_TEMPERATURE_GPU = 0
 NVML_DRIVER_TCC = 1
@@ -29,7 +30,7 @@ def find_nvidia_smi():
 def run_smi(*args, timeout=5):
     executable = find_nvidia_smi()
     if not executable:
-        raise FileNotFoundError('nvidia-smi is not installed')
+        raise FileNotFoundError(tr('nvidia-smi не установлен'))
     result = subprocess.run([executable, *args], capture_output=True, text=True,
                             encoding='utf-8', errors='replace', timeout=timeout, **hidden_options())
     if result.returncode:

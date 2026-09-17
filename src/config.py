@@ -3,11 +3,12 @@ from copy import deepcopy
 from threading import RLock
 from .paths import data_dir
 from .storage import atomic_write, read_document, digest, ConfigurationError
+from .i18n import tr, system_language
 
 CONFIG_DIR = data_dir() / 'config'
 CONFIG_FILE = CONFIG_DIR / 'station.yaml'
 DEFAULT_SETTINGS = {
-    'version': '3.0.0', 'language': 'ru', 'station_mode': 'disabled',
+    'version': '3.0.0', 'language': system_language(), 'station_mode': 'disabled',
     'active_engine': 'llama_swap', 'active_model_profile': 'none',
     'active_gpu_profile': 'gpu-unchanged', 'primary_agent_runtime': 'qwen-code',
     'preferred_frontend': 'qwen-desktop', 'tray_style': 'two_icons',
@@ -32,7 +33,7 @@ class AppConfig:
     def load(self):
         loaded = read_document(self.path, {})
         if not isinstance(loaded, dict):
-            raise ConfigurationError(f'Expected a mapping: {self.path}')
+            raise ConfigurationError(tr('Ожидался словарь настроек: {path}', path=self.path))
         self._data = {**deepcopy(DEFAULT_SETTINGS), **loaded}
         self._validate()
         self._digest = digest(self.path)
@@ -45,12 +46,12 @@ class AppConfig:
         validate_tray(self._data)
         for key in ('llama_swap_lan_access', 'suppress_gpu_switch_warning'):
             if type(self._data.get(key)) is not bool:
-                raise ConfigurationError(key + ' must be a boolean')
+                raise ConfigurationError(tr('{key}: нужно логическое значение (true/false)', key=key))
         if type(self._data.get('suppress_gpu_switch_warning')) is not bool:
-            raise ConfigurationError('suppress_gpu_switch_warning must be a boolean')
+            raise ConfigurationError(tr('{key}: нужно логическое значение (true/false)', key='suppress_gpu_switch_warning'))
         interval = self._data.get('poll_interval_sec')
         if type(interval) not in (int, float) or not math.isfinite(interval) or not 2 <= interval <= 300:
-            raise ConfigurationError('poll_interval_sec must be a finite number from 2 to 300 seconds')
+            raise ConfigurationError(tr('poll_interval_sec: нужно число от 2 до 300 секунд'))
 
     def save(self):
         atomic_write(self.path, self._data, expected_digest=self._digest)

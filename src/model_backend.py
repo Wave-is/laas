@@ -7,6 +7,7 @@ from .storage import atomic_write, read_document
 from .paths import data_dir
 from .compatibility import compatibility_evaluator
 from .model_server import resolve_model_file
+from .i18n import tr
 
 def launch_signature(model, hardware_profile, executable, topology):
     import hashlib
@@ -27,7 +28,7 @@ def tensor_split(model, devices):
     if model.tensor_split_policy not in ('auto', '', 'none'):
         values = [float(v) for v in model.tensor_split_policy.split(',')]
         if len(values) != len(devices) or any(v <= 0 for v in values):
-            raise ValueError('Tensor split не совпадает с числом выбранных GPU')
+            raise ValueError(tr('Tensor split не совпадает с числом выбранных GPU'))
         return ','.join(str(v) for v in values)
     if not devices:
         return ''
@@ -37,10 +38,10 @@ def tensor_split(model, devices):
 
 def build_model_entry(model, devices, executable):
     if not executable or not Path(executable).is_file():
-        raise ValueError('Не найден llama-server.exe (llama.cpp). Укажите папку движка в «Настройки → Папки и сервер моделей».')
+        raise ValueError(tr('Не найден llama-server.exe (llama.cpp). Укажите папку движка в «Настройки → Папки и сервер моделей».'))
     weights, mmproj = resolve_model_file(model.weights_path), resolve_model_file(model.mmproj_path)
     if not Path(weights).is_file():
-        raise ValueError(f'Файл весов модели «{model.name}» не найден: {weights}')
+        raise ValueError(tr('Файл весов модели «{name}» не найден: {path}', name=model.name, path=weights))
     args = [executable, '-m', weights, '-c', str(model.context), '-ngl',
         '0' if model.backend == 'cpu' else str(model.gpu_layers), '--parallel', '1', '--host', '127.0.0.1', '--port', '${PORT}',
         '-b', str(model.batch), '-ub', str(model.ubatch), '-fa', 'on']
@@ -50,7 +51,7 @@ def build_model_entry(model, devices, executable):
             args += ['--no-mmproj-offload']
     if model.vision:
         if not mmproj or not Path(mmproj).is_file():
-            raise ValueError(f'Файл mmproj модели «{model.name}» не найден: {mmproj}')
+            raise ValueError(tr('Файл mmproj модели «{name}» не найден: {path}', name=model.name, path=mmproj))
         args += ['--mmproj', mmproj]
     if len(devices) > 1:
         args += ['--split-mode', model.split_mode, '--tensor-split', tensor_split(model, devices)]
@@ -79,7 +80,7 @@ def compile_swap(profiles, topology, hardware_profile, executable, path=None):
         else:
             skipped[model.id] = evaluation.summary
     if not models:
-        raise ValueError('Нет моделей, которые можно запустить на текущем оборудовании: ' + '; '.join(f'{k}: {v}' for k, v in skipped.items()))
+        raise ValueError(tr('Нет моделей, которые можно запустить на текущем оборудовании: {reasons}', reasons='; '.join(f'{k}: {v}' for k, v in skipped.items())))
     document = {'healthCheckTimeout': max(p.startup_timeout for p in profiles), 'logLevel': 'warn',
         'captureBuffer': 0, 'models': models}
     old = read_document(target, None)

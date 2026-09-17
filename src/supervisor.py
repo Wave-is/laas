@@ -10,6 +10,7 @@ import psutil
 from .paths import data_dir
 from .storage import atomic_write, read_document
 from .hardware import hidden_options
+from .i18n import tr
 
 def log_name(key):
     """Readable log file name for a process key, e.g. service:llama-swap -> service-llama-swap."""
@@ -46,9 +47,9 @@ class ProcessSupervisor:
 
     def start(self, key, argv, *, cwd=None, env=None, visible=False):
         if not argv or not isinstance(argv, list) or not all(isinstance(a, str) and '\0' not in a for a in argv):
-            raise ValueError('Не указана программа для запуска или её параметры заданы неверно. Проверьте путь и параметры в настройках.')
+            raise ValueError(tr('Не указана программа для запуска или её параметры заданы неверно. Проверьте путь и параметры в настройках.'))
         if Path(argv[0]).suffix.lower() in ('.bat', '.cmd', '.ps1'):
-            raise ValueError('Укажите .exe-файл, а не .bat/.cmd/.ps1: ' + argv[0])
+            raise ValueError(tr('Укажите .exe-файл, а не .bat/.cmd/.ps1: {path}', path=argv[0]))
         with self._lock:
             if self.owned_process(key):
                 return self.status(key)
@@ -82,7 +83,7 @@ class ProcessSupervisor:
         with self._lock:
             root = self.owned_process(key)
             if not root:
-                return {'success': True, 'message': 'Процесс не запущен из Station'}
+                return {'success': True, 'message': tr('Процесс не запущен из Station')}
             try:
                 tree = [root] + root.children(recursive=True)
                 for process in reversed(tree):
@@ -95,15 +96,15 @@ class ProcessSupervisor:
                     process.kill()  # psutil verifies process identity to reject PID reuse.
                 _, alive = psutil.wait_procs(alive, timeout=3)
                 if alive:
-                    return {'success': False, 'message': f'Процесс (PID {root.pid}) или его дочерние процессы не остановились. '
-                        'Закройте их вручную в Диспетчере задач.'}
+                    return {'success': False, 'message': tr('Процесс (PID {pid}) или его дочерние процессы не остановились. '
+                        'Закройте их вручную в Диспетчере задач.', pid=root.pid)}
             except psutil.AccessDenied:
-                return {'success': False, 'message': f'Нет прав на остановку процесса (PID {root.pid}). '
-                    'Закройте его вручную или запустите Station от имени администратора.'}
+                return {'success': False, 'message': tr('Нет прав на остановку процесса (PID {pid}). '
+                    'Закройте его вручную или запустите Station от имени администратора.', pid=root.pid)}
             self.records.pop(key, None)
             self._children.pop(key, None)
             self._save()
-            return {'success': True, 'message': f'Процесс остановлен (PID {root.pid})'}
+            return {'success': True, 'message': tr('Процесс остановлен (PID {pid})', pid=root.pid)}
 
     def tail(self, key, limit=16000):
         path = self.records.get(key, {}).get('log')

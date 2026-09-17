@@ -1,13 +1,32 @@
-"""Local Agent AI Station desktop entry point and read-only diagnostics."""
+﻿"""Local Agent AI Station desktop entry point and read-only diagnostics."""
 import argparse
 import json
 import logging
 from pathlib import Path
 import sys
+import time
+
+RESTART_WAIT = 'LOCAL_AGENT_STATION_RESTART_WAIT'
+
+
+def wait_for_previous_instance(timeout=20.0):
+    """After a language change, let the previous Station release its instance channel."""
+    import os
+    value = os.environ.pop(RESTART_WAIT, '').strip()
+    if not value.isdigit():
+        return
+    import psutil
+    deadline = time.monotonic() + timeout
+    try:
+        process = psutil.Process(int(value))
+        while process.is_running() and process.status() != psutil.STATUS_ZOMBIE and time.monotonic() < deadline:
+            time.sleep(0.2)
+    except (psutil.Error, ValueError):
+        pass
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Local Agent AI Station 3.0')
+    parser = argparse.ArgumentParser(description='Local Agent AI Station (LAAS)')
     parser.add_argument('--gui', action='store_true')
     parser.add_argument('--no-tray', action='store_true')
     parser.add_argument('--minimized', action='store_true')
@@ -61,6 +80,7 @@ def main():
     from logging.handlers import RotatingFileHandler
     logging.basicConfig(level=logging.INFO, handlers=[RotatingFileHandler(logs / 'station.log', maxBytes=2_000_000, backupCount=3, encoding='utf-8')],
         format='%(asctime)s %(levelname)s %(name)s %(message)s')
+    wait_for_previous_instance()
     from src.instance import StationInstance
     instance = StationInstance()
     if not instance.acquire():
@@ -94,11 +114,14 @@ if __name__ == '__main__':
         elif not any(flag in sys.argv for flag in ('--doctor', '--migrate')):
             import ctypes
             from src.paths import data_dir
-            text = ('Local Agent AI Station не запустилась.\n\n' + str(exc) +
-                    f'\n\nНастройки: {data_dir() / "config"}\nРезервные копии: {data_dir() / "config" / "backups"}'
-                    f'\nЖурнал: {data_dir() / "logs" / "station.log"}\n\nОткрыть папку настроек?')
+            from src.i18n import tr
+            text = '\n\n'.join([tr('Local Agent AI Station не запустилась.'), str(exc),
+                '\n'.join([tr('Настройки: {path}', path=data_dir() / 'config'),
+                           tr('Резервные копии: {path}', path=data_dir() / 'config' / 'backups'),
+                           tr('Журнал: {path}', path=data_dir() / 'logs' / 'station.log')]),
+                tr('Открыть папку настроек?')])
             # MB_YESNO | MB_ICONERROR; IDYES = 6
-            if ctypes.windll.user32.MessageBoxW(None, text, 'Local Agent AI Station — ошибка запуска', 0x14) == 6:
+            if ctypes.windll.user32.MessageBoxW(None, text, tr('Local Agent AI Station — ошибка запуска'), 0x14) == 6:
                 import os
                 os.startfile(str(data_dir() / 'config'))
         raise SystemExit(1)

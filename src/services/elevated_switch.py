@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 from .gpu_mode_client import validate_plan
+from ..i18n import tr
 
 HELPER = 'LocalAgentGpuModeHelper.exe'
 ERROR_CANCELLED = 1223
@@ -38,11 +39,11 @@ class SHELLEXECUTEINFOW(C.Structure):
 
 def apply_plan_elevated(plan, timeout_ms=120000):
     if os.name != 'nt':
-        return {'Success': False, 'Message': 'Переключение режимов GPU доступно только в Windows.'}
+        return {'Success': False, 'Message': tr('Переключение режимов GPU доступно только в Windows.')}
     validate_plan(plan)
     exe = helper_executable()
     if not exe:
-        return {'Success': False, 'Message': f'Не найден {HELPER}. Переустановите Station.'}
+        return {'Success': False, 'Message': tr('Не найден {helper}. Переустановите Station.', helper=HELPER)}
     folder = Path(tempfile.mkdtemp(prefix='station-gpu-'))
     try:
         plan_path, result_path = folder / 'plan.json', folder / 'result.json'
@@ -54,19 +55,19 @@ def apply_plan_elevated(plan, timeout_ms=120000):
         shell.ShellExecuteExW.argtypes = [C.POINTER(SHELLEXECUTEINFOW)]
         if not shell.ShellExecuteExW(C.byref(info)):
             if C.get_last_error() == ERROR_CANCELLED:
-                return {'Success': False, 'Message': 'Переключение GPU отменено: права администратора не подтверждены.'}
-            return {'Success': False, 'Message': f'Не удалось запустить переключение GPU (ошибка Windows {C.get_last_error()}).'}
+                return {'Success': False, 'Message': tr('Переключение GPU отменено: права администратора не подтверждены.')}
+            return {'Success': False, 'Message': tr('Не удалось запустить переключение GPU (ошибка Windows {code}).', code=C.get_last_error())}
         kernel = C.WinDLL('kernel32', use_last_error=True)
         kernel.WaitForSingleObject.argtypes = [W.HANDLE, W.DWORD]
         kernel.CloseHandle.argtypes = [W.HANDLE]
         try:
             if kernel.WaitForSingleObject(info.hProcess, timeout_ms) != 0:
-                return {'Success': False, 'Message': 'Переключение GPU не завершилось вовремя. Проверьте режимы карт перед повтором.'}
+                return {'Success': False, 'Message': tr('Переключение GPU не завершилось вовремя. Проверьте режимы карт перед повтором.')}
         finally:
             kernel.CloseHandle(info.hProcess)
         if not result_path.is_file():
-            return {'Success': False, 'Message': 'Переключение GPU не вернуло результат. Проверьте режимы карт.'}
+            return {'Success': False, 'Message': tr('Переключение GPU не вернуло результат. Проверьте режимы карт.')}
         result = json.loads(result_path.read_text(encoding='utf-8'))
-        return result if isinstance(result, dict) else {'Success': False, 'Message': 'Некорректный ответ переключения GPU.'}
+        return result if isinstance(result, dict) else {'Success': False, 'Message': tr('Некорректный ответ переключения GPU.')}
     finally:
         shutil.rmtree(folder, ignore_errors=True)

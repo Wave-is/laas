@@ -4,6 +4,7 @@ from pathlib import Path
 from . import model_server
 from .supervisor import supervisor
 from .engines.llama_swap import LlamaSwapEngine
+from .i18n import tr
 
 KEY = 'service:llama-swap'
 
@@ -73,11 +74,13 @@ class ProcessManager:
     def describe(self, info=None):
         info = info or self.backend_info()
         if not info['online']:
-            return 'Остановлен'
-        who = f'запущен Station, PID {info["pid"]}' if info['owned'] else (
-            f'запущен вне Station, PID {info["pid"]}' if info['pid'] else 'запущен вне Station')
+            return tr('Остановлен')
+        if info['owned']:
+            who = tr('запущен Station, PID {pid}', pid=info['pid'])
+        else:
+            who = tr('запущен вне Station, PID {pid}', pid=info['pid']) if info['pid'] else tr('запущен вне Station')
         where = info['listen'] or info['url'].removeprefix('http://')
-        return f'Работает на {where} ({who})'
+        return tr('Работает на {address} ({owner})', address=where, owner=who)
 
     def start_llama_swap(self, config_path=None):
         """Start the server with the generated configuration. Returns a result dictionary."""
@@ -85,43 +88,56 @@ class ProcessManager:
         if self.is_llama_swap_running():
             info = self.backend_info(True)
             if not info['owned']:
-                return _result(True, f'{model_server.SERVER_TITLE} уже работает на {info["url"]}, но запущен не Station'
-                    + (f' (PID {info["pid"]})' if info['pid'] else '') + '. Station не управляет его конфигурацией.', Info=info)
-            return _result(True, f'{model_server.SERVER_TITLE} уже работает: {info["url"]}', Info=info)
+                if info['pid']:
+                    message = tr('{server} уже работает на {url}, но запущен не Station (PID {pid}). Station не управляет его конфигурацией.',
+                        server=model_server.SERVER_TITLE, url=info['url'], pid=info['pid'])
+                else:
+                    message = tr('{server} уже работает на {url}, но запущен не Station. Station не управляет его конфигурацией.',
+                        server=model_server.SERVER_TITLE, url=info['url'])
+                return _result(True, message, Info=info)
+            return _result(True, tr('{server} уже работает: {url}', server=model_server.SERVER_TITLE, url=info['url']), Info=info)
         exe = model_server.swap_executable()
         if not exe:
             return _result(False, model_server.describe_missing_runtime())
         if not path.is_file():
-            return _result(False, f'Нет конфигурации сервера моделей ({path}). Загрузите модель на странице «Станция» — '
-                'Station создаст конфигурацию из профилей моделей.')
+            return _result(False, tr('Нет конфигурации сервера моделей ({path}). Загрузите модель на странице «Станция» — '
+                'Station создаст конфигурацию из профилей моделей.', path=path))
         listen = model_server.listen_address()
         supervisor.start(KEY, [str(exe), '-config', str(path), '-listen', listen], cwd=str(exe.parent))
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
             if not supervisor.status(KEY)['running']:
                 log = supervisor.records.get(KEY, {}).get('log', '')
-                return _result(False, f'{model_server.SERVER_TITLE} завершился сразу после запуска. '
-                    f'Возможно, порт {model_server.port()} занят. Журнал: {log}')
+                return _result(False, tr('{server} завершился сразу после запуска. Возможно, порт {port} занят. Журнал: {log}',
+                    server=model_server.SERVER_TITLE, port=model_server.port(), log=log))
             if self.is_llama_swap_running():
                 info = self.backend_info(True)
-                extra = (' Доступ из сети: ' + ', '.join(info['lan_urls'])) if info['lan_urls'] else ''
-                return _result(True, f'{model_server.SERVER_TITLE} запущен: {info["api_url"]} (PID {info["pid"]}).' + extra, Info=info)
+                extra = (' ' + tr('Доступ из сети: {urls}', urls=', '.join(info['lan_urls']))) if info['lan_urls'] else ''
+                return _result(True, tr('{server} запущен: {url} (PID {pid}).', server=model_server.SERVER_TITLE,
+                    url=info['api_url'], pid=info['pid']) + extra, Info=info)
             time.sleep(.25)
-        return _result(False, f'{model_server.SERVER_TITLE} не ответил за 15 секунд на {model_server.local_url()}. '
-            f'Журнал: {supervisor.records.get(KEY, {}).get("log", "")}')
+        return _result(False, tr('{server} не ответил за 15 секунд на {url}. Журнал: {log}', server=model_server.SERVER_TITLE,
+            url=model_server.local_url(), log=supervisor.records.get(KEY, {}).get('log', '')))
 
     def stop_llama_swap(self):
         if not self.is_llama_swap_running() and not supervisor.status(KEY)['running']:
-            return _result(True, f'{model_server.SERVER_TITLE} уже остановлен.')
+            return _result(True, tr('{server} уже остановлен.', server=model_server.SERVER_TITLE))
         if self.is_llama_swap_running() and not supervisor.status(KEY)['owned']:
             pid = self._port_owner()
-            return _result(False, f'{model_server.SERVER_TITLE} на {model_server.local_url()} запущен не Station'
-                + (f' (PID {pid})' if pid else '') + '. Остановите его там, где запускали.')
+            if pid:
+                message = tr('{server} на {url} запущен не Station (PID {pid}). Остановите его там, где запускали.',
+                    server=model_server.SERVER_TITLE, url=model_server.local_url(), pid=pid)
+            else:
+                message = tr('{server} на {url} запущен не Station. Остановите его там, где запускали.',
+                    server=model_server.SERVER_TITLE, url=model_server.local_url())
+            return _result(False, message)
         pid = supervisor.status(KEY)['pid']
         result = supervisor.stop(KEY)
         if result['success']:
-            return _result(True, f'{model_server.SERVER_TITLE} остановлен (PID {pid}), порт {model_server.port()} свободен.')
-        return _result(False, f'Не удалось остановить {model_server.SERVER_TITLE} (PID {pid}): {result["message"]}')
+            return _result(True, tr('{server} остановлен (PID {pid}), порт {port} свободен.',
+                server=model_server.SERVER_TITLE, pid=pid, port=model_server.port()))
+        return _result(False, tr('Не удалось остановить {server} (PID {pid}): {error}',
+            server=model_server.SERVER_TITLE, pid=pid, error=result['message']))
 
     def free_gpu(self):
         # No kill-by-name fallback. Backend API manages its own models.

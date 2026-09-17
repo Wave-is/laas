@@ -1,6 +1,15 @@
 ﻿# Changelog
 
-## 3.0.0-alpha.2
+## 0.1.0-beta.1
+
+First public beta. Versions 3.0.0-alpha.1/2 were internal previews; numbering restarts at 0.x until a stable 1.0.0.
+
+- Interface in English, Russian and Ukrainian (Settings → Interface language).
+- Separate Startup page; presets removed from the interface.
+- Built-in model engine (llama.cpp + llama-swap) and GPU mode service installed by Setup; one-time administrator prompt when the service is absent.
+- Tray: short name LAAS, readable tooltip values.
+
+## 3.0.0-alpha.2 (internal)
 
 ### Русский
 

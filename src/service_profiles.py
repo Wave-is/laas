@@ -3,9 +3,19 @@ from copy import deepcopy
 from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
+from .i18n import tr
 
-KINDS = {'comfyui': 'ComfyUI', 'http': 'Image worker / HTTP-сервис'}
-LOCATIONS = {'remote': 'Уже работает / другой компьютер', 'local': 'Запускать на этом компьютере'}
+# Stable ids; labels are translated at display time.
+KINDS = ('comfyui', 'http')
+LOCATIONS = ('remote', 'local')
+
+
+def kind_label(kind):
+    return 'ComfyUI' if kind == 'comfyui' else tr('Image worker / HTTP-сервис')
+
+
+def location_label(location):
+    return tr('Уже работает / другой компьютер') if location == 'remote' else tr('Запускать на этом компьютере')
 
 
 def http_url(value):
@@ -17,7 +27,7 @@ def http_url(value):
         valid_port = False
     if (url.scheme not in ('http', 'https') or not url.hostname or url.username or url.password
             or not valid_port or any(c.isspace() for c in value) or '\\' in value):
-        raise ValueError('Укажите полный адрес http:// или https:// с корректным портом, без логина и пароля.')
+        raise ValueError(tr('Укажите полный адрес http:// или https:// с корректным портом, без логина и пароля.'))
     return value
 
 
@@ -26,17 +36,17 @@ def profile_from_form(original=None, *, name, location, kind, url='', health_url
     profile = deepcopy(original or {})
     name = name.strip()
     if not name:
-        raise ValueError('Введите название сервиса.')
+        raise ValueError(tr('Введите название сервиса.'))
     if location not in LOCATIONS or kind not in KINDS:
-        raise ValueError('Выберите тип сервиса и способ запуска.')
+        raise ValueError(tr('Выберите тип сервиса и способ запуска.'))
     url = http_url(url).rstrip('/') if url.strip() else ''
     if location == 'remote' and not url:
-        raise ValueError('Укажите адрес уже работающего сервиса.')
+        raise ValueError(tr('Укажите адрес уже работающего сервиса.'))
     if kind == 'comfyui':
         if not url:
-            raise ValueError('Укажите адрес ComfyUI, например http://127.0.0.1:8188.')
+            raise ValueError(tr('Укажите адрес ComfyUI, например http://127.0.0.1:8188.'))
         if urlsplit(url).query or urlsplit(url).fragment:
-            raise ValueError('Для ComfyUI укажите основной адрес без параметров и #.')
+            raise ValueError(tr('Для ComfyUI укажите основной адрес без параметров и #.'))
         health_url = url + '/system_stats'
     elif health_url.strip():
         health_url = http_url(health_url)
@@ -49,11 +59,11 @@ def profile_from_form(original=None, *, name, location, kind, url='', health_url
         executable = executable.strip().strip('"')
         working_directory = working_directory.strip().strip('"')
         if not Path(executable).is_absolute() or not Path(executable).is_file():
-            raise ValueError('Выберите существующий файл программы, например python.exe.')
+            raise ValueError(tr('Выберите существующий файл программы, например python.exe.'))
         if Path(executable).suffix.lower() in ('.bat', '.cmd', '.ps1'):
-            raise ValueError('Выберите саму программу (например python.exe); её параметры укажите ниже.')
+            raise ValueError(tr('Выберите саму программу (например python.exe); её параметры укажите ниже.'))
         if working_directory and not Path(working_directory).is_dir():
-            raise ValueError('Рабочая папка не найдена.')
+            raise ValueError(tr('Рабочая папка не найдена.'))
         profile.update(executable=executable, working_directory=working_directory,
             arguments=[line.strip() for line in arguments.splitlines() if line.strip()])
     else:
@@ -76,23 +86,23 @@ def service_actions(profile):
 def status_text(state):
     health = state.get('health', 'UNKNOWN')
     if health == 'READY':
-        title = 'Доступен'
+        title = tr('Доступен')
     elif health == 'UNAVAILABLE':
-        title = 'Нет подключения'
+        title = tr('Нет подключения')
     elif health == 'ERROR':
-        title = 'Требует внимания'
+        title = tr('Требует внимания')
     elif state.get('running'):
-        title = 'Процесс запущен'
+        title = tr('Процесс запущен')
     else:
-        title = 'Проверки выключены' if state.get('monitor_paused') else 'Ещё не проверен'
+        title = tr('Проверки выключены') if state.get('monitor_paused') else tr('Ещё не проверен')
     detail = state.get('message', '')
     if state.get('checked_at'):
         from datetime import datetime
         stamp = datetime.fromtimestamp(state['checked_at']).strftime('%H:%M:%S')
-        detail = f'Последняя проверка: {stamp}. ' + detail
+        detail = tr('Последняя проверка: {stamp}.', stamp=stamp) + ' ' + detail
         if state.get('monitor_paused'):
-            title = 'Проверки выключены'
-            detail += ' Это результат последней ручной проверки.'
+            title = tr('Проверки выключены')
+            detail += ' ' + tr('Это результат последней ручной проверки.')
     if not state.get('remote') and not state.get('running') and health not in ('READY', 'ERROR', 'UNAVAILABLE'):
-        title = 'Остановлен'
+        title = tr('Остановлен')
     return title, detail

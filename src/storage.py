@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timezone
 import yaml
+from .i18n import tr
 
 class ConfigurationError(ValueError):
     pass
@@ -17,7 +18,7 @@ def unique_pairs(pairs):
     result = {}
     for key, value in pairs:
         if key in result:
-            raise ConfigurationError(f'Duplicate configuration key: {key}')
+            raise ConfigurationError(tr('Повторяющийся ключ конфигурации: {key}', key=key))
         result[key] = value
     return result
 
@@ -43,7 +44,7 @@ def read_document(path: Path, default=None, *, allow_json5=False):
             return json5.loads(content, allow_duplicate_keys=False)
         return json.loads(content, object_pairs_hook=unique_pairs) if path.suffix == '.json' else yaml.load(content, Loader=UniqueLoader)
     except (ValueError, yaml.YAMLError, OSError) as exc:
-        raise ConfigurationError(f'Cannot read {path}: {exc}') from exc
+        raise ConfigurationError(tr('Не удалось прочитать {path}: {error}', path=path, error=exc)) from exc
 
 def encode_document(path: Path, data) -> str:
     if path.suffix == '.json':
@@ -54,7 +55,7 @@ def atomic_write(path: Path, data, *, expected_digest=None, backup=True) -> Path
     path = Path(path)
     content = encode_document(path, data)
     if expected_digest is not None and digest(path) != expected_digest:
-        raise ConfigurationConflict(f'CUSTOM MODIFIED: {path}. Reload and review the new diff.')
+        raise ConfigurationConflict(tr('Файл изменён извне: {path}. Перезагрузите его и проверьте изменения.', path=path))
     if path.exists() and path.read_text(encoding='utf-8') == content:
         return None
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -72,7 +73,7 @@ def atomic_write(path: Path, data, *, expected_digest=None, backup=True) -> Path
             f.flush()
             os.fsync(f.fileno())
         if expected_digest is not None and digest(path) != expected_digest:
-            raise ConfigurationConflict(f'Configuration changed while saving: {path}')
+            raise ConfigurationConflict(tr('Конфигурация изменилась во время сохранения: {path}', path=path))
         os.replace(tmp, path)
     finally:
         if os.path.exists(tmp):

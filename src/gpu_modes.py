@@ -14,6 +14,7 @@ from .supervisor import supervisor
 from .engines.llama_swap import LlamaSwapEngine
 from .model_backend import compile_swap, launch_signature
 from . import model_server
+from .i18n import tr
 
 class ProfileExecutionManager:
     def __init__(self):
@@ -46,9 +47,9 @@ class ProfileExecutionManager:
         return selected or profile_storage.get_gpu_profile('gpu-unchanged')
     def get_active_model_profile(self):
         return profile_storage.get_model_profile(config.get('active_model_profile', 'none')) or profile_storage.get_model_profile('none')
-    QUICK_GPU_MODES = (('gpu-all-wddm', 'Все GPU в WDDM', ('WDDM',)),
-                       ('gpu-all-tcc', 'Все GPU в TCC', ('TCC',)),
-                       ('gpu-first-wddm-rest-tcc', 'Первая GPU в WDDM, остальные в TCC', ('WDDM', 'TCC')))
+    QUICK_GPU_MODES = (('gpu-all-wddm', tr('Все GPU в WDDM'), ('WDDM',)),
+                       ('gpu-all-tcc', tr('Все GPU в TCC'), ('TCC',)),
+                       ('gpu-first-wddm-rest-tcc', tr('Первая GPU в WDDM, остальные в TCC'), ('WDDM', 'TCC')))
     def current_quick_mode(self, topology):
         """Which quick mode matches the actual driver modes of NVIDIA cards (None if none does)."""
         modes = [d.driver_mode for d in sorted((d for d in topology.devices if d.vendor == 'NVIDIA'), key=lambda d: d.index)]
@@ -73,17 +74,17 @@ class ProfileExecutionManager:
     def preview_gpu_plan(self, profile_id, topology=None):
         profile = profile_storage.get_gpu_profile(profile_id)
         if not profile:
-            raise ValueError(f'GPU-профиль «{profile_id}» не найден')
+            raise ValueError(tr('GPU-профиль «{profile_id}» не найден', profile_id=profile_id))
         top = topology or self.get_current_topology()
         if top.discovery_error:
-            raise ValueError('Опрос оборудования не завершён: ' + top.discovery_error)
+            raise ValueError(tr('Опрос оборудования не завершён: {error}', error=top.discovery_error))
         plan, warnings, changes = [], [], []
         included = {s.lower() for s in profile.included_devices}
         excluded = {s.lower() for s in profile.excluded_devices}
         rules = {r.gpu_stable_id.lower(): r for r in profile.rules}
         missing = set(rules) - {d.uuid.lower() for d in top.devices}
         if missing:
-            raise ValueError('В профиле указаны GPU, которых сейчас нет: ' + ', '.join(sorted(missing)))
+            raise ValueError(tr('В профиле указаны GPU, которых сейчас нет: {gpus}', gpus=', '.join(sorted(missing))))
         displays = [d for d in top.devices if d.display_active is True]
         graphics = {d.uuid for d in displays or top.devices[:1]}
         nvidia = sorted((d for d in top.devices if d.vendor == 'NVIDIA'), key=lambda d: d.index)
@@ -104,19 +105,19 @@ class ProfileExecutionManager:
                 continue
             if d.vendor != 'NVIDIA':
                 if rule and target != d.driver_mode:
-                    raise ValueError(d.name + ': переключение режима драйвера не поддерживается')
+                    raise ValueError(tr('{gpu}: переключение режима драйвера не поддерживается', gpu=d.name))
                 continue
             if d.driver_mode == target and d.pending_driver_mode in (target, 'UNKNOWN'):
                 continue
             if target == 'TCC' and d.tcc_supported is False:
                 if rule:
-                    raise ValueError(d.name + ': режим TCC не поддерживается')
-                warnings.append(d.name + ': TCC не поддерживается, режим оставлен без изменений')
+                    raise ValueError(tr('{gpu}: режим TCC не поддерживается', gpu=d.name))
+                warnings.append(tr('{gpu}: TCC не поддерживается, режим оставлен без изменений', gpu=d.name))
                 continue
             if target == 'TCC' and d.tcc_supported is None:
-                warnings.append(d.name + ': поддержка TCC неизвестна; результат должен подтвердить драйвер')
+                warnings.append(tr('{gpu}: поддержка TCC неизвестна; результат должен подтвердить драйвер', gpu=d.name))
             if target == 'TCC' and d.display_active is not False:
-                raise ValueError(d.name + ': переключение в TCC заблокировано — дисплей активен или его состояние неизвестно. Отключите мониторы от этой карты и подключите их к GPU, остающейся в WDDM.')
+                raise ValueError(tr('{gpu}: переключение в TCC заблокировано — дисплей активен или его состояние неизвестно. Отключите мониторы от этой карты и подключите их к GPU, остающейся в WDDM.', gpu=d.name))
             plan.append({'gpu_stable_id': d.uuid, 'target_mode': target})
             changes.append({'gpu_stable_id': d.uuid, 'name': d.name, 'index': d.index,
                 'current_mode': d.driver_mode, 'pending_mode': d.pending_driver_mode, 'target_mode': target})
@@ -130,17 +131,17 @@ class ProfileExecutionManager:
                 plan = preview['Plan']
                 # A reviewed (including empty) plan never authorizes newly discovered changes.
                 if expected_plan is not None and sorted(plan, key=lambda p: p['gpu_stable_id']) != sorted(expected_plan, key=lambda p: p['gpu_stable_id']):
-                    return {'Success': False, 'Message': 'Состояние GPU изменилось после проверки. Выберите профиль ещё раз.'}
+                    return {'Success': False, 'Message': tr('Состояние GPU изменилось после проверки. Выберите профиль ещё раз.')}
                 if not plan:
                     config.set('active_gpu_profile', gpu_profile_id)
-                    return {'Success': True, 'Message': 'No driver changes required', **preview}
+                    return {'Success': True, 'Message': tr('Переключение GPU не требуется: режимы уже соответствуют профилю'), **preview}
                 if any(supervisor.status(k)['running'] for k in supervisor.records if k.startswith(('agent:', 'frontend:'))):
-                    return {'Success': False, 'Message': 'Перед переключением GPU завершите и закройте агентов, запущенных из Station.'}
+                    return {'Success': False, 'Message': tr('Перед переключением GPU завершите и закройте агентов, запущенных из Station.')}
                 use_service = gpu_service_client.is_service_running()
                 if pm.is_llama_swap_running():
                     stopped = pm.stop_llama_swap()
                     if not stopped['Success']:
-                        return {'Success': False, 'Message': stopped['Message'] + ' Затем повторите переключение GPU.'}
+                        return {'Success': False, 'Message': tr('{reason} Затем повторите переключение GPU.', reason=stopped['Message'])}
                 config.update({'active_model_profile': 'none', 'active_preset': None})
                 self.rollback_plan = [{'gpu_stable_id': p['gpu_stable_id'], 'target_mode': top.get_device_by_uuid(p['gpu_stable_id']).driver_mode} for p in plan]
                 self.state = 'SWITCHING'
@@ -155,16 +156,19 @@ class ProfileExecutionManager:
                 hardware.reinit()
                 verified = topology_engine.discover_live(force=True)
                 if response.get('RebootRequired'):
-                    response['Message'] = 'Драйвер применит новые режимы только после перезагрузки Windows.'
+                    response['Message'] = tr('Драйвер применит новые режимы только после перезагрузки Windows.')
                 if response.get('Success'):
                     for entry in plan:
                         device = verified.get_device_by_uuid(entry['gpu_stable_id'])
                         if device is None or device.driver_mode != entry['target_mode'] or device.pending_driver_mode != entry['target_mode']:
-                            response = {'Success': False, 'Message': 'Драйвер не подтвердил новый режим для ' + (device.name if device else entry['gpu_stable_id']) + f': ожидался {entry["target_mode"]}.'}
+                            response = {'Success': False, 'Message': tr('Драйвер не подтвердил новый режим для {gpu}: ожидался {mode}.',
+                                gpu=device.name if device else entry['gpu_stable_id'], mode=entry['target_mode'])}
                             break
                 if response.get('Success'):
                     config.set('active_gpu_profile', gpu_profile_id)
-                    response['Message'] = ('' if use_service else '(без службы, с подтверждением прав) ') + 'Режимы GPU переключены и проверены: ' + ', '.join(f'GPU {c["index"]} → {c["target_mode"]}' for c in preview['Changes']) + '. Модель выгружена — загрузите её заново, когда будете готовы.'
+                    changes = ', '.join(f'GPU {c["index"]} → {c["target_mode"]}' for c in preview['Changes'])
+                    message = tr('Режимы GPU переключены и проверены: {changes}. Модель выгружена — загрузите её заново, когда будете готовы.', changes=changes)
+                    response['Message'] = message if use_service else tr('(без службы, с подтверждением прав) {message}', message=message)
                 self.log(response.get('Message', str(response)))
                 response['RollbackPlan'] = self.rollback_plan
                 return response
@@ -177,30 +181,30 @@ class ProfileExecutionManager:
         with self._lock:
             model = profile_storage.get_model_profile(model_profile_id)
             if not model:
-                return {'Success': False, 'Message': f'Профиль модели «{model_profile_id}» не найден'}
+                return {'Success': False, 'Message': tr('Профиль модели «{profile_id}» не найден', profile_id=model_profile_id)}
             if model.id == 'none':
                 active = self.get_active_model_profile()
                 if active and active.provider_type in ('openai_compatible', 'ollama'):
-                    return {'Success': False, 'Message': 'Модель управляется внешним сервером. Выгрузите её средствами этого сервера.'}
+                    return {'Success': False, 'Message': tr('Модель управляется внешним сервером. Выгрузите её средствами этого сервера.')}
                 if not pm.free_gpu():
-                    return {'Success': False, 'Message': 'Не удалось выгрузить модель: ' + pm.describe() + '. Если сервер запущен не Station, выгрузите модель в нём самом.'}
+                    return {'Success': False, 'Message': tr('Не удалось выгрузить модель: {status}. Если сервер запущен не Station, выгрузите модель в нём самом.', status=pm.describe())}
                 config.update({'active_model_profile': 'none', 'active_preset': None})
                 self.engine._active_model = None
-                return {'Success': True, 'Message': 'Модель выгружена, видеопамять освобождена.'}
+                return {'Success': True, 'Message': tr('Модель выгружена, видеопамять освобождена.')}
             if model.provider_type in ('openai_compatible', 'ollama'):
                 try:
                     if not auto_start:
                         config.set('selected_model_profile', model.id)
-                        return {'Success': True, 'Message': f'Выбрана внешняя модель «{model.name}» ({model.endpoint})'}
+                        return {'Success': True, 'Message': tr('Выбрана внешняя модель «{name}» ({endpoint})', name=model.name, endpoint=model.endpoint)}
                     import requests
                     response = requests.post(model.endpoint.rstrip('/') + '/chat/completions',
                         json={'model': model.backend_model_id, 'messages': [{'role': 'user', 'content': 'Reply OK.'}],
                             'max_tokens': 16, 'chat_template_kwargs': {'enable_thinking': False}}, timeout=model.startup_timeout)
                     response.raise_for_status()
                     if not response.json().get('choices'):
-                        raise ValueError(f'Внешний сервер {model.endpoint} вернул пустой ответ')
+                        raise ValueError(tr('Внешний сервер {endpoint} вернул пустой ответ', endpoint=model.endpoint))
                     config.set('active_model_profile', model.id)
-                    return {'Success': True, 'Message': f'Внешняя модель «{model.name}» отвечает: {model.endpoint}'}
+                    return {'Success': True, 'Message': tr('Внешняя модель «{name}» отвечает: {endpoint}', name=model.name, endpoint=model.endpoint)}
                 except Exception as exc:
                     return {'Success': False, 'Message': str(exc)}
             top = self.get_current_topology()
@@ -215,7 +219,8 @@ class ProfileExecutionManager:
                             r['model'] == model.backend_model_id and r.get('state') == 'ready' for r in rows):
                         if self.engine.switch_model(model.backend_model_id, model.startup_timeout):
                             config.set('active_model_profile', model.id)
-                            return {'Success': True, 'Message': f'Модель «{model.name}» уже загружена и отвечает: {model_server.api_url()}, id «{model.backend_model_id}»'}
+                            return {'Success': True, 'Message': tr('Модель «{name}» уже загружена и отвечает: {url}, id «{model_id}»',
+                                name=model.name, url=model_server.api_url(), model_id=model.backend_model_id)}
                     if running:
                         # This preflight checks only whether unloading could help. Actual free
                         # memory is measured again after the owned backend releases its model.
@@ -225,9 +230,9 @@ class ProfileExecutionManager:
                         if not possible.can_run:
                             return {'Success': False, 'Message': possible.summary, 'Evaluation': possible.to_dict()}
                         if not supervisor.status('service:llama-swap')['owned']:
-                            return {'Success': False, 'Message': pm.describe() + '. Этот сервер запущен не Station, поэтому Station не может сменить в нём модель.'}
+                            return {'Success': False, 'Message': tr('{status}. Этот сервер запущен не Station, поэтому Station не может сменить в нём модель.', status=pm.describe())}
                         if not pm.free_gpu():
-                            return {'Success': False, 'Message': 'Сервер моделей не выгрузил текущую модель. ' + pm.describe()}
+                            return {'Success': False, 'Message': tr('Сервер моделей не выгрузил текущую модель. {status}', status=pm.describe())}
                         config.update({'active_model_profile': 'none', 'active_preset': None})
                         hardware.reinit()
                         top = topology_engine.discover_live(force=True)
@@ -238,7 +243,7 @@ class ProfileExecutionManager:
                 return {'Success': False, 'Message': evaluation.summary, 'Evaluation': evaluation.to_dict()}
             if not auto_start:
                 config.set('selected_model_profile', model.id)
-                return {'Success': True, 'Message': f'Модель «{model.name}» выбрана; сервер моделей не запускался'}
+                return {'Success': True, 'Message': tr('Модель «{name}» выбрана; сервер моделей не запускался', name=model.name)}
             try:
                 path, changed, _ = self._compile(top, hw_profile)
                 info = pm.backend_info() if pm.is_llama_swap_running() else None
@@ -247,7 +252,7 @@ class ProfileExecutionManager:
                 if needs_restart:
                     stopped = pm.stop_llama_swap()
                     if not stopped['Success']:
-                        raise RuntimeError('Список моделей изменился, но сервер нельзя перезапустить. ' + stopped['Message'])
+                        raise RuntimeError(tr('Список моделей изменился, но сервер нельзя перезапустить. {reason}', reason=stopped['Message']))
                     self.engine._active_model = None
                     config.update({'active_model_profile': 'none', 'active_preset': None})
                     hardware.reinit()
@@ -262,13 +267,14 @@ class ProfileExecutionManager:
                         raise RuntimeError(started['Message'])
                 if not self.engine.switch_model(model.backend_model_id, model.startup_timeout):
                     config.update({'active_model_profile': 'none', 'active_preset': None})
-                    raise RuntimeError(f'Модель «{model.name}» не ответила за {model.startup_timeout} с: '
-                        f'{self.engine.last_error or "пустой ответ"}. Журнал сервера: {pm.backend_info().get("log") or "нет"}')
+                    raise RuntimeError(tr('Модель «{name}» не ответила за {seconds} с: {error}. Журнал сервера: {log}',
+                        name=model.name, seconds=model.startup_timeout, error=self.engine.last_error or tr('пустой ответ'),
+                        log=pm.backend_info().get('log') or tr('нет')))
                 config.update({'active_model_profile': model.id, 'selected_model_profile': model.id,
                     'active_model_signature': signature, 'active_preset': None})
                 gpus = ', '.join(f'GPU {g.index}' for g in evaluation.assigned_gpus) or 'CPU'
-                return {'Success': True, 'Message': f'Модель «{model.name}» загружена ({gpus}) и ответила. '
-                    f'Адрес для агентов: {model_server.api_url()}, id «{model.backend_model_id}»', 'Evaluation': evaluation.to_dict()}
+                return {'Success': True, 'Message': tr('Модель «{name}» загружена ({gpus}) и ответила. Адрес для агентов: {url}, id «{model_id}»',
+                    name=model.name, gpus=gpus, url=model_server.api_url(), model_id=model.backend_model_id), 'Evaluation': evaluation.to_dict()}
             except Exception as exc:
                 return {'Success': False, 'Message': str(exc)}
     def _compile(self, topology, hw_profile):
@@ -291,7 +297,7 @@ class ProfileExecutionManager:
                     config.update({'active_model_profile': 'none', 'active_preset': None})
                 result = pm.start_llama_swap(path)
                 if result['Success'] and skipped:
-                    result['Message'] += ' Не вошли в конфигурацию: ' + '; '.join(f'{k} — {v}' for k, v in skipped.items())
+                    result['Message'] += ' ' + tr('Не вошли в конфигурацию: {models}', models='; '.join(f'{k} — {v}' for k, v in skipped.items()))
                 return result
             except Exception as exc:
                 return {'Success': False, 'Message': str(exc)}
@@ -306,7 +312,7 @@ class ProfileExecutionManager:
         with self._lock:
             p = profile_storage.get_station_preset(preset_id)
             if not p or not profile_storage.get_gpu_profile(p.gpu_profile_id) or not profile_storage.get_model_profile(p.model_profile_id):
-                return {'Success': False, 'Message': 'В пресете указан отсутствующий GPU-профиль или профиль модели'}
+                return {'Success': False, 'Message': tr('В пресете указан отсутствующий GPU-профиль или профиль модели')}
             result = self.apply_gpu_profile_only(p.gpu_profile_id, True)
             if not result.get('Success'):
                 return result

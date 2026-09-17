@@ -9,8 +9,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from .config import config
 from .paths import data_dir
+from .i18n import tr
 
-SERVER_TITLE = 'Сервер моделей (llama-swap)'
+SERVER_TITLE = tr('Сервер моделей (llama-swap)')
 SWAP_EXE = 'llama-swap.exe' if os.name == 'nt' else 'llama-swap'
 LLAMA_SERVER_EXE = 'llama-server.exe' if os.name == 'nt' else 'llama-server'
 SEARCH_DEPTH = 3
@@ -23,7 +24,7 @@ def generated_config_path() -> Path:
 def port() -> int:
     url = urlsplit(config.get('llama_swap_url') or 'http://127.0.0.1:9292')
     if url.scheme != 'http' or url.hostname not in ('127.0.0.1', 'localhost', '::1'):
-        raise ValueError('Адрес сервера моделей должен быть локальным: http://127.0.0.1:<порт>')
+        raise ValueError(tr('Адрес сервера моделей должен быть локальным: http://127.0.0.1:<порт>'))
     return url.port or 9292
 
 
@@ -186,6 +187,6 @@ def cuda_runtime_status():
 
 def describe_missing_runtime():
     folder = runtime_dir()
-    where = f'в папке движка {folder}' if folder else 'папка движка не выбрана'
-    return ('Не найден llama-swap.exe или llama-server.exe (' + where + '). '
-            'Укажите папку движка в «Настройки → Папки и сервер моделей».')
+    where = tr('в папке движка {folder}', folder=folder) if folder else tr('папка движка не выбрана')
+    return tr('Не найден llama-swap.exe или llama-server.exe ({where}). '
+              'Укажите папку движка в «Настройки → Папки и сервер моделей».', where=where)

@@ -9,6 +9,7 @@ from .storage import read_document, atomic_write, digest
 from .supervisor import supervisor
 from .validation import validate_registry
 from .secrets_store import secret_store
+from .i18n import tr
 
 
 class SharedServices:
@@ -34,7 +35,7 @@ class SharedServices:
             id = profile['id']
             old = rows.get(id)
             if old and old != profile and supervisor.status('service:' + id)['running']:
-                raise ValueError('Сначала остановите запущенный Station сервис, затем измените его настройки.')
+                raise ValueError(tr('Сначала остановите запущенный Station сервис, затем измените его настройки.'))
             rows[id] = deepcopy(profile)
             validate_registry('services.yaml', list(rows.values()))
             atomic_write(self.path, list(rows.values()), expected_digest=expected_digest)
@@ -45,7 +46,7 @@ class SharedServices:
         with self._lock:
             rows = self.profiles()
             if rows[id].get('type', 'local') == 'local' and supervisor.status('service:' + id)['running']:
-                raise ValueError('Сначала остановите этот сервис в Station.')
+                raise ValueError(tr('Сначала остановите этот сервис в Station.'))
             rows.pop(id)
             atomic_write(self.path, list(rows.values()), expected_digest=expected_digest)
             self.desired.discard(id)
@@ -63,30 +64,30 @@ class SharedServices:
             with requests.get(url, headers=headers, timeout=(2, 2), allow_redirects=False, stream=True) as response:
                 result['http_status'] = response.status_code
                 if not 200 <= response.status_code < 300:
-                    result.update(health='ERROR', message=f'Сервер ответил HTTP {response.status_code}. Проверьте адрес и доступ.')
+                    result.update(health='ERROR', message=tr('Сервер ответил HTTP {code}. Проверьте адрес и доступ.', code=response.status_code))
                 elif profile.get('kind') == 'comfyui':
                     import json
                     payload = bytearray()
                     for chunk in response.iter_content(8192):
                         payload.extend(chunk)
                         if len(payload) > 256 * 1024:
-                            raise ValueError('Слишком большой ответ проверки ComfyUI.')
+                            raise ValueError(tr('Слишком большой ответ проверки ComfyUI.'))
                     try:
                         info = json.loads(payload)
                     except ValueError:
                         info = None
                     if not isinstance(info, dict) or not isinstance(info.get('system'), dict) or not isinstance(info.get('devices'), list):
-                        result.update(health='ERROR', message='Ответ не похож на ComfyUI. Проверьте адрес; для отдельного image worker выберите HTTP-сервис.')
+                        result.update(health='ERROR', message=tr('Ответ не похож на ComfyUI. Проверьте адрес; для отдельного image worker выберите HTTP-сервис.'))
                     else:
-                        result.update(health='READY', message='ComfyUI отвечает. Генерация при проверке не запускается.')
+                        result.update(health='READY', message=tr('ComfyUI отвечает. Генерация при проверке не запускается.'))
                 else:
-                    result.update(health='READY', message='Сервис отвечает на проверку доступности.')
+                    result.update(health='READY', message=tr('Сервис отвечает на проверку доступности.'))
         except requests.Timeout:
-            result['message'] = 'Сервер не ответил вовремя. Возможно, он занят; повторите проверку позже.'
+            result['message'] = tr('Сервер не ответил вовремя. Возможно, он занят; повторите проверку позже.')
         except requests.RequestException:
-            result['message'] = 'Не удалось подключиться. Проверьте адрес, сеть/VPN и доступность сервера.'
+            result['message'] = tr('Не удалось подключиться. Проверьте адрес, сеть/VPN и доступность сервера.')
         except Exception as exc:
-            result.update(health='ERROR', message='Не удалось проверить сервис: ' + str(exc))
+            result.update(health='ERROR', message=tr('Не удалось проверить сервис: {error}', error=exc))
         return result
 
     def status(self, id, force=False):
@@ -106,8 +107,8 @@ class SharedServices:
             result = {**process, **deepcopy(self._health.get(id, {'health': 'UNKNOWN'})),
                 'remote': remote, 'monitor_paused': not monitoring}
             if 'message' not in result:
-                result['message'] = ('Нажмите «Проверить», когда сервер будет свободен.' if p.get('health_url') else
-                    'Проверка HTTP не настроена; показано только состояние процесса.')
+                result['message'] = (tr('Нажмите «Проверить», когда сервер будет свободен.') if p.get('health_url') else
+                    tr('Проверка HTTP не настроена; показано только состояние процесса.'))
             return result
 
     def check(self, id):
@@ -120,22 +121,22 @@ class SharedServices:
             return self.check(id)
         exe = p.get('executable', '')
         if not Path(exe).is_file():
-            raise ValueError('Программа сервиса не найдена. Проверьте путь в настройках карточки.')
+            raise ValueError(tr('Программа сервиса не найдена. Проверьте путь в настройках карточки.'))
         env = {key: secret_store.get(ref) for key, ref in p.get('environment_references', {}).items()}
         result = supervisor.start('service:' + id, [exe] + p.get('arguments', []), cwd=p.get('working_directory'), env=env)
         self.desired.add(id)
         self.failures[id] = 0
         self._next_probe.pop(id, None)
-        return {'Success': result['running'], 'Message': 'Процесс сервиса запущен. Доступность проверяется отдельно.', 'Details': result}
+        return {'Success': result['running'], 'Message': tr('Процесс сервиса запущен. Доступность проверяется отдельно.'), 'Details': result}
 
     def stop(self, id):
         if self.profiles()[id].get('type') == 'remote':
-            return {'Success': False, 'Message': 'Этот сервис работает отдельно. Остановить его можно на том компьютере.'}
+            return {'Success': False, 'Message': tr('Этот сервис работает отдельно. Остановить его можно на том компьютере.')}
         self.desired.discard(id)
         result = supervisor.stop('service:' + id)
         self._health.pop(id, None)
         self._next_probe.pop(id, None)
-        return {'Success': result['success'], 'Message': 'Сервис остановлен' if result['success'] else result['message']}
+        return {'Success': result['success'], 'Message': tr('Сервис остановлен') if result['success'] else result['message']}
 
     def poll(self, allow_restart=True):
         result = {}
