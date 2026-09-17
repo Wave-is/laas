@@ -1,0 +1,11 @@
+{
+  "Мониторинг": "Monitoring",
+  "Журналы": "Logs",
+  "Расписания": "Schedules",
+  "Обслуживание": "Maintenance",
+  "Раздел в разработке.": "This section is in development.",
+  "История температуры, загрузки, видеопамяти и мощности GPU, запросы к серверу моделей и предупреждения о перегреве.": "GPU temperature, load, VRAM and power history, model server requests and overheating alerts.",
+  "Журналы сервера моделей, агентов и Station с фильтром ошибок и сбор диагностики.": "Model server, agent and Station logs with an error filter and a diagnostics bundle.",
+  "Переключение режимов GPU и другие действия по расписанию.": "GPU mode switching and other actions on a schedule.",
+  "Обновления движка и Station, резервные копии и перенос настроек.": "Engine and Station updates, backups and settings transfer."
+}

@@ -29,16 +29,15 @@ from .gpu_confirmation import GpuControls
 from .service_controls import ServiceControls
 from .agent_controls import AgentControls
 from .startup_controls import StartupControls
+from .pages.models import ModelsPage
+from .pages.hardware import HardwarePage
+from .pages.monitoring import MonitoringPage
+from .pages.logs import LogsPage
+from .pages.schedules import SchedulesPage
+from .pages.maintenance import MaintenancePage
 
-BG = '#10161e'
-PANEL = '#18222e'
-EDGE = '#28394a'
-TEXT = '#e6eef6'
-MUTED = '#91a2b4'
-ACCENT = '#56d6b1'
+from .common import BG, PANEL, EDGE, TEXT, MUTED, ACCENT, WARNING, number
 
-def number(value, suffix=''):
-    return '—' if value is None else f'{value:g}{suffix}'
 
 def result_message(value):
     if 'Message' not in value:
@@ -50,11 +49,13 @@ def result_message(value):
             'Finish and close active agent sessions before changing GPU drivers': tr('Перед переключением GPU завершите и закройте сеансы агентов')}.get(text, text)
 
 # Stable page ids; titles are translated only for display.
-PAGE_IDS = ('station', 'hardware', 'models', 'agents', 'services', 'startup', 'settings')
+# Sidebar order. Each id needs a _build_<id>() method (see src/ui/pages) and a title below.
+PAGE_IDS = ('station', 'hardware', 'models', 'agents', 'services', 'monitoring', 'logs', 'startup', 'schedules', 'maintenance', 'settings')
 
 def page_title(page_id):
     return {'station': tr('Станция'), 'hardware': tr('Оборудование'), 'models': tr('Модели'),
-            'agents': tr('Агенты'), 'services': tr('Службы'), 'startup': tr('Автозапуск'),
+            'agents': tr('Агенты'), 'services': tr('Службы'), 'monitoring': tr('Мониторинг'), 'logs': tr('Журналы'),
+            'startup': tr('Автозапуск'), 'schedules': tr('Расписания'), 'maintenance': tr('Обслуживание'),
             'settings': tr('Настройки')}.get(page_id, page_id)
 
 def testing_guide_path(language=None):
@@ -107,7 +108,7 @@ class ProfileCombo(ctk.CTkComboBox):
             kwargs['values'] = list(self.labels.values())
         return super().configure(require_redraw=require_redraw, **kwargs)
 
-class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls, TrayControls, ctk.CTk):
+class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, SchedulesPage, MaintenancePage, AgentControls, StartupControls, ServiceControls, GpuControls, TrayControls, ctk.CTk):
     def __init__(self, start_minimized=False, no_tray=False, skip_startup=False):
         super().__init__()
         ctk.set_appearance_mode('dark')
@@ -135,6 +136,11 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.busy = False
         self.busy_label = ''
         self.pages = {}
+        # Extension points for page modules: UI-thread telemetry callbacks, background poll callbacks
+        # (called on the polling thread with the same snapshot) and extra Settings sections.
+        self.telemetry_hooks = []
+        self.poll_hooks = []
+        self.page_show_hooks = {}
         self.controls = []
         self.gpu_widgets = {}
         self.grid_columnconfigure(1, weight=1)
@@ -153,13 +159,8 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.status_label = ctk.CTkLabel(self.body, text=tr('Обнаружение оборудования и агентов…'), text_color=MUTED, anchor='w',
             justify='left', wraplength=900)
         self.status_label.grid(row=1, column=0, sticky='ew', pady=(4, 18))
-        self._build_station()
-        self._build_hardware()
-        self._build_models()
-        self._build_agents()
-        self._build_services()
-        self._build_startup()
-        self._build_settings()
+        for page_id in PAGE_IDS:
+            getattr(self, '_build_' + page_id)()
         self.show_page('station')
         self.protocol('WM_DELETE_WINDOW', self.hide_to_tray)
         self.after(250, self._set_window_icon)
@@ -207,6 +208,8 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             self._refresh_startup_choices()
         if name == 'settings':
             self._refresh_helper_status()
+        if name in self.page_show_hooks:
+            self.page_show_hooks[name]()
         for page in self.pages.values():
             page.grid_remove()
         self.pages[name].grid(row=2, column=0, sticky='nsew')
@@ -306,30 +309,6 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.dashboard_empty = ctk.CTkLabel(self.dashboard_gpu_area, text=tr('Обнаружение GPU…'), text_color=MUTED)
         self.dashboard_empty.grid(row=0, column=0, columnspan=3)
 
-    def _build_hardware(self):
-        page = self.page('hardware')
-        card = self.card(page, tr('Профиль оборудования'), tr('Выберите режимы GPU. Перед переключением появится список изменений, если подтверждение не отключено. При совпадении режимов переключение не выполняется.'))
-        row = self.row(card)
-        self.gpu_combo = self.combo(row, list(profile_storage.gpu_profiles), config.get('active_gpu_profile'))
-        self.button(row, tr('Применить GPU-профиль'),self._preview_gpu, True, width=190)
-        self.gpu_area = ctk.CTkFrame(page, fg_color='transparent')
-        self.gpu_area.pack(fill='x')
-        self.topology_label = ctk.CTkLabel(page, text='', text_color=MUTED, anchor='w', justify='left', wraplength=790)
-        self.topology_label.pack(fill='x', pady=8)
-
-    def _build_models(self):
-        page = self.page('models')
-        card = self.card(page, tr('Реестр моделей'), tr('Профили хранятся отдельно от агентов. Наличие файлов и возможности модели проверяются независимо.'))
-        row = self.row(card)
-        self.button(row, tr('Редактировать профили (YAML)'), lambda: self.edit_document('model_profiles.yaml'), True, width=230)
-        self.button(row, tr('Синхронизировать с агентами'), self._sync_models, width=230)
-        row = self.row(card)
-        self.test_model_combo = self.combo(row, list(profile_storage.model_profiles), config.get('selected_model_profile', config.get('active_model_profile')))
-        self.button(row, tr('Загрузить и проверить модель'),self._qualify_model, width=230)
-        self.models_text = ctk.CTkTextbox(page, height=430, fg_color=PANEL, font=('Consolas', 13))
-        self.models_text.pack(fill='both', expand=True)
-        self._refresh_models_text()
-
     def _build_agents(self):
         page = self.page('agents')
         card = self.card(page, tr('Запуск и установка агентов'), tr('В карточке агента выберите способ запуска (Desktop, терминал и т. д.) и нажмите «Запустить агента». «Установить ↗» открывает официальные релизы; после установки нажмите «Найти агенты заново».'))
@@ -426,6 +405,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
 
     def _build_settings(self):
         page = self.page('settings')
+        self.settings_page = page
         self._build_language_settings(page)
         self._build_tray_settings(page)
         card = self.card(page, tr('Папки и сервер моделей'), tr('Данные и настройки Station: {path}', path=data_dir()))
@@ -464,6 +444,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.button(row, tr('Снова спрашивать перед переключением'), self._reset_gpu_confirmation, width=280)
         row = self.row(card)
         self.button(row, tr('GPU-профили (YAML)'), lambda: self.edit_document('hardware_profiles.yaml'), width=180)
+        # Page modules add Settings cards by defining _settings_section_<name>(self, page).
+        for name in sorted(n for n in dir(self) if n.startswith('_settings_section_')):
+            getattr(self, name)(page)
 
     def _refresh_helper_status(self):
         from ..services.gpu_mode_client import gpu_service_client
@@ -524,23 +507,6 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             self.status_label.configure(text=message, text_color=ACCENT)
         except Exception as exc:
             messagebox.showerror(APP_NAME, str(exc), parent=self)
-
-    def _refresh_models_text(self):
-        lines = []
-        for model in profile_storage.model_profiles.values():
-            if model.id == 'none':
-                continue
-            weights = model_server.resolve_model_file(model.weights_path)
-            exists = bool(weights) and Path(weights).is_file()
-            status = {'production': tr('основная'), 'stable': tr('стабильная'), 'fallback': tr('запасная'), 'experimental': tr('экспериментальная'),
-                      'manual': tr('ручная'), 'disabled': tr('отключена')}.get(model.status, model.status)
-            lines.append(model.name + '\n'
-                + '  ' + tr('id для агентов: {id} · статус: {status}', id=model.backend_model_id, status=status) + '\n'
-                + '  ' + tr('Файл: {path} — {state}', path=weights or tr('не задан'), state=tr('найден') if exists else tr('НЕ НАЙДЕН')) + '\n'
-                + '  ' + tr('Контекст: {tokens} токенов · изображения: {vision} · вычисления: {backend}', tokens=f'{model.context:,}',
-                    vision=tr('да') if model.vision else tr('нет'), backend=model.backend.upper()) + '\n'
-                + '  ' + tr('Проверка запросом: {state}', state=tr('пройдена') if model.qualified else tr('не выполнялась')) + '\n')
-        self.set_text(self.models_text, '\n'.join(lines) or tr('Добавьте модель через «Редактировать профили» и укажите путь к файлу весов.'))
 
     def _agents_discovered(self, result):
         if not all(id in self.controller.adapters for id in result):
@@ -618,67 +584,6 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             self.button(row, tr('Применить показанные изменения'), lambda: (window.destroy(), self.worker(apply, callback, label=label or title)), True, width=260)
         self.button(row, tr('Отмена') if apply else tr('Закрыть'), window.destroy)
 
-
-    def _sync_models(self):
-        previews = []
-        errors = []
-        for id, adapter in self.controller.adapters.items():
-            try:
-                model = gpu_mode_manager.get_active_model_profile()
-                if not model or model.id == 'none':
-                    raise ValueError(tr('Сначала загрузите модель: после синхронизации агент проверяется тестовым запросом к ней.'))
-                preview = self.controller.preview_sync(id, model)
-                previews.append((id, preview))
-            except Exception as exc:
-                errors.append(id + ': ' + str(exc))
-        if not previews:
-            messagebox.showinfo(APP_NAME, '\n'.join(errors) or tr('Нет доступных агентов'), parent=self)
-            return
-        states = {'IN SYNC': tr('уже совпадает'), 'OUT OF SYNC': tr('требуется обновление'), 'CUSTOM MODIFIED': tr('файл изменён вручную — проверьте разницу')}
-        content = '\n\n'.join(self.controller.adapters[id].manifest.get('name', id) + ' — ' + states.get(preview.status, preview.status)
-            + '\n' + preview.diff for id, preview in previews)
-        content += '\n\n' + '\n'.join(errors)
-        def apply():
-            results = {}
-            workspace = data_dir() / 'qualification-workspace'
-            workspace.mkdir(parents=True, exist_ok=True)
-            for id, preview in previews:
-                adapter = self.controller.adapters[id]
-                def smoke(adapter=adapter, preview=preview, id=id):
-                    check = adapter.smoke(model, str(workspace), configuration_path=preview.path)
-                    if not check.ok:
-                        raise RuntimeError(check.message + ': ' + str(check.data))
-                    return True
-                results[id] = apply_preview(preview, accept_custom=True, smoke=smoke)
-            return {'Success': True, 'Message': tr('Профили синхронизированы и проверены запросом к модели.'), 'Details': results}
-        self.review(tr('Синхронизация моделей с агентами'), content, apply, label=tr('Синхронизация с агентами'))
-
-    def _qualify_model(self):
-        selected = self.test_model_combo.get()
-        model = profile_storage.get_model_profile(selected)
-        if not model or model.id == 'none':
-            messagebox.showinfo(APP_NAME, tr('Выберите установленную модель.'), parent=self)
-            return
-        def run():
-            from ..qualification import qualify_model
-            started = gpu_mode_manager.apply_model_profile_only(model.id)
-            if not started.get('Success'):
-                return started
-            report = qualify_model(model, vision=model.vision)
-            target = data_dir() / 'qualification' / (__import__('hashlib').sha256(model.id.encode()).hexdigest()[:16] + '.json')
-            atomic_write(target, report)
-            from copy import deepcopy
-            updated = deepcopy(model)
-            updated.qualified = report['passed']
-            updated.tool_calling = report['checks']['tool_calling'].get('passed', False)
-            profile_storage.save_model_profile(updated)
-            return {'Success': report['passed'], 'Message': (tr('Проверка модели «{name}» пройдена. Отчёт: {path}', name=model.name, path=target) if report['passed'] else
-                tr('Проверка модели «{name}» не пройдена. Отчёт: {path}', name=model.name, path=target)), 'Report': report}
-        def done(result):
-            self._refresh_models_text()
-            self.status_label.configure(text=result['Message'][:400], text_color=ACCENT if result.get('Success') else '#f8ad88')
-            self.review(tr('Результаты проверки модели'), json.dumps(result, ensure_ascii=False, indent=2))
-        self.worker(run, done, label=tr('Проверка модели «{name}»', name=model.name))
 
     def _launch_frontend(self, frontend_id=None):
         frontend_id = frontend_id or self.frontend_combo.get()
@@ -842,6 +747,11 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                     frontend_running = {id: self.controller.frontend_status(id, processes)
                                         for id in list(self.controller.frontends)}
                     self.events.put(('telemetry', (top, backend, running, service_states, frontend_running, backend_info), None))
+                for hook in list(self.poll_hooks):
+                    try:
+                        hook(top, backend_info, running)
+                    except Exception:
+                        logging.getLogger(__name__).exception('Poll hook failed')
             except Exception as exc:
                 if not self.events.full():
                     self.events.put(('poll_error', str(exc), None))
@@ -902,24 +812,12 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self._refresh_agent_launch_states()
         self.ready_model_ids = {m.id for m in profile_storage.model_profiles.values() if m.backend_model_id in running}
         self.ready_model_names = [m.name for id, m in profile_storage.model_profiles.items() if id in self.ready_model_ids]
-        ids = tuple(d.uuid for d in top.devices)
-        if tuple(self.gpu_widgets) != ids:
-            for child in self.gpu_area.winfo_children():
-                child.destroy()
-            self.gpu_widgets = {}
-            for device in top.devices:
-                card = self.card(self.gpu_area, device.name, device.uuid)
-                label = ctk.CTkLabel(card, text='', anchor='w', font=('Segoe UI', 14)); label.pack(fill='x', padx=20, pady=(0, 16))
-                self.gpu_widgets[device.uuid] = label
-        for d in top.devices:
-            self.gpu_widgets[d.uuid].configure(text=f'{d.driver_mode}    {number(d.temp_c, "°C")}    '
-                + tr('Нагрузка {load}', load=number(d.load_percent, '%')) + '    '
-                + tr('VRAM свободно {free} / {total} MiB', free=number(d.vram_free_mib), total=number(d.vram_total_mib))
-                + ('    ' + tr('Дисплей активен') if d.display_active else ''))
-        p2p = str(top.cuda_p2p_cliques) if top.cuda_p2p_cliques else tr('нет') if top.p2p_verified else tr('неизвестно')
-        nvlink = str(top.physical_nvlink_cliques) if top.physical_nvlink_cliques else tr('нет') if top.nvlink_verified else tr('неизвестно')
-        self.topology_label.configure(text=f'GPU: {top.gpu_count}  ·  CUDA P2P: {p2p}  ·  NVLink: {nvlink}\n' + tr('Трафик NVLink не измерялся.') +
-            ('\n' + top.discovery_error if top.discovery_error else '') + ('\n' + tr('Видеокарты не обнаружены: доступен только CPU.') if not top.devices else ''))
+        self._update_hardware(top)
+        for hook in self.telemetry_hooks:
+            try:
+                hook(top, backend_info or {}, running)
+            except Exception:
+                logging.getLogger(__name__).exception('Telemetry hook failed')
         self.combination_label.configure(text=(tr('Модель готова. Адрес для агентов: {url}, id модели: {ids}', url=model_server.api_url(), ids=', '.join(running)) if running else
             tr('Сервер моделей работает ({url}), модель не загружена. Выберите модель и нажмите «Загрузить модель».', url=model_server.api_url()) if backend else
             tr('Выберите модель и нажмите «Загрузить модель».')))
@@ -1062,6 +960,16 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
     @staticmethod
     def set_text(widget, content):
         widget.configure(state='normal'); widget.delete('1.0', 'end'); widget.insert('1.0', content); widget.configure(state='disabled')
+
+    def notify(self, message, title='LAAS'):
+        """Tray balloon when available, otherwise the status line. Safe to call from the UI thread only."""
+        if self.tray and getattr(self.tray, 'HAS_NOTIFICATION', False):
+            try:
+                self.tray.notify(message, title)
+                return
+            except Exception:
+                logging.getLogger(__name__).exception('Tray notification failed')
+        self.status_label.configure(text=message[:400], text_color=WARNING)
 
     def hide_to_tray(self):
         self.withdraw() if self.tray else self.quit_app()
