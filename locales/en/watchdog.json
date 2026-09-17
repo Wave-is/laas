@@ -1,0 +1,22 @@
+{
+  "Сервер моделей не отвечает, хотя его процесс работает. Station перезапустит его.": "The model server is not responding although its process is running. Station will restart it.",
+  "Сервер моделей неожиданно завершился. Station перезапустит его.": "The model server exited unexpectedly. Station will restart it.",
+  "Сервер моделей перезапускался {count} раз за {minutes} мин и снова остановился. Автоперезапуск прекращён: проверьте журнал сервера и запустите его вручную.": "The model server was restarted {count} times in {minutes} min and stopped again. Automatic restart is off for now: check the server log and start it manually.",
+  "Не удалось перезапустить сервер моделей: {error}": "Could not restart the model server: {error}",
+  "Сервер моделей перезапущен, модель «{name}» загружена. Адрес: {address}": "Model server restarted, model “{name}” loaded. Address: {address}",
+  "Сервер моделей перезапущен без модели. Адрес: {address}": "Model server restarted without a model. Address: {address}",
+  "процесс не остановился": "the process did not stop",
+  "Последнее событие ({time}): {title}. {message}": "Last event ({time}): {title}. {message}",
+  "Сбой": "Crash",
+  "Завис": "Not responding",
+  "Перезапущен": "Restarted",
+  "Ошибка перезапуска": "Restart failed",
+  "Автоперезапуск остановлен": "Automatic restart stopped",
+  "Сбоев сервера моделей не было.": "No model server crashes so far.",
+  "Автоперезапуск сервера моделей": "Model server auto-restart",
+  "Если сервер моделей, запущенный Station, неожиданно завершится, Station запустит его снова с той же моделью. Не больше 3 попыток за 10 минут. Сервер, остановленный вами или запущенный не Station, не перезапускается.": "If the model server started by Station exits unexpectedly, Station starts it again with the same model. At most 3 attempts in 10 minutes. A server you stopped or one started outside Station is never restarted.",
+  "Журнал перезапусков": "Restart history",
+  "Журнал перезапусков сервера моделей": "Model server restart history",
+  "Событий пока нет. Здесь появятся сбои и перезапуски сервера моделей.": "No events yet. Model server crashes and restarts will appear here.",
+  "Перезапускать сервер моделей после сбоя": "Restart the model server after a crash"
+}

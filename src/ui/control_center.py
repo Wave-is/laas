@@ -289,7 +289,7 @@ class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, Schedule
             config.get('selected_model_profile', config.get('active_model_profile')), 395)
         self.dashboard_model_start = self.button(row, tr('Загрузить модель'), lambda: self._run_selection(self.model_combo, gpu_mode_manager.apply_model_profile_only, tr('Загрузка модели')), True, width=150)
         self.model_combo.configure(command=lambda value: self._refresh_dashboard_buttons())
-        self.dashboard_model_stop = self.button(row, tr('Выгрузить модель'), lambda: self.worker(lambda: gpu_mode_manager.apply_model_profile_only('none'), label=tr('Выгрузка модели')), width=150)
+        self.dashboard_model_stop = self.button(row, tr('Выгрузить модель'), lambda: (self._notify_watchdog_stop(), self.worker(lambda: gpu_mode_manager.apply_model_profile_only('none'), label=tr('Выгрузка модели'))), width=150)
         row = self.row(card)
         self.runtime_combo = self.combo(row, list(self.controller.adapters), config.get('primary_agent_runtime'), 175)
         self.runtime_combo.configure(command=lambda value: self._select_runtime(self.runtime_combo.get()))
@@ -307,7 +307,7 @@ class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, Schedule
         self.dashboard_server_label = ctk.CTkLabel(box, text=tr('Сервер моделей: проверка…'), anchor='w', text_color=TEXT)
         self.dashboard_server_label.pack(side='left', fill='x', expand=True)
         self.dashboard_server_start = self.button(row, tr('Запустить сервер'), lambda: self.worker(gpu_mode_manager.start_backend, label=tr('Запуск сервера моделей')), True, width=150)
-        self.dashboard_server_stop = self.button(row, tr('Остановить сервер'), lambda: self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей')), width=150)
+        self.dashboard_server_stop = self.button(row, tr('Остановить сервер'), lambda: (self._notify_watchdog_stop(), self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей'))), width=150)
         self.combination_label = ctk.CTkLabel(card, text=tr('Выберите модель и нажмите «Загрузить модель».'), anchor='w', justify='left', text_color=MUTED)
         self.combination_label.pack(fill='x', padx=20, pady=(0, 12))
         ctk.CTkLabel(page, text=tr('Оборудование сейчас'),anchor='w', font=('Segoe UI', 18, 'bold')).pack(fill='x', pady=(0, 8))
@@ -339,7 +339,7 @@ class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, Schedule
         self.server_detail_label.pack(fill='x', padx=20, pady=(4, 0))
         row = self.row(card)
         self.button(row, tr('Запустить сервер'), lambda: self.worker(gpu_mode_manager.start_backend, label=tr('Запуск сервера моделей')), True, width=160)
-        self.button(row, tr('Остановить сервер'), lambda: self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей')), width=160)
+        self.button(row, tr('Остановить сервер'), lambda: (self._notify_watchdog_stop(), self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей'))), width=160)
         self.button(row, tr('Веб-панель ↗'), lambda: self._open_url(model_server.local_url() + '/ui'), width=130)
         self.button(row, tr('Скопировать адрес'), self._copy_server_address, width=160)
         row = self.row(card)
@@ -942,7 +942,9 @@ class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, Schedule
         elif self.busy:
             self.status_label.configure(text=tr('Дождитесь завершения текущего действия.'))
         elif action == 'model':
-            if value != 'none':
+            if value == 'none':
+                self._notify_watchdog_stop()
+            else:
                 self.model_combo.set(value)
             self.worker(lambda: gpu_mode_manager.apply_model_profile_only(value), label=tr('Выгрузка модели') if value == 'none' else tr('Загрузка модели'))
         elif action == 'runtime':
@@ -958,6 +960,7 @@ class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, Schedule
         elif action == 'backend_start':
             self.worker(gpu_mode_manager.start_backend, label=tr('Запуск сервера моделей'))
         elif action == 'backend_stop':
+            self._notify_watchdog_stop()
             self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей'))
         elif action.startswith('service_'):
             self._service_action(action.removeprefix('service_'), value)
@@ -977,6 +980,12 @@ class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, Schedule
             self.events.put_nowait(('call', function, None))
         except queue.Full:
             logging.getLogger(__name__).warning('UI event queue is full; call dropped')
+
+    def _notify_watchdog_stop(self):
+        """Tell watchdog a server stop is intentional so it does not auto-restart."""
+        watchdog = getattr(self, 'watchdog', None)
+        if watchdog is not None:
+            watchdog.expect_stopped()
 
     def notify(self, message, title='LAAS'):
         """Tray balloon when available, otherwise the status line. Safe to call from the UI thread only."""
