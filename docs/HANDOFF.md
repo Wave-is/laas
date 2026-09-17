@@ -1,22 +1,23 @@
 # Development handoff
 
-Updated: 2026-09-17. **Roadmap functionality fully integrated and committed** on branch
-`feature/clarity-and-paths` (commits: `861abc0`, `fe5ed7b`, `f85f68f`, `a88a1a0`).
-All 240 tests pass with zero failures.
+Updated: 2026-09-17. **Release 0.2.0-beta.1 ready for build and packaging** on branch
+`feature/clarity-and-paths`. All 245 tests pass with zero failures.
 
-Implemented areas:
-- **Reliability**: Watchdog auto-restart with backoff and deliberate stop suppression; MetricsStore SQLite
-  history with Prometheus sampling and overheat alerts; Diagnostics bundle collector and Logs viewer.
-- **Models**: GGUF header parser and VRAM estimator; HuggingFace model downloader; Model library backend;
-  Dialog suite (Add, Scan, Move, Chat, HF) wired into ModelsPage.
-- **Maintenance**: Engine updates (llama.cpp/llama-swap discovery, versioned install, rollback); Station
-  update checker via GitHub releases; Backup/restore manager; MaintenancePage UI.
-- **Hardware**: GpuDetailsCache for background power, fan, PCIe, and throttle metrics, wired into HardwarePage.
-- **Localization**: 100% complete EN and UK catalogs across all new features.
+Current progress:
+- **Schedules & Idle Unload**: time and day-of-week task automation engine (`src/schedules.py`),
+  `SchedulesPage` UI with `AddTaskDialog` (`src/ui/pages/schedules.py`), configurable idle unload timer,
+  full EN/UK localization catalogs (`locales/{en,uk}/schedules.json`), and 4 automated tests (`tests/test_schedules.py`).
+- **Model Dialog Fixes**: corrected parameter binding across `ScanDialog`, `HfDialog`, and `MoveDialog`
+  (`on_add`/`on_saved` signature compatibility, `on_done` default), verified via `tests/test_model_features.py::test_dialog_signatures`.
+- **Packaging Environment**: configured `build_installer.ps1` for automatic discovery of Inno Setup 6.7.3 in both
+  Program Files and AppData; release metadata set to `0.2.0-beta.1` (`src/version.py`, `CHANGELOG.md`).
+- **Telemetry & Validation**: verified live telemetry (2x RTX A5000 TCC + Intel UHD 770), model server health (PID 29208),
+  and 10 compiled C# helper protocol checks. All 245 tests pass in 5.3s.
 
-Next steps for owner:
-1. Verify pages in GUI (`python main.pyw`).
-2. Build updated installer when ready (`powershell -ExecutionPolicy Bypass -File tools/build_installer.ps1`).
+Next steps:
+1. Commit current work and create git tag `v0.2.0-beta.1`.
+2. Build executable and installer via `build_installer.ps1`.
+3. Verify release artifacts in `dist/release/` and execute `python tools/handoff_snapshot.py`.
 
 ## Previous release (alpha.1)
 

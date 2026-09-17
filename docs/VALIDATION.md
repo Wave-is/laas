@@ -1,5 +1,15 @@
 # Validation record
 
+## Release 0.2.0-beta.1 baseline (2026-09-17)
+
+The application passed **245 Python tests** and **10 compiled C# helper protocol checks** with zero failures.
+This includes:
+- 4 new automated tests for `ScheduleManager` and idle auto-unload timer in `tests/test_schedules.py`.
+- Dialog signature regression tests in `tests/test_model_features.py` validating `ScanDialog`, `HfDialog`, and `MoveDialog`.
+- 100% i18n coverage across English, Russian, and Ukrainian catalogs.
+- Live hardware telemetry verified against physical 2x NVIDIA RTX A5000 (TCC) and Intel UHD 770.
+- Model server (PID 29208) verified operational on port 9292.
+
 ## Roadmap integration baseline (2026-09-17)
 
 The modular UI architecture and all roadmap extensions passed **240 Python tests** with

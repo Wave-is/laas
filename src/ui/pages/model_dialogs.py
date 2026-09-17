@@ -413,8 +413,10 @@ def gib_text(mib):
 # ============================================================ scan folder
 
 class ScanDialog:
-    def __init__(self, app, on_add):
-        self.app, self.on_add = app, on_add
+    def __init__(self, app, on_add=None, on_saved=None):
+        if on_add is None:
+            on_add = lambda path, cb=None: ModelDialog(app, weights_path=path, on_saved=cb or on_saved)
+        self.app, self.on_add, self.on_saved = app, on_add, on_saved
         self.window = window(app, tr('Модели без профиля'), '900x620')
         self.pump = Pump(self.window)
         self.cancel = threading.Event()
@@ -481,8 +483,8 @@ class ScanDialog:
 # ============================================================ move models folder
 
 class MoveDialog:
-    def __init__(self, app, on_done):
-        self.app, self.on_done = app, on_done
+    def __init__(self, app, on_done=None):
+        self.app, self.on_done = app, (on_done or (lambda: None))
         self.source = model_server.models_dir()
         self.plan = None
         self.cancel = threading.Event()
@@ -789,8 +791,10 @@ class ChatDialog:
 # ============================================================ Hugging Face download
 
 class HfDialog:
-    def __init__(self, app, on_add):
-        self.app, self.on_add = app, on_add
+    def __init__(self, app, on_add=None, on_saved=None):
+        if on_add is None:
+            on_add = lambda path, cb=None: ModelDialog(app, weights_path=path, on_saved=cb or on_saved)
+        self.app, self.on_add, self.on_saved = app, on_add, on_saved
         self.files = []
         self.cancel = threading.Event()
         self.running = False

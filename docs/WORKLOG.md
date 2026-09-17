@@ -1,5 +1,26 @@
 # Work log
 
+## 2026-09-17 — release 0.2.0-beta.1: schedules, model dialog fixes, Inno Setup 6.7.3
+
+1. Schedules & Idle Unload:
+   - Added `ScheduleManager` in `src/schedules.py` supporting time-of-day execution, day-of-week recurrence
+     (every day, weekdays, weekends), actions (`gpu_profile`, `model_profile`, `unload_model`, `stop_backend`),
+     and an idle auto-unload timer.
+   - Built full `SchedulesPage` UI with task listing, delete/edit controls, and `AddTaskDialog`.
+   - Added complete translations: `locales/en/schedules.json` and `locales/uk/schedules.json`.
+   - Created automated tests in `tests/test_schedules.py` (4 tests covering engine and auto-unload).
+2. Bugfixes & Model Dialogs:
+   - Fixed `ScanDialog` and `HfDialog` constructor signature mismatch (`on_saved` vs `on_add`), and
+     `MoveDialog` (`on_done` default value). Added signature regression tests in `tests/test_model_features.py`.
+3. Installer & Packaging:
+   - Installed Inno Setup 6.7.3 and updated `build_installer.ps1` with fallback discovery under `%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe`.
+   - Updated `src/version.py` to `VERSION = '0.2.0-beta.1'` (`WINDOWS_VERSION = (0, 2, 0, 1)`).
+   - Documented comprehensive release notes in EN, RU, UK in `CHANGELOG.md`.
+4. Verification:
+   - All 245 pytest tests pass in 5.3s with zero failures.
+   - 10 compiled C# helper protocol checks pass cleanly.
+   - Live hardware telemetry and model server (PID 29208) verified intact.
+
 ## 2026-09-17 — roadmap integration: watchdog, monitoring, logs, models, maintenance, GPU details
 
 Completed integration of the modular architecture and new functionality:

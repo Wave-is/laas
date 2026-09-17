@@ -21,7 +21,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Release preparation failed.' }
     if (-not $ISCC) {
         $candidate = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+        $userCandidate = Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'
         if (Test-Path -LiteralPath $candidate) { $ISCC = $candidate }
+        elseif (Test-Path -LiteralPath $userCandidate) { $ISCC = $userCandidate }
         else { $ISCC = (Get-Command ISCC.exe -ErrorAction Stop).Source }
     }
     $version = & $Python -c 'from src.version import VERSION; print(VERSION)'

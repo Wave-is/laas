@@ -44,3 +44,23 @@ def test_model_library_slugify_and_helpers():
     assert model_library.is_mmproj_name("model.gguf") is False
     assert model_library.is_secondary_split("model-00002-of-00003.gguf") is True
     assert model_library.is_secondary_split("model-00001-of-00003.gguf") is False
+
+
+def test_dialog_signatures():
+    import inspect
+    from src.ui.pages.model_dialogs import ScanDialog, HfDialog, MoveDialog, ModelDialog, ChatDialog
+
+    # Verify ScanDialog accepts both on_add and on_saved
+    sig = inspect.signature(ScanDialog.__init__)
+    assert 'on_add' in sig.parameters
+    assert 'on_saved' in sig.parameters
+
+    # Verify HfDialog accepts both on_add and on_saved
+    sig = inspect.signature(HfDialog.__init__)
+    assert 'on_add' in sig.parameters
+    assert 'on_saved' in sig.parameters
+
+    # Verify MoveDialog accepts on_done with default
+    sig = inspect.signature(MoveDialog.__init__)
+    assert 'on_done' in sig.parameters
+    assert sig.parameters['on_done'].default is None
