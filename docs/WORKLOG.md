@@ -9,9 +9,11 @@
 2. UI Polish & Stubs Cleanup:
    - Dynamic auto-hiding scrollbar across all pages in `src/ui/control_center.py` with slim transparent styling.
    - Cleaned up obsolete "section in development" entries from locales.
-3. Release Packaging & GitHub:
+3. Release Packaging, Public GitHub Repository & Latest Release:
    - Bumped version to `0.2.0-beta.2` (`WINDOWS_VERSION = (0, 2, 0, 2)`).
-   - Rebuilt full release installer with bundled engine and published to GitHub.
+   - Rebuilt full release installer with bundled engine.
+   - Switched GitHub repository visibility from private to public per user request.
+   - Published release `v0.2.0-beta.2` as the public Latest Release on GitHub with all assets.
 
 ## 2026-09-17 — release 0.2.0-beta.1: schedules, model dialog fixes, Inno Setup 6.7.3
 
