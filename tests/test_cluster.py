@@ -57,7 +57,37 @@ class TestCluster(unittest.TestCase):
         self.assertTrue(hasattr(ControlCenter, '_build_cluster'))
         self.assertTrue(hasattr(ControlCenter, '_refresh_cluster_ui'))
         self.assertTrue(hasattr(ControlCenter, '_open_cluster_node_dialog'))
+        self.assertTrue(hasattr(ControlCenter, '_export_cluster_xml'))
+        self.assertTrue(hasattr(ControlCenter, '_import_cluster_xml'))
+
+    def test_export_and_import_xml(self):
+        xml_text = self.cm.export_nodes_xml()
+        self.assertIn('<laas-cluster version="1.0">', xml_text)
+        self.assertIn('<nodes>', xml_text)
+        self.assertIn('renderpc-local', xml_text)
+        self.assertIn('remote-worker', xml_text)
+
+        # Import into fresh manager with merge=False
+        fresh_cm = ClusterManager()
+        count = fresh_cm.import_nodes_xml(xml_text, merge=False)
+        self.assertGreaterEqual(count, 4)
+        imported_ids = [n['id'] for n in fresh_cm.get_nodes()]
+        self.assertIn('renderpc-local', imported_ids)
+        self.assertIn('remote-worker', imported_ids)
+
+    def test_import_invalid_xml(self):
+        with self.assertRaises(ValueError):
+            self.cm.import_nodes_xml("<malformed><unclosed>")
+        with self.assertRaises(ValueError):
+            self.cm.import_nodes_xml("<wrong-root><nodes></nodes></wrong-root>")
+
+    def test_friend_node_uses_telegraf(self):
+        nodes = self.cm.get_nodes()
+        friend = next((n for n in nodes if n['id'] == 'remote-worker'), None)
+        self.assertIsNotNone(friend)
+        self.assertIn(':9273', friend.get('telemetry_url', ''))
 
 
 if __name__ == '__main__':
     unittest.main()
+

@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0-beta.3
+
+### English
+
+- **Distributed LLM Cluster Tab**: Added dedicated "LLM Cluster" control center page for real-time monitoring and configuration of multi-host GPU inference clusters.
+- **Telegraf Prometheus Standard**: Native integration with Telegraf Prometheus exporter on Linux nodes (`:9273/metrics`), providing zero-dependency GPU, CPU, and RAM telemetry over pure HTTP without SSH.
+- **Cluster XML Import & Export**: One-click XML export and import (`cluster_topology.xml`) to easily distribute and synchronize cluster topologies across multiple workstations without manual entry.
+- **Live Inference Telemetry**: Real-time tracking of Llama-server generation states, active slots, prompt lengths, token rates, and remaining context across all cluster nodes.
+
+### Русский
+
+- **Вкладка «LLM-кластер»**: добавлен новый полнофункциональный раздел центра управления для распределённого мониторинга и настройки пула видеокарт и инференса.
+- **Стандартизация через Telegraf Prometheus**: нативная интеграция со стандартным Telegraf Prometheus на Linux-узлах (`:9273/metrics`), исключающая необходимость использования SSH или самописных агентов.
+- **Импорт и экспорт кластера в XML**: возможность сохранения и загрузки полной топологии кластера через XML-файл (`cluster_topology.xml`) в один клик для мгновенного переноса настроек между ПК.
+- **Телеметрия инференса в реальном времени**: отображение активных слотов Llama-server, размера промпта, количества сгенерированных токенов и доступного контекста.
+
+### Українська
+
+- **Вкладка «LLM-кластер»**: додано новий повнофункціональний розділ центру керування для розподіленого моніторингу та налаштування пулу відеокарт та інференсу.
+- **Стандартизація через Telegraf Prometheus**: нативна інтеграція зі стандартним Telegraf Prometheus на Linux-вузлах (`:9273/metrics`), що повністю виключає необхідність використання SSH або сторонніх скриптів.
+- **Імпорт та експорт кластера в XML**: можливість збереження та завантаження повної топології кластера через XML-файл (`cluster_topology.xml`) в один клік для миттєвого переносу налаштувань між ПК.
+- **Телеметрія інференсу в реальному часі**: відображення активних слотів Llama-server, розміру промпту, кількості згенерованих токенів та доступного контексту.
+
 ## 0.2.0-beta.2
 
 ### English

@@ -34,5 +34,17 @@
   "⚡ ГЕНЕРАЦИЯ": "⚡ GENERATING",
   "IDLE (ОЖИДАНИЕ)": "IDLE",
   "Промпт: {p_tok} токенов • Генерация: {d_tok} • Остаток: {r_tok} • Контекст: {n_ctx}K": "Prompt: {p_tok} tokens • Generation: {d_tok} • Remaining: {r_tok} • Context: {n_ctx}K",
-  "✓ Успешно подключено ({lat} ms, {g_count} GPU обнаружено)": "✓ Connected successfully ({lat} ms, {g_count} GPUs detected)"
+  "✓ Успешно подключено ({lat} ms, {g_count} GPU обнаружено)": "✓ Connected successfully ({lat} ms, {g_count} GPUs detected)",
+  "📥 Импорт XML": "📥 Import XML",
+  "📤 Экспорт XML": "📤 Export XML",
+  "Экспорт топологии кластера в XML": "Export Cluster Topology to XML",
+  "Импорт топологии кластера из XML": "Import Cluster Topology from XML",
+  "XML файлы": "XML files",
+  "Все файлы": "All files",
+  "Экспорт XML": "Export XML",
+  "Импорт XML": "Import XML",
+  "Конфигурация кластера успешно сохранена в {path}": "Cluster topology successfully saved to {path}",
+  "Импортировано {count} узлов кластера": "Successfully imported {count} cluster nodes",
+  "Ошибка импорта XML": "XML Import Error",
+  "URL телеметрии (Telegraf :9273/metrics или Exporter):": "Telemetry URL (Telegraf :9273/metrics or Exporter):"
 }

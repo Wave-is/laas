@@ -15,6 +15,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import xml.etree.ElementTree as ET
 from .config import config
 
 log = logging.getLogger(__name__)
@@ -120,6 +121,107 @@ class ClusterManager:
             self._snapshots.pop(node_id, None)
             self._history["node_gpu_utils"].pop(node_id, None)
             self.save_nodes()
+
+    def export_nodes_xml(self, filepath=None) -> str:
+        with self._lock:
+            root = ET.Element("laas-cluster", version="1.0")
+            nodes_el = ET.SubElement(root, "nodes")
+            for n in self._nodes:
+                node_el = ET.SubElement(nodes_el, "node", id=str(n.get("id", "")), enabled=str(n.get("enabled", True)).lower())
+                name_el = ET.SubElement(node_el, "name")
+                name_el.text = str(n.get("name", ""))
+                type_el = ET.SubElement(node_el, "type")
+                type_el.text = str(n.get("type", "llama_server"))
+                url_el = ET.SubElement(node_el, "url")
+                url_el.text = str(n.get("url", ""))
+                tel_el = ET.SubElement(node_el, "telemetry_url")
+                tel_el.text = str(n.get("telemetry_url", ""))
+                notes_el = ET.SubElement(node_el, "notes")
+                notes_el.text = str(n.get("notes", ""))
+
+            tree = ET.ElementTree(root)
+            ET.indent(tree, space="  ", level=0)
+            xml_bytes = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+            xml_str = xml_bytes.decode("utf-8")
+            if filepath:
+                with open(filepath, "w", encoding="utf-8") as f:
+                    f.write(xml_str)
+            return xml_str
+
+    def import_nodes_xml(self, xml_source, merge=True) -> int:
+        try:
+            if isinstance(xml_source, str) and (xml_source.endswith(".xml") or (os.path.exists(xml_source) and not xml_source.strip().startswith("<"))):
+                tree = ET.parse(xml_source)
+                root = tree.getroot()
+            else:
+                root = ET.fromstring(xml_source)
+        except Exception as e:
+            raise ValueError(f"Failed to parse XML: {e}")
+
+        if root.tag != "laas-cluster":
+            raise ValueError(f"Invalid root tag: <{root.tag}>, expected <laas-cluster>")
+
+        nodes_el = root.find("nodes")
+        if nodes_el is None:
+            raise ValueError("Missing <nodes> container in XML")
+
+        imported_nodes = []
+        for n_el in nodes_el.findall("node"):
+            nid = n_el.get("id") or f"node-{int(time.time())}"
+            enabled_str = (n_el.get("enabled") or "true").lower()
+            enabled = enabled_str in ("true", "1", "yes")
+
+            name = (n_el.findtext("name") or nid).strip()
+            ntype = (n_el.findtext("type") or "llama_server").strip()
+            url = (n_el.findtext("url") or "").strip()
+            tel_url = (n_el.findtext("telemetry_url") or "").strip()
+            notes = (n_el.findtext("notes") or "").strip()
+
+            if not url:
+                continue
+
+            imported_nodes.append({
+                "id": nid,
+                "name": name,
+                "type": ntype,
+                "url": url,
+                "telemetry_url": tel_url,
+                "enabled": enabled,
+                "notes": notes
+            })
+
+        if not imported_nodes:
+            return 0
+
+        with self._lock:
+            if not merge:
+                self._nodes = []
+                self._snapshots.clear()
+                self._history["node_gpu_utils"].clear()
+
+            existing_by_id = {n["id"]: i for i, n in enumerate(self._nodes)}
+            existing_by_url = {n["url"]: i for i, n in enumerate(self._nodes)}
+
+            count = 0
+            for imp in imported_nodes:
+                idx = existing_by_id.get(imp["id"])
+                if idx is None:
+                    idx = existing_by_url.get(imp["url"])
+
+                if idx is not None:
+                    self._nodes[idx].update(imp)
+                else:
+                    self._nodes.append(imp)
+                    existing_by_id[imp["id"]] = len(self._nodes) - 1
+                    existing_by_url[imp["url"]] = len(self._nodes) - 1
+
+                nid = imp["id"]
+                if nid not in self._history["node_gpu_utils"]:
+                    self._history["node_gpu_utils"][nid] = deque(maxlen=HISTORY_MAX)
+                count += 1
+
+            self.save_nodes()
+            return count
 
     def start(self):
         if self._thread and self._thread.is_alive():

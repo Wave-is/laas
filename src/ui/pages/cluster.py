@@ -7,7 +7,7 @@ import logging
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from ...cluster_manager import cluster_manager
@@ -42,6 +42,18 @@ class ClusterPage:
 
         btn_box = ctk.CTkFrame(header_row, fg_color='transparent')
         btn_box.pack(side='right')
+
+        ctk.CTkButton(
+            btn_box, text=tr('📥 Импорт XML'), fg_color='#238636', hover_color='#2ea043',
+            height=34, corner_radius=7, font=('Segoe UI', 12),
+            command=self._import_cluster_xml
+        ).pack(side='left', padx=(0, 8))
+
+        ctk.CTkButton(
+            btn_box, text=tr('📤 Экспорт XML'), fg_color=EDGE, hover_color='#364a60',
+            height=34, corner_radius=7, font=('Segoe UI', 12),
+            command=self._export_cluster_xml
+        ).pack(side='left', padx=(0, 8))
 
         ctk.CTkButton(
             btn_box, text=tr('+ Добавить узел'), fg_color='#1f6feb', hover_color='#238636',
@@ -232,6 +244,20 @@ class ClusterPage:
                 if pwr > 0:
                     ctk.CTkLabel(tags_row, text=f"Power: {pwr:.1f} W", font=('Consolas', 11), text_color=MUTED).pack(side='left')
 
+        # Host system metrics (CPU/RAM)
+        cpu_val = snap.get('cpu_util')
+        ram_u = snap.get('ram_used_gb')
+        ram_t = snap.get('ram_total_gb')
+        if cpu_val is not None or ram_u is not None:
+            sys_frame = ctk.CTkFrame(content_box, fg_color='#10161f', corner_radius=6)
+            sys_frame.pack(fill='x', pady=2)
+            r_sys = ctk.CTkFrame(sys_frame, fg_color='transparent')
+            r_sys.pack(fill='x', padx=12, pady=4)
+            if cpu_val is not None:
+                ctk.CTkLabel(r_sys, text=f"CPU: {cpu_val:.1f}%", font=('Consolas', 10), text_color=MUTED).pack(side='left', padx=(0, 16))
+            if ram_u is not None and ram_t is not None:
+                ctk.CTkLabel(r_sys, text=f"RAM: {ram_u:.1f} / {ram_t:.1f} GB", font=('Consolas', 10), text_color=MUTED).pack(side='left')
+
         # Inference status row
         if inf.get('online', False):
             inf_row = ctk.CTkFrame(content_box, fg_color='#101a18', corner_radius=8, border_color='#1b4332', border_width=1)
@@ -273,18 +299,14 @@ class ClusterPage:
         dlg = ctk.CTkToplevel(self)
         dlg.title(tr('Настройка узла кластера') if node else tr('Добавить узел кластера'))
         dlg.geometry('520x450')
-        dlg.resizable(False, False)
-        dlg.configure(fg_color=PANEL)
         dlg.transient(self)
         dlg.grab_set()
 
-        ctk.CTkLabel(dlg, text=tr('Параметры сетевого узла'), font=('Segoe UI', 16, 'bold'), text_color=TEXT).pack(padx=24, pady=(18, 12), anchor='w')
-
         form = ctk.CTkFrame(dlg, fg_color='transparent')
-        form.pack(fill='both', expand=True, padx=24)
+        form.pack(fill='both', expand=True, padx=24, pady=16)
 
         # Name
-        ctk.CTkLabel(form, text=tr('Название узла:'), font=('Segoe UI', 12), text_color=MUTED).pack(anchor='w', pady=(4, 2))
+        ctk.CTkLabel(form, text=tr('Название узла:'), font=('Segoe UI', 12), text_color=MUTED).pack(anchor='w', pady=(0, 2))
         name_entry = ctk.CTkEntry(form, fg_color='#111b25', border_color=EDGE, height=32)
         name_entry.pack(fill='x')
         if node:
@@ -300,7 +322,7 @@ class ClusterPage:
             url_entry.insert(0, 'http://192.168.1.xxx:8080')
 
         # Telemetry URL
-        ctk.CTkLabel(form, text=tr('URL телеметрии GPU / Exporter (опционально):'), font=('Segoe UI', 12), text_color=MUTED).pack(anchor='w', pady=(8, 2))
+        ctk.CTkLabel(form, text=tr('URL телеметрии (Telegraf :9273/metrics или Exporter):'), font=('Segoe UI', 12), text_color=MUTED).pack(anchor='w', pady=(8, 2))
         telemetry_entry = ctk.CTkEntry(form, fg_color='#111b25', border_color=EDGE, height=32)
         telemetry_entry.pack(fill='x')
         if node and node.get('telemetry_url'):
@@ -338,35 +360,32 @@ class ClusterPage:
                 'telemetry_url': telemetry_entry.get().strip(),
                 'type': type_combo.get()
             }
-            threading.Thread(target=lambda: self._test_node_in_dialog(test_data, test_res_lbl), daemon=True).start()
+            threading.Thread(target=self._test_node_in_dialog, args=(test_data, test_res_lbl), daemon=True).start()
 
         def on_save():
             name = name_entry.get().strip()
             url = url_entry.get().strip()
             if not name or not url:
-                messagebox.showerror(tr('Ошибка'), tr('Заполните название и адрес узла.'))
+                messagebox.showwarning(tr('Ошибка'), tr('Заполните название и адрес узла.'))
                 return
-
-            node_data = {
+            ndata = {
                 'id': node['id'] if node else f"node-{int(time.time())}",
                 'name': name,
                 'url': url,
                 'telemetry_url': telemetry_entry.get().strip(),
                 'type': type_combo.get(),
-                'enabled': True,
-                'notes': notes_entry.get().strip()
+                'notes': notes_entry.get().strip(),
+                'enabled': True
             }
-
             if node:
-                self.cluster_manager.update_node(node['id'], node_data)
+                self.cluster_manager.update_node(node['id'], ndata)
             else:
-                self.cluster_manager.add_node(node_data)
-
+                self.cluster_manager.add_node(ndata)
             dlg.destroy()
             self._refresh_cluster_ui()
 
-        ctk.CTkButton(btn_row, text=tr('⚡ Тест соединения'), fg_color=EDGE, hover_color='#364a60', height=34,
-                      command=on_test).pack(side='left', padx=(0, 10))
+        ctk.CTkButton(btn_row, text=tr('⚡ Тест соединения'), fg_color='#238636', hover_color='#2ea043', height=34,
+                      command=on_test).pack(side='left')
 
         ctk.CTkButton(btn_row, text=tr('Сохранить'), fg_color='#1f6feb', hover_color='#238636', height=34,
                       command=on_save).pack(side='right')
@@ -394,3 +413,32 @@ class ClusterPage:
         if messagebox.askyesno(tr('Удаление узла'), tr('Удалить этот узел из мониторинга кластера?')):
             self.cluster_manager.remove_node(node_id)
             self._refresh_cluster_ui()
+
+    def _export_cluster_xml(self):
+        path = filedialog.asksaveasfilename(
+            title=tr('Экспорт топологии кластера в XML'),
+            defaultextension='.xml',
+            initialfile='cluster_topology.xml',
+            filetypes=[(tr('XML файлы'), '*.xml'), (tr('Все файлы'), '*.*')]
+        )
+        if not path:
+            return
+        try:
+            self.cluster_manager.export_nodes_xml(path)
+            messagebox.showinfo(tr('Экспорт XML'), tr('Конфигурация кластера успешно сохранена в {path}', path=path))
+        except Exception as e:
+            messagebox.showerror(tr('Ошибка'), str(e))
+
+    def _import_cluster_xml(self):
+        path = filedialog.askopenfilename(
+            title=tr('Импорт топологии кластера из XML'),
+            filetypes=[(tr('XML файлы'), '*.xml'), (tr('Все файлы'), '*.*')]
+        )
+        if not path:
+            return
+        try:
+            count = self.cluster_manager.import_nodes_xml(path, merge=True)
+            self._refresh_cluster_ui()
+            messagebox.showinfo(tr('Импорт XML'), tr('Импортировано {count} узлов кластера', count=count))
+        except Exception as e:
+            messagebox.showerror(tr('Ошибка импорта XML'), str(e))
