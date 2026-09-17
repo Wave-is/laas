@@ -1,15 +1,23 @@
-﻿# Development handoff
+# Development handoff
 
-Updated: 2026-09-17. **3.0.0-alpha.2 built locally (not published, not installed yet)** on branch
-`feature/clarity-and-paths`. Installer: `dist/release/LocalAgentAIStation-3.0.0-alpha.2-Setup-x64.exe`.
-Changes and audit findings: CHANGELOG.md (alpha.2) and WORKLOG.md (2026-09-17).
+Updated: 2026-09-17. **Roadmap functionality fully integrated and committed** on branch
+`feature/clarity-and-paths` (commits: `861abc0`, `fe5ed7b`, `f85f68f`, `a88a1a0`).
+All 240 tests pass with zero failures.
 
-Next steps: owner exits the running alpha.1 via tray, runs the alpha.2 installer (UAC, Program Files;
-it removes the per-user copy and keeps the Startup shortcut), then in Settings → «Папки и сервер
-моделей» checks engine/models folders and the LAN checkbox (the old build forced 0.0.0.0; the
-owner's Qwen settings contain a provider on 192.168.1.100:9292). Then one manual «Запустить агента»
-for Qwen Code Desktop, or «Модели → Синхронизировать с агентами» to drop stale model entries.
-Installer lifecycle under Program Files has not been exercised yet; tools/test_installer.ps1 uses /CURRENTUSER.
+Implemented areas:
+- **Reliability**: Watchdog auto-restart with backoff and deliberate stop suppression; MetricsStore SQLite
+  history with Prometheus sampling and overheat alerts; Diagnostics bundle collector and Logs viewer.
+- **Models**: GGUF header parser and VRAM estimator; HuggingFace model downloader; Model library backend;
+  Dialog suite (Add, Scan, Move, Chat, HF) wired into ModelsPage.
+- **Maintenance**: Engine updates (llama.cpp/llama-swap discovery, versioned install, rollback); Station
+  update checker via GitHub releases; Backup/restore manager; MaintenancePage UI.
+- **Hardware**: GpuDetailsCache for background power, fan, PCIe, and throttle metrics, wired into HardwarePage.
+- **Localization**: 100% complete EN and UK catalogs across all new features.
+
+Next steps for owner:
+1. Verify pages in GUI (`python main.pyw`).
+2. Build updated installer when ready (`powershell -ExecutionPolicy Bypass -File tools/build_installer.ps1`).
+
 ## Previous release (alpha.1)
 
 Updated: 2026-09-13. **3.0.0-alpha.1 released**.

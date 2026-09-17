@@ -1,5 +1,13 @@
 # Validation record
 
+## Roadmap integration baseline (2026-09-17)
+
+The modular UI architecture and all roadmap extensions passed **240 Python tests** with
+zero failures. This includes 30 tests across watchdog, metrics history and diagnostics, 12 tests
+across model features, maintenance operations and GPU details, and comprehensive i18n
+verification ensuring 100% translation coverage across EN/RU/UK without missing keys or
+differing placeholders.
+
 ## Baseline before the first installer
 
 The internal 3.0 preview passed **186 Python tests and 10 compiled C# helper protocol

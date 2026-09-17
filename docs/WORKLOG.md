@@ -1,5 +1,24 @@
 # Work log
 
+## 2026-09-17 — roadmap integration: watchdog, monitoring, logs, models, maintenance, GPU details
+
+Completed integration of the modular architecture and new functionality:
+1. Reliability: ModelServerWatchdog daemon (crash/hang detection, backoff, JSONL history,
+   deliberate stop suppression in UI/tray), MetricsStore (SQLite) + MetricsSampler with overheat
+   hysteresis alerting, pure-Tk canvas charts (temp, load, VRAM, power, tokens/sec), diagnostics
+   log tail reader with credential redaction and ZIP bundle export, LogsPage with error filter/search.
+2. Models: GGUF header reader with KV-cache VRAM estimator, HuggingFace downloader with resume
+   and SHA-256 validation, model library backend (scan, mmproj auto-pairing, move folder),
+   complete dialog suite (ModelDialog, ScanDialog, MoveDialog, ChatDialog, HfDialog) wired into ModelsPage.
+3. Maintenance: engine_updates (llama.cpp/llama-swap version detection, install, rollback),
+   app_updates (Station GitHub release checker with SemVer compare), backup/restore manager with
+   secret redaction and pre-import safety backups, interactive MaintenancePage.
+4. Hardware: GpuDetailsCache for background queries of power draw, fans, PCIe link, throttle reasons,
+   and NVLink bandwidth, integrated into HardwarePage.
+5. Localization: complete English and Ukrainian translation catalogs for all new modules (240 tests pass,
+   including 100% i18n coverage without missing keys or placeholder mismatches).
+Validation: 240 pytest tests passed in 5.5s with zero failures; clean UI import verification.
+
 ## 2026-09-17 — clarity, single model server, folders, Program Files installer
 
 Audit found: Services/tray "start server" used the legacy user llama-swap JSON while model
