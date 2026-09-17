@@ -205,6 +205,25 @@ class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, Schedule
     def page(self, name):
         page = ctk.CTkScrollableFrame(self.body, fg_color=BG, corner_radius=0)
         page.grid_columnconfigure(0, weight=1)
+        # Modern slim scrollbar with auto-hide: completely disappears when page fits window
+        page._scrollbar.configure(width=8, fg_color='transparent', button_color='#243342', button_hover_color='#364a60')
+        page._scrollbar.grid_remove()
+        orig_set = page._scrollbar.set
+
+        def _auto_scroll_set(first, last):
+            orig_set(first, last)
+            try:
+                f, l = float(first), float(last)
+                if f <= 0.0 and l >= 1.0:
+                    if page._scrollbar.winfo_ismapped():
+                        page._scrollbar.grid_remove()
+                else:
+                    if not page._scrollbar.winfo_ismapped():
+                        page._scrollbar.grid()
+            except Exception:
+                pass
+
+        page._parent_canvas.configure(yscrollcommand=_auto_scroll_set)
         self.pages[name] = page
         return page
 

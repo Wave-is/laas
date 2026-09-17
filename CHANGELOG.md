@@ -15,6 +15,7 @@
 - **Maintenance & Updates**: Engine updates (llama.cpp/llama-swap version detection and rollback), Station update checker, backup/restore manager with secret redaction.
 - **Hardware Telemetry**: Live power draw, fan speed, PCIe link, throttle reasons, and NVLink bandwidth cards on Hardware page.
 - **100% Localization**: Complete English, Russian, and Ukrainian translation catalogs across all pages and dialogs.
+- **UI Polish**: Automatic hiding and slim translucent styling of page scrollbars when content fits within the window.
 
 ### Русский
 
@@ -24,6 +25,7 @@
 - **Обслуживание и обновления**: обновление движков (llama.cpp/llama-swap), проверка релизов Station, менеджер резервных копий с очисткой секретов.
 - **Телеметрия оборудования**: мощность, скорость вентиляторов, режим шины PCIe и причины троттлинга на странице оборудования.
 - **Полная локализация**: 100% покрытие каталогов переводов для русского, английского и украинского языков.
+- **Улучшения интерфейса**: автоматическое скрытие полос прокрутки (auto-hide) и тонкий прозрачный трек, убирающий статичные серые полосы при помещении страницы в окно.
 
 ### Українська
 
@@ -33,6 +35,7 @@
 - **Обслуговування та оновлення**: оновлення рушіїв (llama.cpp/llama-swap), перевірка релізів Station, менеджер резервних копій із приховуванням секретів.
 - **Телеметрія обладнання**: потужність, швидкість вентиляторів, режим шини PCIe та причини тротлінгу на сторінці обладнання.
 - **Повна локалізація**: 100% покриття каталогів перекладів для української, англійської та російської мов.
+- **Покращення інтерфейсу**: автоматичне приховування смуг прокручування (auto-hide) та тонкий прозорий трек, що прибирає статичні сірі смуги, коли вміст вміщується у вікно.
 
 ## 0.1.0-beta.1
 

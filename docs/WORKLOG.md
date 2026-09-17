@@ -16,7 +16,12 @@
    - Installed Inno Setup 6.7.3 and updated `build_installer.ps1` with fallback discovery under `%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe`.
    - Updated `src/version.py` to `VERSION = '0.2.0-beta.1'` (`WINDOWS_VERSION = (0, 2, 0, 1)`).
    - Documented comprehensive release notes in EN, RU, UK in `CHANGELOG.md`.
-4. Verification:
+4. UI Polish & Quality:
+   - Implemented dynamic auto-hiding scrollbars for all pages (`CTkScrollableFrame` in `control_center.py`):
+     when page content fits the window, scrollbar is completely removed; when content overflows, a slim
+     8px semi-transparent thumb appears. Eliminates persistent gray scrollbar ribbon on dashboard.
+   - Removed obsolete "section in development" catalog entries from locales.
+5. Verification:
    - All 245 pytest tests pass in 5.3s with zero failures.
    - 10 compiled C# helper protocol checks pass cleanly.
    - Live hardware telemetry and model server (PID 29208) verified intact.

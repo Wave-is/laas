@@ -11,11 +11,13 @@ Current progress:
   (`on_add`/`on_saved` signature compatibility, `on_done` default), verified via `tests/test_model_features.py::test_dialog_signatures`.
 - **Packaging Environment**: configured `build_installer.ps1` for automatic discovery of Inno Setup 6.7.3 in both
   Program Files and AppData; release metadata set to `0.2.0-beta.1` (`src/version.py`, `CHANGELOG.md`).
+- **UI Polish**: dynamic auto-hiding scrollbars across all pages (`src/ui/control_center.py`), eliminating
+  unnecessary scrollbar tracks on pages where content fits the window.
 - **Telemetry & Validation**: verified live telemetry (2x RTX A5000 TCC + Intel UHD 770), model server health (PID 29208),
   and 10 compiled C# helper protocol checks. All 245 tests pass in 5.3s.
 
 Next steps:
-1. Commit current work and create git tag `v0.2.0-beta.1`.
+1. Commit UI polish changes.
 2. Build executable and installer via `build_installer.ps1`.
 3. Verify release artifacts in `dist/release/` and execute `python tools/handoff_snapshot.py`.
 
