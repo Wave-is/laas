@@ -1,14 +1,16 @@
 # Development handoff
 
-Updated: 2026-09-17.
+Updated: 2026-09-18. **Release 0.2.0-beta.6 published on GitHub. Repository is public.**
 All 258 tests pass with zero failures.
 
 ## Текущая работа
-- **Цель**: перестановка блоков на главной странице «Обзор станции» и уплотнение интерфейса по вертикали.
-- **Статус**: Выполнено. Блоки поменяны местами («Оборудование сейчас» поднято наверх над блоком «Модель и агент»). Разметка уплотнена (отступы, `height=0` для меток, компактные `pady=(4, 5)` между рядами), сэкономлено ~168px по вертикали при 150% DPI scaling (высота контента 699px при высоте канвы 1056px). Полоса прокрутки на странице «Обзор станции» скрыта.
-- **Проверка**: Все 258 тестов pytest пройдены без ошибок. Проверено состояние `scrollbar.winfo_ismapped() == False`.
+- **Цель**: релиз с последними правками (перестановка блоков дашборда и уплотнение вёрстки).
+- **Статус**: Выполнено. Выпущен релиз `v0.2.0-beta.6`, все 5 ассетов (включая инсталлятор `LocalAgentAIStation-0.2.0-beta.6-Setup-x64.exe` 182.6 МБ с бандлом движка) собраны и загружены на GitHub Releases.
+- **Проверка**: Все 258 тестов пройдены, контрольные суммы SHA-256 проверены.
 
 Current progress:
+- **Latest Release**: `v0.2.0-beta.6` published at [Wave-is/laas/releases/tag/v0.2.0-beta.6](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.6)
+  with all 5 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt, cluster_topology.xml).
 - **Dashboard Layout Reorder & Compaction**: swapped «Оборудование сейчас» and «Модель и агент», compacted vertical paddings and label heights so the page fits without triggering the scrollbar.
 - **Repository Visibility**: switched to `public` per owner request.
 - **Latest Release**: `v0.2.0-beta.2` published at [Wave-is/laas/releases/tag/v0.2.0-beta.2](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.2)
