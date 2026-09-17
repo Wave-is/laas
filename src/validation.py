@@ -43,7 +43,7 @@ def validate_registry(filename, rows, *, strict=True, unknown_fields=None):
                 if key in row and type(row[key]) is not bool:
                     raise ValueError(key + ' must be a boolean')
         if filename == 'hardware_profiles.yaml':
-            if row.get('general_policy', 'all_gpus') not in ('all_gpus', 'all_wddm', 'all_tcc', 'all_compute', 'one_graphics_rest_compute', 'custom', 'unchanged', 'largest_vram', 'best_p2p_clique'):
+            if row.get('general_policy', 'all_gpus') not in ('all_gpus', 'all_wddm', 'all_tcc', 'all_compute', 'one_graphics_rest_compute', 'first_wddm_rest_tcc', 'custom', 'unchanged', 'largest_vram', 'best_p2p_clique'):
                 raise ValueError('Invalid hardware policy')
             seen = set()
             for rule in row.get('rules', []):

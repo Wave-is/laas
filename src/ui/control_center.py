@@ -89,6 +89,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.ready_model_ids = set()
         self.ready_model_names = []
         self.frontend_running = {}
+        self.frontend_states = {}
         self.dashboard_gpus = {}
         self.dashboard_gpu_ids = None
         self.tray_signature = None
@@ -237,6 +238,11 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.frontend_combo = self.combo(row, [], width=208)
         self.button(row, 'Запустить агента', self._launch_frontend, True, width=150)
         self.button(row, 'Остановить агента', lambda: self._run_selection(self.frontend_combo, self.controller.stop_frontend, 'Остановка агента'), width=150)
+        row = self.row(card)
+        self.dashboard_server_label = ctk.CTkLabel(row, text='Сервер моделей (llama-swap): проверка…', width=395, anchor='w', justify='left', wraplength=390)
+        self.dashboard_server_label.pack(side='left', padx=(0, 12), pady=14)
+        self.button(row, 'Запустить сервер', lambda: self.worker(gpu_mode_manager.start_backend, label='Запуск сервера моделей'), width=150)
+        self.button(row, 'Остановить сервер', lambda: self.worker(gpu_mode_manager.stop_backend, label='Остановка сервера моделей'), width=150)
         self.combination_label = ctk.CTkLabel(card, text='Выберите модель и нажмите «Загрузить модель».', anchor='w', justify='left', text_color=MUTED)
         self.combination_label.pack(fill='x', padx=20, pady=(0, 12))
         ctk.CTkLabel(page, text='Оборудование сейчас', anchor='w', font=('Segoe UI', 18, 'bold')).pack(fill='x', pady=(0, 8))
@@ -577,8 +583,10 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         model = gpu_mode_manager.get_active_model_profile()
         if not frontend:
             return
-        if self.controller.frontend_status(frontend_id)['running']:
-            self._agent_frontend_done({'Success': True, 'Message': 'Этот интерфейс агента уже запущен Station.'})
+        current = self.controller.frontend_status(frontend_id)
+        if current['running']:
+            self._agent_frontend_done({'Success': True, 'Message': frontend['name'] + (' уже запущен из Station' if current['owned'] else
+                ' уже открыт (запущен не из Station)') + (f', PID {current["pid"]}' if current['pid'] else '') + '.'})
             return
         adapter = self.controller.adapters.get(frontend['runtime_id'])
         if model and model.id != 'none' and adapter and adapter.manifest.get('provider_sync', True):
@@ -712,9 +720,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                     except Exception:
                         pass
                 if not self.events.full():
-                    frontend_running = {}
-                    for id, frontend in list(self.controller.frontends.items()):
-                        frontend_running[id] = self.controller.frontend_status(id)['running']
+                    processes = self.controller.running_executables()
+                    frontend_running = {id: self.controller.frontend_status(id, processes)
+                                        for id in list(self.controller.frontends)}
                     self.events.put(('telemetry', (top, backend, running, service_states, frontend_running, backend_info), None))
             except Exception as exc:
                 if not self.events.full():
@@ -771,7 +779,8 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.topology = top
         self.backend_online = backend
         self.backend_info = backend_info
-        self.frontend_running = frontend_running or {}
+        self.frontend_states = frontend_running or {}
+        self.frontend_running = {id: state['running'] for id, state in self.frontend_states.items()}
         self._refresh_agent_launch_states()
         self.ready_model_ids = {m.id for m in profile_storage.model_profiles.values() if m.backend_model_id in running}
         self.ready_model_names = [m.name for id, m in profile_storage.model_profiles.items() if id in self.ready_model_ids]
@@ -806,6 +815,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self._refresh_tray(rebuild=changed)
 
     def _update_server_card(self, info):
+        if info and hasattr(self, 'dashboard_server_label'):
+            self.dashboard_server_label.configure(text='Сервер моделей (llama-swap): ' + pm.describe(info),
+                text_color=ACCENT if info['online'] else MUTED)
         if not info or not hasattr(self, 'server_status_label'):
             return
         self.server_status_label.configure(text=pm.describe(info), text_color=ACCENT if info['online'] else MUTED)
@@ -849,8 +861,10 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         fid = self.frontend_combo.get()
         frontend = self.controller.frontends.get(fid, {})
         value.configure(text=frontend.get('name', 'Не выбран'))
-        detail.configure(text='Запущен из Station' if self.frontend_running.get(fid) else
-            'Готов к запуску' if frontend.get('status') == 'INSTALLED' else 'Установите в разделе «Агенты»')
+        from .agent_controls import frontend_state_text
+        state = self.frontend_states.get(fid, {})
+        detail.configure(text=frontend_state_text(frontend, state) if frontend else 'Выберите агента ниже')
+        value.configure(text_color=ACCENT if state.get('running') else TEXT)
         ids = tuple(d.uuid for d in top.devices)
         if self.dashboard_gpu_ids != ids:
             self.dashboard_gpu_ids = ids

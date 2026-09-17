@@ -13,9 +13,10 @@ STATION_PRESETS_FILE = STORAGE_DIR / 'station_presets.yaml'
 def get_default_gpu_profiles():
     return [
         GpuHardwareProfile(id='gpu-unchanged', name='Текущая конфигурация', general_policy='unchanged'),
-        GpuHardwareProfile(id='gpu-all-wddm', name='Все совместимые GPU: WDDM', general_policy='all_wddm'),
-        GpuHardwareProfile(id='gpu-one-graphics-rest-compute', name='Графика + выделенные вычисления', general_policy='one_graphics_rest_compute'),
-        GpuHardwareProfile(id='gpu-all-tcc', name='Все совместимые GPU: TCC', general_policy='all_tcc', prefer_p2p=True),
+        GpuHardwareProfile(id='gpu-all-wddm', name='Все GPU в WDDM', general_policy='all_wddm'),
+        GpuHardwareProfile(id='gpu-first-wddm-rest-tcc', name='Первая GPU в WDDM, остальные в TCC', general_policy='first_wddm_rest_tcc'),
+        GpuHardwareProfile(id='gpu-one-graphics-rest-compute', name='GPU с монитором в WDDM, остальные в TCC', general_policy='one_graphics_rest_compute'),
+        GpuHardwareProfile(id='gpu-all-tcc', name='Все GPU в TCC', general_policy='all_tcc', prefer_p2p=True),
         GpuHardwareProfile(id='gpu-largest-vram-only', name='GPU с наибольшей памятью', general_policy='largest_vram'),
         GpuHardwareProfile(id='gpu-nvlink-clique', name='Лучшая подтверждённая P2P группа', general_policy='best_p2p_clique', prefer_p2p=True),
     ]
@@ -72,6 +73,9 @@ class ProfileStorage:
             ids = [p.id for p in values]
             if len(ids) != len(set(ids)):
                 raise ConfigurationError(f'Duplicate profile ID: {path}')
+            if name == 'gpu_profiles':
+                known = {p.id for p in values}
+                values += [p for p in defaults() if p.id in ('gpu-all-wddm', 'gpu-all-tcc', 'gpu-first-wddm-rest-tcc') and p.id not in known]
             staged[name] = {p.id: p for p in values}
             hashes[name] = digest(path)
         for name, values in staged.items():

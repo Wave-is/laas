@@ -3,9 +3,21 @@ import customtkinter as ctk
 from ..config import config
 
 
-def frontend_action_state(frontend, running, busy=False):
+def frontend_action_state(frontend, running, busy=False, owned=None):
     installed = frontend.get('status') in ('INSTALLED', 'SUPPORTED (experimental)')
-    return {'start': installed and not running and not busy, 'stop': running and not busy}
+    owned = running if owned is None else owned
+    # Station stops only processes it started; an app opened elsewhere is closed in its own window.
+    return {'start': installed and not running and not busy, 'stop': running and owned and not busy}
+
+
+def frontend_state_text(frontend, state):
+    """One unambiguous line: installed? running? who started it?"""
+    if frontend.get('status') not in ('INSTALLED', 'SUPPORTED (experimental)'):
+        return 'Не установлен'
+    if not state.get('running'):
+        return 'Не запущен · установлен'
+    pid = f', PID {state["pid"]}' if state.get('pid') else ''
+    return f'Запущен из Station{pid}' if state.get('owned') else f'Запущен вне Station{pid}' 
 
 
 class AgentControls:
@@ -29,21 +41,24 @@ class AgentControls:
         for combo, start, stop, label in getattr(self, 'agent_launch_widgets', {}).values():
             id = combo.get()
             frontend = self.controller.frontends.get(id, {})
-            running = self.frontend_running.get(id, False)
-            actions = frontend_action_state(frontend, running, self.busy)
+            state = self.frontend_states.get(id, {})
+            running = state.get('running', False)
+            actions = frontend_action_state(frontend, running, self.busy, state.get('owned', False))
             start.configure(state='normal' if actions['start'] else 'disabled')
             stop.configure(state='normal' if actions['stop'] else 'disabled')
             combo.configure(state='disabled' if self.busy else 'readonly')
-            pid = self.controller.frontend_status(id).get('pid') if running else None
             workspace = config.get('workspace') or 'домашняя папка'
-            label.configure(text=(f'Запущен из Station (PID {pid}). Перед остановкой завершите текущую задачу агента.' if running else
-                f'Готов к запуску. Рабочая папка: {workspace}. Кнопка «Остановить» закрывает только процесс, запущенный Station.'
+            label.configure(text=(frontend_state_text(frontend, state) + ('. Перед остановкой завершите текущую задачу агента.' if state.get('owned')
+                else '. Он открыт не из Station — закройте его в его собственном окне.') if running else
+                f'Не запущен · установлен. Рабочая папка: {workspace}. «Остановить агента» закрывает только процесс, запущенный из Station.'
                 if actions['start'] or frontend.get('status') == 'INSTALLED' else
                 'Этот вариант запуска не установлен. Установите его и нажмите «Найти агенты заново».'))
 
     def _agent_frontend_done(self, result):
         from .control_center import result_message
-        self.frontend_running = {id: self.controller.frontend_status(id)['running'] for id in self.controller.frontends}
+        processes = self.controller.running_executables()
+        self.frontend_states = {id: self.controller.frontend_status(id, processes) for id in self.controller.frontends}
+        self.frontend_running = {id: state['running'] for id, state in self.frontend_states.items()}
         self.runtime_combo.set(config.get('primary_agent_runtime'))
         self._refresh_frontend_choices()
         self._refresh_agent_launch_states()

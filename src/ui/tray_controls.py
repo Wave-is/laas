@@ -77,12 +77,11 @@ class TrayControls:
                     command('Остановить: ' + frontend['name'], 'stop_frontend', fid, enabled=enabled)]
             entries.append(command('Официальные релизы ↗', 'install', id, enabled=enabled))
             agents.append(Item(adapter.manifest.get('name', id), Menu(*entries)))
-        gpu_entries = [Item(lambda item, uuid=d.uuid: self._gpu_tray_text(uuid), None, enabled=False)
-                       for d in self.topology.devices] if self.topology else []
-        gpu_entries += [Menu.SEPARATOR] if gpu_entries else []
-        gpu_entries += [command(p.name, 'gpu', p.id, enabled=enabled,
-            checked=lambda item, id=p.id: config.get('active_gpu_profile') == id)
-            for p in profile_storage.gpu_profiles.values()]
+        from ..gpu_modes import gpu_mode_manager
+        # Checkmarks follow the real driver modes, not the last saved selection.
+        gpu_entries = [command(label, 'gpu', id, enabled=enabled,
+            checked=lambda item, id=id: bool(self.topology) and gpu_mode_manager.current_quick_mode(self.topology) == id)
+            for id, label, _ in gpu_mode_manager.QUICK_GPU_MODES]
         from .. import model_server
         services = [Item('Сервер моделей (llama-swap)', Menu(
             Item(lambda item: self._server_tray_text(), None, enabled=False), Menu.SEPARATOR,
@@ -100,7 +99,7 @@ class TrayControls:
             Item('Модель', Menu(*(models or [Item('Добавьте профиль модели', None, enabled=False)]),
                  Menu.SEPARATOR, command('Выгрузить модель', 'model', 'none', enabled=enabled))),
             Item('Агенты и интерфейсы', Menu(*agents)),
-            Item('Оборудование и режимы GPU', Menu(*gpu_entries)),
+            Menu.SEPARATOR, *gpu_entries, Menu.SEPARATOR,
             Item('Пресеты', Menu(*[command(p.name, 'preset', p.id, enabled=enabled)
                 for p in profile_storage.station_presets.values()],
                 command('Сохранить текущее как пресет…', 'save_preset', enabled=enabled))),

@@ -160,3 +160,21 @@ def test_autostart_launches_when_selected_model_is_bound_despite_stale_entries()
     runner.controller.model_binding_state.return_value = 'READY_STALE'
     assert runner.run(settings, threading.Event())['Success']
     assert ('frontend', 'desktop') in calls
+
+
+def test_desktop_opened_outside_station_is_running_but_not_stoppable(monkeypatch):
+    import os
+    import src.controller as module
+    from src.ui.agent_controls import frontend_state_text
+    controller = module.StationController()
+    exe = r'C:\Apps\Qwen Code Desktop\qwen-code-desktop.exe'
+    controller.frontends = {'qwen-desktop': {'runtime_id': 'qwen-code', 'type': 'desktop', 'status': 'INSTALLED', 'executable': exe}}
+    monkeypatch.setattr(module, 'supervisor', NS(status=Mock(return_value={'running': False, 'owned': False, 'pid': None})))
+    frontend = controller.frontends['qwen-desktop']
+    stopped = controller.frontend_status('qwen-desktop', processes={})
+    assert stopped == {'running': False, 'owned': False, 'pid': None}
+    assert frontend_state_text(frontend, stopped) == 'Не запущен · установлен'
+    external = controller.frontend_status('qwen-desktop', processes={os.path.normcase(exe): 4242})
+    assert external == {'running': True, 'owned': False, 'pid': 4242}
+    assert frontend_state_text(frontend, external) == 'Запущен вне Station, PID 4242'
+    assert frontend_action_state(frontend, True, owned=False) == {'start': False, 'stop': False}

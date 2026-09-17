@@ -136,3 +136,18 @@ def test_suppression_cannot_be_enabled_by_a_truthy_string(environment):
     with pytest.raises(ValueError):
         cfg.set('suppress_gpu_switch_warning', 'false')
     assert not cfg.get('suppress_gpu_switch_warning')
+
+
+def test_first_gpu_wddm_mode_ignores_display_on_integrated_graphics(monkeypatch):
+    from src.gpu_modes import ProfileExecutionManager
+    from src.hardware_topology import HardwareTopology
+    manager = ProfileExecutionManager()
+    top = HardwareTopology([
+        GpuDeviceInfo(0, 'GPU-a', vendor='NVIDIA', driver_mode='TCC', pending_driver_mode='TCC', tcc_supported=True, display_active=False),
+        GpuDeviceInfo(1, 'GPU-b', vendor='NVIDIA', driver_mode='TCC', pending_driver_mode='TCC', tcc_supported=True, display_active=False),
+        GpuDeviceInfo(2, 'intel', vendor='Intel', driver_mode='WDDM', display_active=True)], is_simulated=True)
+    plan = manager.preview_gpu_plan('gpu-first-wddm-rest-tcc', top)['Plan']
+    assert plan == [{'gpu_stable_id': 'GPU-a', 'target_mode': 'WDDM'}]
+    assert manager.current_quick_mode(top) == 'gpu-all-tcc'
+    top.devices[0].driver_mode = 'WDDM'
+    assert manager.current_quick_mode(top) == 'gpu-first-wddm-rest-tcc'

@@ -46,6 +46,21 @@ class ProfileExecutionManager:
         return selected or profile_storage.get_gpu_profile('gpu-unchanged')
     def get_active_model_profile(self):
         return profile_storage.get_model_profile(config.get('active_model_profile', 'none')) or profile_storage.get_model_profile('none')
+    QUICK_GPU_MODES = (('gpu-all-wddm', 'Все GPU в WDDM', ('WDDM',)),
+                       ('gpu-all-tcc', 'Все GPU в TCC', ('TCC',)),
+                       ('gpu-first-wddm-rest-tcc', 'Первая GPU в WDDM, остальные в TCC', ('WDDM', 'TCC')))
+    def current_quick_mode(self, topology):
+        """Which quick mode matches the actual driver modes of NVIDIA cards (None if none does)."""
+        modes = [d.driver_mode for d in sorted((d for d in topology.devices if d.vendor == 'NVIDIA'), key=lambda d: d.index)]
+        if not modes:
+            return None
+        if all(m == 'WDDM' for m in modes):
+            return 'gpu-all-wddm'
+        if all(m == 'TCC' for m in modes):
+            return 'gpu-all-tcc'
+        if modes[0] == 'WDDM' and all(m == 'TCC' for m in modes[1:]):
+            return 'gpu-first-wddm-rest-tcc'
+        return None
     def get_active_preset(self):
         return next((p for p in profile_storage.station_presets.values() if
             p.gpu_profile_id == config.get('active_gpu_profile') and p.model_profile_id == config.get('active_model_profile') and
@@ -71,6 +86,8 @@ class ProfileExecutionManager:
             raise ValueError('В профиле указаны GPU, которых сейчас нет: ' + ', '.join(sorted(missing)))
         displays = [d for d in top.devices if d.display_active is True]
         graphics = {d.uuid for d in displays or top.devices[:1]}
+        nvidia = sorted((d for d in top.devices if d.vendor == 'NVIDIA'), key=lambda d: d.index)
+        first_nvidia = nvidia[0].uuid if nvidia else None
         for d in top.devices:
             if d.uuid.lower() in excluded or (included and d.uuid.lower() not in included):
                 continue
@@ -82,6 +99,7 @@ class ProfileExecutionManager:
                 if profile.general_policy == 'all_wddm': target = 'WDDM'
                 elif profile.general_policy in ('all_tcc', 'all_compute'): target = 'TCC'
                 elif profile.general_policy == 'one_graphics_rest_compute': target = 'WDDM' if d.uuid in graphics else 'TCC'
+                elif profile.general_policy == 'first_wddm_rest_tcc': target = 'WDDM' if d.uuid == first_nvidia else 'TCC'
             if target in ('UNCHANGED', 'UNSUPPORTED'):
                 continue
             if d.vendor != 'NVIDIA':

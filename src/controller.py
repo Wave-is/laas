@@ -107,12 +107,34 @@ class StationController:
         config.update({'preferred_frontend': id, 'primary_agent_runtime': frontend['runtime_id']})
         return {'Success': True, 'Message': 'Выбран: ' + frontend['name']}
 
-    def frontend_status(self, id):
+    @staticmethod
+    def running_executables():
+        """Normalized executable path -> PID for all visible processes (one scan per poll)."""
+        import os
+        import psutil
+        result = {}
+        for process in psutil.process_iter(['pid', 'exe']):
+            exe = process.info.get('exe')
+            if exe:
+                result.setdefault(os.path.normcase(exe), process.info['pid'])
+        return result
+
+    def frontend_status(self, id, processes=None):
+        """running/owned/pid. Desktop apps opened outside Station are found by their executable."""
+        import os
         frontend = self.frontends.get(id)
         if not frontend:
             return {'running': False, 'owned': False, 'pid': None}
         key = 'agent:' + frontend['runtime_id'] if frontend['type'] == 'terminal' else 'frontend:' + id
-        return supervisor.status(key)
+        status = supervisor.status(key)
+        if status['running'] or frontend['type'] != 'desktop' or not frontend.get('executable'):
+            return status
+        try:
+            index = self.running_executables() if processes is None else processes
+        except Exception:
+            return status
+        pid = index.get(os.path.normcase(frontend['executable']))
+        return {'running': bool(pid), 'owned': False, 'pid': pid}
 
     def launch_frontend(self, id=None, *, remember=True):
         id = id or config.get('preferred_frontend')
@@ -122,8 +144,10 @@ class StationController:
         selected = self.select_frontend(id) if remember else {'Success': True}
         if not selected['Success']:
             return selected
-        if self.frontend_status(id)['running']:
-            return {'Success': True, 'Message': frontend.get('name', id) + ' уже запущен из Station' + (f' (PID {self.frontend_status(id).get("pid")})' if self.frontend_status(id).get('pid') else '') + '.'}
+        current = self.frontend_status(id)
+        if current['running']:
+            return {'Success': True, 'Message': frontend.get('name', id) + (' уже запущен из Station' if current.get('owned') else ' уже запущен (открыт не из Station)')
+                + (f' (PID {current["pid"]})' if current.get('pid') else '') + '.'}
         adapter = self.adapters[frontend['runtime_id']]
         workspace = config.get('workspace') or str(Path.home())
         model = gpu_mode_manager.get_active_model_profile()
