@@ -31,6 +31,7 @@ from .agent_controls import AgentControls
 from .startup_controls import StartupControls
 from .pages.models import ModelsPage
 from .pages.hardware import HardwarePage
+from .pages.cluster import ClusterPage
 from .pages.monitoring import MonitoringPage
 from .pages.logs import LogsPage
 from .pages.schedules import SchedulesPage
@@ -52,10 +53,10 @@ def result_message(value):
 
 # Stable page ids; titles are translated only for display.
 # Sidebar order. Each id needs a _build_<id>() method (see src/ui/pages) and a title below.
-PAGE_IDS = ('station', 'hardware', 'models', 'agents', 'services', 'monitoring', 'logs', 'startup', 'schedules', 'maintenance', 'settings')
+PAGE_IDS = ('station', 'hardware', 'models', 'cluster', 'agents', 'services', 'monitoring', 'logs', 'startup', 'schedules', 'maintenance', 'settings')
 
 def page_title(page_id):
-    return {'station': tr('Станция'), 'hardware': tr('Оборудование'), 'models': tr('Модели'),
+    return {'station': tr('Станция'), 'hardware': tr('Оборудование'), 'models': tr('Модели'), 'cluster': tr('LLM-кластер'),
             'agents': tr('Агенты'), 'services': tr('Службы'), 'monitoring': tr('Мониторинг'), 'logs': tr('Журналы'),
             'startup': tr('Автозапуск'), 'schedules': tr('Расписания'), 'maintenance': tr('Обслуживание'),
             'settings': tr('Настройки')}.get(page_id, page_id)
@@ -110,7 +111,7 @@ class ProfileCombo(ctk.CTkComboBox):
             kwargs['values'] = list(self.labels.values())
         return super().configure(require_redraw=require_redraw, **kwargs)
 
-class ControlCenter(ModelsPage, HardwarePage, MonitoringPage, LogsPage, SchedulesPage, MaintenancePage, WatchdogSection, FirstRunWizard, AgentControls, StartupControls, ServiceControls, GpuControls, TrayControls, ctk.CTk):
+class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsPage, SchedulesPage, MaintenancePage, WatchdogSection, FirstRunWizard, AgentControls, StartupControls, ServiceControls, GpuControls, TrayControls, ctk.CTk):
     def __init__(self, start_minimized=False, no_tray=False, skip_startup=False):
         super().__init__()
         ctk.set_appearance_mode('dark')
