@@ -201,5 +201,8 @@
   "id для агентов: {id} · статус: {status}": "id for agents: {id} · status: {status}",
   "не задан": "not set",
   "найден": "found",
-  "НЕ НАЙДЕН": "NOT FOUND"
+  "НЕ НАЙДЕН": "NOT FOUND",
+  "Папка проекта для {name}": "Project folder for {name}",
+  "Не запущен · установлен. При запуске Station спросит папку проекта, с которой будет работать агент.": "Not running · installed. When you start it, Station asks for the project folder the agent will work in.",
+  "Не запущен · установлен.": "Not running · installed."
 }

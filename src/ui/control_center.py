@@ -432,8 +432,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.path_entries = {}
         for key, title, hint in [
                 ('runtime_dir', tr('Папка движка'), tr('Программы, которые запускают модели: llama-swap.exe и llama-server.exe (llama.cpp). Встроенный движок ставится вместе со Station — оставьте поле пустым, чтобы использовать его. Другую папку указывайте, только если нужна своя сборка llama.cpp.')),
-                ('models_dir', tr('Папка моделей'), tr('Где лежат файлы моделей .gguf. Если в профиле модели указано только имя файла, он ищется здесь.')),
-                ('workspace', tr('Рабочая папка агентов'), tr('Папка ваших проектов: в ней открываются Qwen Code, Hermes и другие агенты. Пусто — домашняя папка пользователя.'))]:
+                ('models_dir', tr('Папка моделей'), tr('Где лежат файлы моделей .gguf. Если в профиле модели указано только имя файла, он ищется здесь.'))]:
             ctk.CTkLabel(card, text=title, anchor='w', font=('Segoe UI', 13, 'bold')).pack(fill='x', padx=20, pady=(8, 0))
             ctk.CTkLabel(card, text=hint, anchor='w', text_color=MUTED, wraplength=900, justify='left').pack(fill='x', padx=20)
             row = self.row(card)
@@ -443,8 +442,6 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             self.path_entries[key] = entry
             ctk.CTkButton(row, text=tr('Обзор'), width=90, fg_color=EDGE,
                 command=lambda e=entry: self._browse(e, True)).pack(side='left')
-        self.workspace_warning = ctk.CTkLabel(card, text='', anchor='w', justify='left', text_color='#f8ad88', wraplength=900)
-        self.workspace_warning.pack(fill='x', padx=20)
         self.runtime_found_label = ctk.CTkLabel(card, text='', anchor='w', justify='left', text_color=MUTED, wraplength=900)
         self.runtime_found_label.pack(fill='x', padx=20, pady=(6, 0))
         ctk.CTkLabel(card, text=tr('Сеть'), anchor='w', font=('Segoe UI', 13, 'bold')).pack(fill='x', padx=20, pady=(12, 0))
@@ -488,9 +485,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             entry.delete(0, 'end'); entry.insert(0, path)
 
     def _refresh_path_hints(self):
-        workspace, engine = config.get('workspace'), model_server.runtime_dir()
-        self.workspace_warning.configure(text=tr('Сейчас агенты открываются в папке движка. Лучше выбрать папку с вашими проектами.')
-            if workspace and engine and os.path.normcase(workspace) == os.path.normcase(str(engine)) else '')
+
         swap, server = model_server.swap_executable(), model_server.llama_server_executable()
         bundled = model_server.bundled_runtime_dir()
         engine = model_server.runtime_dir()
@@ -510,7 +505,7 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
     def _save_paths(self):
         try:
             values = {key: entry.get().strip() for key, entry in self.path_entries.items()}
-            for key in ('runtime_dir', 'models_dir', 'workspace'):
+            for key in ('runtime_dir', 'models_dir'):
                 if values[key] and not Path(values[key]).is_dir():
                     raise ValueError(tr('Папка не найдена: {path}', path=values[key]))
             lan_changed = (config.get('llama_swap_lan_access') is True) != self.lan_var.get()
@@ -697,10 +692,18 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                 tr('{name} уже открыт (запущен не из Station)', name=frontend['name'])) + (f', PID {current["pid"]}' if current['pid'] else '') + '.'})
             return
         adapter = self.controller.adapters.get(frontend['runtime_id'])
+        folder = None
+        if frontend.get('type') in ('terminal', 'vscode'):
+            # Ask which project the agent should work on; remember it for the next launch.
+            folder = filedialog.askdirectory(parent=self, title=tr('Папка проекта для {name}', name=frontend['name']),
+                initialdir=config.get('last_agent_folder') or str(Path.home()))
+            if not folder:
+                return
+            config.set('last_agent_folder', str(Path(folder)))
         if model and model.id != 'none' and adapter and adapter.manifest.get('provider_sync', True):
             state = self.controller.model_binding_state(adapter.id, model)
             if state == 'READY_STALE':
-                self.worker(lambda: self.controller.launch_frontend(frontend_id), lambda result: self._agent_frontend_done(dict(result,
+                self.worker(lambda: self.controller.launch_frontend(frontend_id, folder=folder), lambda result: self._agent_frontend_done(dict(result,
                     Message=result_message(result) + '. ' + tr('Список моделей в настройках агента устарел — обновите его: Модели → Синхронизировать с агентами.'))),
                     label=tr('Запуск: {name}', name=frontend['name']))
                 return
@@ -720,12 +723,12 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
                             raise RuntimeError(result.message + ': ' + str(result.data))
                         return True
                     apply_preview(preview, accept_custom=True, smoke=smoke)
-                    return self.controller.launch_frontend(frontend_id)
+                    return self.controller.launch_frontend(frontend_id, folder=folder)
                 self.review(tr('Подключить модель «{model}» к {agent}', model=model.name, agent=frontend['name']),
                     tr('Файл настроек агента: {path}', path=preview.path) + '\n'
                     + tr('Будут изменены только блоки, которыми управляет Station. Перед записью создаётся резервная копия.') + '\n\n' + preview.diff, apply, self._agent_frontend_done)
                 return
-        self.worker(lambda: self.controller.launch_frontend(frontend_id), self._agent_frontend_done, label=tr('Запуск: {name}', name=frontend['name']))
+        self.worker(lambda: self.controller.launch_frontend(frontend_id, folder=folder), self._agent_frontend_done, label=tr('Запуск: {name}', name=frontend['name']))
 
     def edit_document(self, filename):
         path = data_dir() / 'config' / filename

@@ -19,7 +19,7 @@ DEFAULT_SETTINGS = {
     'poll_interval_sec': 3.0, 'excluded_gpu_uuids': [], 'autostart': False,
     'llama_swap_url': 'http://127.0.0.1:9292', 'ollama_url': 'http://127.0.0.1:11434',
     # runtime_dir holds llama.cpp and llama-swap; explicit executables override the search there.
-    'workspace': '', 'runtime_dir': '', 'models_dir': '', 'llama_swap_lan_access': False,
+    'workspace': '', 'last_agent_folder': '', 'runtime_dir': '', 'models_dir': '', 'llama_swap_lan_access': False,
     'llama_swap_executable': '', 'llama_server_executable': '',
 }
 

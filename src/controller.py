@@ -138,7 +138,7 @@ class StationController:
         pid = index.get(os.path.normcase(frontend['executable']))
         return {'running': bool(pid), 'owned': False, 'pid': pid}
 
-    def launch_frontend(self, id=None, *, remember=True):
+    def launch_frontend(self, id=None, *, remember=True, folder=None):
         id = id or config.get('preferred_frontend')
         frontend = self.frontends.get(id)
         if not frontend or frontend.get('status') not in ('INSTALLED', 'SUPPORTED (experimental)'):
@@ -157,7 +157,10 @@ class StationController:
                     tr('{name} уже запущен (открыт не из Station).', name=name))
             return {'Success': True, 'Message': message}
         adapter = self.adapters[frontend['runtime_id']]
-        workspace = config.get('workspace') or str(Path.home())
+        # Terminal agents work on the files of the folder they open in; desktop apps choose projects themselves.
+        workspace = folder or config.get('last_agent_folder') or str(Path.home())
+        if not Path(workspace).is_dir():
+            workspace = str(Path.home())
         model = gpu_mode_manager.get_active_model_profile()
         model = model if model and model.id != 'none' else None
         if frontend['type'] == 'terminal':

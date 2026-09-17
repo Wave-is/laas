@@ -70,14 +70,13 @@ class AgentControls:
                 text=tr('Уже запущен') if running else tr('Запустить агента'))
             stop.configure(state='normal' if actions['stop'] else 'disabled')
             combo.configure(state='disabled' if self.busy else 'readonly')
-            workspace = config.get('workspace') or tr('домашняя папка')
             if running:
                 hint = (tr('Перед остановкой завершите текущую задачу агента.') if state.get('owned')
                         else tr('Он открыт не из Station — закройте его в его собственном окне.'))
                 text = frontend_state_text(frontend, state) + '. ' + hint
             elif actions['start'] or frontend.get('status') == 'INSTALLED':
-                text = tr('Не запущен · установлен. Рабочая папка: {workspace}. «Остановить агента» закрывает только процесс, запущенный из Station.',
-                          workspace=workspace)
+                text = (tr('Не запущен · установлен. При запуске Station спросит папку проекта, с которой будет работать агент.')
+                        if frontend.get('type') in ('terminal', 'vscode') else tr('Не запущен · установлен.'))
             else:
                 text = tr('Этот вариант запуска не установлен. Установите его и нажмите «Найти агенты заново».')
             label.configure(text=text)
