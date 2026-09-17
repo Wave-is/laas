@@ -112,6 +112,10 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         self.gpu_widgets = {}
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
+        try:
+            model_server.fill_missing_folders(profile_storage.model_profiles.values())
+        except Exception:
+            logging.getLogger(__name__).exception('Cannot fill engine/models folders')
         self._build_sidebar()
         self.body = ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
         self.body.grid(row=0, column=1, sticky='nsew', padx=28, pady=22)
@@ -359,9 +363,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
         card = self.card(page, 'Папки и сервер моделей', f'Данные и настройки Station: {data_dir()}')
         self.path_entries = {}
         for key, title, hint in [
-                ('runtime_dir', 'Папка движка', 'Папка, где лежат llama-swap.exe и llama-server.exe (llama.cpp). Файлы ищутся внутри автоматически.'),
-                ('models_dir', 'Папка моделей', 'Где хранятся файлы .gguf. В профиле модели можно указывать путь относительно этой папки.'),
-                ('workspace', 'Рабочая папка агентов', 'Папка проекта, в которой открываются агенты. Пусто — домашняя папка пользователя.')]:
+                ('runtime_dir', 'Папка движка', 'Где лежат программы, которые запускают модели: llama-swap.exe и llama-server.exe (llama.cpp). Они не входят в установщик Station. Нужные exe ищутся внутри папки автоматически.'),
+                ('models_dir', 'Папка моделей', 'Где лежат файлы моделей .gguf. Если в профиле модели указано только имя файла, он ищется здесь.'),
+                ('workspace', 'Рабочая папка агентов', 'Папка ваших проектов: в ней открываются Qwen Code, Hermes и другие агенты. Пусто — домашняя папка пользователя.')]:
             ctk.CTkLabel(card, text=title, anchor='w', font=('Segoe UI', 13, 'bold')).pack(fill='x', padx=20, pady=(8, 0))
             ctk.CTkLabel(card, text=hint, anchor='w', text_color=MUTED, wraplength=900, justify='left').pack(fill='x', padx=20)
             row = self.row(card)
@@ -371,6 +375,8 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             self.path_entries[key] = entry
             ctk.CTkButton(row, text='Обзор', width=90, fg_color=EDGE,
                 command=lambda e=entry: self._browse(e, True)).pack(side='left')
+        self.workspace_warning = ctk.CTkLabel(card, text='', anchor='w', justify='left', text_color='#f8ad88', wraplength=900)
+        self.workspace_warning.pack(fill='x', padx=20)
         self.runtime_found_label = ctk.CTkLabel(card, text='', anchor='w', justify='left', text_color=MUTED, wraplength=900)
         self.runtime_found_label.pack(fill='x', padx=20, pady=(6, 0))
         ctk.CTkLabel(card, text='Сеть', anchor='w', font=('Segoe UI', 13, 'bold')).pack(fill='x', padx=20, pady=(12, 0))
@@ -397,6 +403,9 @@ class ControlCenter(AgentControls, StartupControls, ServiceControls, GpuControls
             entry.delete(0, 'end'); entry.insert(0, path)
 
     def _refresh_path_hints(self):
+        workspace, engine = config.get('workspace'), model_server.runtime_dir()
+        self.workspace_warning.configure(text='Сейчас агенты открываются в папке движка. Лучше выбрать папку с вашими проектами.'
+            if workspace and engine and os.path.normcase(workspace) == os.path.normcase(str(engine)) else '')
         swap, server = model_server.swap_executable(), model_server.llama_server_executable()
         self.runtime_found_label.configure(
             text=f'Найдено — llama-swap.exe: {swap or "нет"}\nНайдено — llama-server.exe: {server or "нет"}',

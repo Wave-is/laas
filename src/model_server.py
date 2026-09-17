@@ -104,6 +104,28 @@ def models_dir():
     return Path(value) if value else None
 
 
+def detect_models_dir(profiles):
+    """The folder holding most existing model files of the registry, if any."""
+    from collections import Counter
+    parents = Counter(str(Path(p.weights_path).parent) for p in profiles
+                      if p.weights_path and Path(p.weights_path).is_absolute() and Path(p.weights_path).is_file())
+    return Path(parents.most_common(1)[0][0]) if parents else None
+
+
+def fill_missing_folders(profiles):
+    """Settings created before these fields existed: store what is already in use, once."""
+    changes = {}
+    if not config.get('runtime_dir') and runtime_dir():
+        changes['runtime_dir'] = str(runtime_dir())
+    if not config.get('models_dir'):
+        found = detect_models_dir(profiles)
+        if found:
+            changes['models_dir'] = str(found)
+    if changes:
+        config.update(changes)
+    return changes
+
+
 def find_executable(name):
     """An explicit path wins when it exists; otherwise search the engine folder."""
     key = 'llama_swap_executable' if name == SWAP_EXE else 'llama_server_executable'

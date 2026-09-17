@@ -55,3 +55,17 @@ def test_unknown_profile_fields_warn_and_survive_save(tmp_path):
     assert 'm' in store.model_profiles and 'measured_decode_tps' in store.warnings[0]
     store.save_model_profile(store.model_profiles['m'])
     assert read_document(tmp_path / 'model_profiles.yaml')[0]['measured_decode_tps'] == 42
+
+
+def test_existing_setup_fills_engine_and_models_folders_once(tmp_path, monkeypatch):
+    from src.profiles_schema import ModelProfile
+    exe = tmp_path / 'stack/llama-swap' / ms.SWAP_EXE
+    exe.parent.mkdir(parents=True)
+    exe.write_bytes(b'x')
+    weights = tmp_path / 'LLM/models/q.gguf'
+    weights.parent.mkdir(parents=True)
+    weights.write_bytes(b'x')
+    cfg = use_config(monkeypatch, tmp_path, llama_swap_executable=str(exe))
+    changes = ms.fill_missing_folders([ModelProfile('q', 'Q', str(weights))])
+    assert cfg.get('runtime_dir') == str(tmp_path / 'stack') and cfg.get('models_dir') == str(weights.parent)
+    assert ms.fill_missing_folders([ModelProfile('q', 'Q', str(weights))]) == {} and changes
