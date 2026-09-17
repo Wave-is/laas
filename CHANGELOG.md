@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0-beta.6
+
+### English
+
+- **Dashboard Layout Reorganization**: Reordered blocks on the main "Station Overview" dashboard: the GPU hardware telemetry block ("Hardware Now") is now elevated above the "Model and Agent" control panel for immediate hardware visibility.
+- **Vertical Compaction & Scrollbar Elimination**: Compacted UI layout vertically by overriding CustomTkinter's default 28px/42px single-line label height constraint (`height=0`), tightening control button/combo row margins from 14px to `(4, 5)`, and reducing tile padding. Total content height reduced by ~168px (from 867px down to 699px at 150% scaling), completely eliminating premature scrollbar appearance on standard display resolutions.
+
+### Русский
+
+- **Перестановка блоков на дашборде**: на главной странице «Обзор станции» блок мониторинга видеокарт («Оборудование сейчас») перемещён наверх — над блоком управления «Модель и агент» — для мгновенного контроля состояния оборудования.
+- **Уплотнение вёрстки по вертикали**: устранена паразитная высота меток CustomTkinter (`height=0` для однострочных надписей), вертикальные отступы между рядами кнопок и списков сокращены с 14px до `(4, 5)`, уменьшены зазоры карточек GPU. Общая высота контента снижена на ~168px при масштабе 150% (с 867px до 699px), благодаря чему полоса прокрутки на дашборде больше не появляется при стандартной высоте окна.
+
+### Українська
+
+- **Перестановка блоків на дашборді**: на головній сторінці «Огляд станції» блок моніторингу відеокарт («Обладнання зараз») переміщено нагору — над блоком керування «Модель та агент» — для миттєвого контролю стану обладнання.
+- **Ущільнення верстки по вертикалі**: усунено надлишкову висоту міток CustomTkinter (`height=0` для однорядкових написів), вертикальні відступи між рядами кнопок та списків скорочено з 14px до `(4, 5)`, зменшено проміжки карток GPU. Загальну висоту контенту зменшено на ~168px при масштабі 150% (з 867px до 699px), завдяки чому смуга прокручування на дашборді більше не з'являється за стандартної висоти вікна.
+
 ## 0.2.0-beta.5
 
 ### English
