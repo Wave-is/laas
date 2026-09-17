@@ -1,5 +1,12 @@
 # Validation record
 
+## Release 0.2.0-beta.2 baseline (2026-09-17)
+
+- **Installer Language Prompt**: verified `ShowLanguageDialog=yes` and `UsePreviousLanguage=no` compilation with Inno Setup 6.7.3.
+- **UI Polish**: tested dynamic auto-hiding scrollbars for short/tall views and mousewheel interactions across pages.
+- **Test Suite**: 245/245 Python tests passed in 5.3s; 10 compiled C# helper protocol checks passed.
+- **Live State**: model server (PID 29208) on port 9292 operational and healthy.
+
 ## Release 0.2.0-beta.1 baseline (2026-09-17)
 
 The application passed **245 Python tests** and **10 compiled C# helper protocol checks** with zero failures.

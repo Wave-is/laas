@@ -1,5 +1,18 @@
 # Work log
 
+## 2026-09-17 — release 0.2.0-beta.2: installer language selection, UI polish, and GitHub release
+
+1. Installer Language Prompt:
+   - Configured `installer/Station.iss` with `ShowLanguageDialog=yes` and `UsePreviousLanguage=no` so that
+     the three-language selection dialog (English, Russian, Ukrainian) is always presented to the user
+     upon every installer launch, including upgrades.
+2. UI Polish & Stubs Cleanup:
+   - Dynamic auto-hiding scrollbar across all pages in `src/ui/control_center.py` with slim transparent styling.
+   - Cleaned up obsolete "section in development" entries from locales.
+3. Release Packaging & GitHub:
+   - Bumped version to `0.2.0-beta.2` (`WINDOWS_VERSION = (0, 2, 0, 2)`).
+   - Rebuilt full release installer with bundled engine and published to GitHub.
+
 ## 2026-09-17 — release 0.2.0-beta.1: schedules, model dialog fixes, Inno Setup 6.7.3
 
 1. Schedules & Idle Unload:

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.0-beta.2
+
+### English
+
+- **Installer Language Selection**: Enabled mandatory language prompt (`ShowLanguageDialog=yes`, `UsePreviousLanguage=no`) on every installer run, allowing users to explicitly choose between English, Russian, and Ukrainian even when upgrading.
+- **UI Polish**: Automatic hiding and slim translucent styling of page scrollbars when content fits within the window; eliminated persistent gray scrollbar ribbons on the dashboard.
+- **Removed Development Stubs**: Fully completed all sections and dialogs; cleaned up legacy placeholders.
+
+### Русский
+
+- **Выбор языка в инсталляторе**: включён обязательный диалог выбора языка установки (`ShowLanguageDialog=yes`, `UsePreviousLanguage=no`) при каждом запуске инсталлятора (английский, русский, украинский), в том числе при обновлении поверх существующей версии.
+- **Улучшения интерфейса**: автоматическое скрытие полос прокрутки (auto-hide) и тонкий прозрачный трек, убирающий статичные серые полосы при помещении страницы в окно.
+- **Удаление заглушек**: все разделы и диалоги полностью реализованы и готовы к работе, удалены устаревшие заглушки «в разработке».
+
+### Українська
+
+- **Вибір мови в інсталяторі**: увімкнено обов'язковий діалог вибору мови встановлення (`ShowLanguageDialog=yes`, `UsePreviousLanguage=no`) при кожному запуску інсталятора (англійська, українська, російська), зокрема при оновленні поверх існуючої версії.
+- **Покращення інтерфейсу**: автоматичне приховування смуг прокручування (auto-hide) та тонкий прозорий трек, що прибирає статичні сірі смуги, коли вміст вміщується у вікно.
+- **Видалення заглушок**: усі розділи та діалоги повністю реалізовані та готові до роботи, видалено застарілі заглушки «у розробці».
+
 ## 0.2.0-beta.1
 
 ### English

@@ -1,25 +1,27 @@
 # Development handoff
 
-Updated: 2026-09-17. **Release 0.2.0-beta.1 ready for build and packaging** on branch
-`feature/clarity-and-paths`. All 245 tests pass with zero failures.
+Updated: 2026-09-17. **Release 0.2.0-beta.2 ready for build, GitHub push, and publication**.
+All 245 tests pass with zero failures.
 
 Current progress:
+- **Installer Language Selection**: added `ShowLanguageDialog=yes` and `UsePreviousLanguage=no` to `installer/Station.iss`
+  so the three-language dialog (EN/RU/UK) always appears on every installation and upgrade.
+- **UI Polish**: dynamic auto-hiding scrollbars across all pages (`src/ui/control_center.py`), eliminating
+  unnecessary scrollbar tracks on pages where content fits the window.
 - **Schedules & Idle Unload**: time and day-of-week task automation engine (`src/schedules.py`),
   `SchedulesPage` UI with `AddTaskDialog` (`src/ui/pages/schedules.py`), configurable idle unload timer,
   full EN/UK localization catalogs (`locales/{en,uk}/schedules.json`), and 4 automated tests (`tests/test_schedules.py`).
 - **Model Dialog Fixes**: corrected parameter binding across `ScanDialog`, `HfDialog`, and `MoveDialog`
   (`on_add`/`on_saved` signature compatibility, `on_done` default), verified via `tests/test_model_features.py::test_dialog_signatures`.
-- **Packaging Environment**: configured `build_installer.ps1` for automatic discovery of Inno Setup 6.7.3 in both
-  Program Files and AppData; release metadata set to `0.2.0-beta.1` (`src/version.py`, `CHANGELOG.md`).
-- **UI Polish**: dynamic auto-hiding scrollbars across all pages (`src/ui/control_center.py`), eliminating
-  unnecessary scrollbar tracks on pages where content fits the window.
 - **Telemetry & Validation**: verified live telemetry (2x RTX A5000 TCC + Intel UHD 770), model server health (PID 29208),
   and 10 compiled C# helper protocol checks. All 245 tests pass in 5.3s.
 
 Next steps:
-1. Commit UI polish changes.
-2. Build executable and installer via `build_installer.ps1`.
-3. Verify release artifacts in `dist/release/` and execute `python tools/handoff_snapshot.py`.
+1. Commit changes and tag `v0.2.0-beta.2`.
+2. Fast-forward / merge to `main`.
+3. Build executable and installer via `build_installer.ps1`.
+4. Push to GitHub (`git push origin main v0.2.0-beta.2`) and create GitHub Release.
+5. Execute `python tools/handoff_snapshot.py`.
 
 ## Previous release (alpha.1)
 
