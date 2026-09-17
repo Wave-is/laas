@@ -28,9 +28,12 @@ $existingService = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
 if ($existingService -and $existingService.Status -ne 'Stopped') { Stop-Service -Name $serviceName }
 if ([IO.Path]::GetFullPath($sourcePath) -ne $targetPath) { Copy-Item -LiteralPath $sourcePath -Destination $targetPath -Force }
 $binaryPath = '"' + $targetPath + '" --user-sid ' + $AllowedUserSid
-if ($existingService) { & sc.exe config $serviceName binPath= $binaryPath start= auto | Out-Null }
-else { & sc.exe create $serviceName binPath= $binaryPath start= auto DisplayName= 'Local Agent AI Station GPU Mode Helper' | Out-Null }
-if ($LASTEXITCODE -ne 0) { throw 'Service registration failed.' }
-& sc.exe description $serviceName 'Switches NVIDIA GPU driver modes (WDDM/TCC) for Local Agent AI Station. Typed plans only.' | Out-Null
+# New-Service passes the quoted path intact; sc.exe via Windows PowerShell 5 mangles embedded quotes.
+if ($existingService) {
+    & sc.exe delete $serviceName | Out-Null
+    for ($i = 0; $i -lt 50 -and (Get-Service -Name $serviceName -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 200 }
+}
+New-Service -Name $serviceName -BinaryPathName $binaryPath -DisplayName 'Local Agent AI Station GPU Mode Helper' `
+    -Description 'Switches NVIDIA GPU driver modes (WDDM/TCC) for Local Agent AI Station. Typed plans only.' -StartupType Automatic | Out-Null
 Start-Service -Name $serviceName
 Get-Service -Name $serviceName

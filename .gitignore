@@ -24,3 +24,7 @@ secrets.*.yaml
 *.pfx
 /Мои хотелки к первой версии.txt
 /Предложения для второй версии от чатгпт.txt
+
+# Local machine files
+_archive/
+START_HERE.md
