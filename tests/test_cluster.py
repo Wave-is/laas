@@ -190,8 +190,8 @@ class TestCluster(unittest.TestCase):
     def test_cluster_refresh_mode_config(self):
         from src.config import DEFAULT_SETTINGS
         self.assertIn('cluster_refresh_mode', DEFAULT_SETTINGS)
-        self.assertEqual(DEFAULT_SETTINGS['cluster_refresh_mode'], 'manual')
-        self.assertEqual(DEFAULT_SETTINGS['cluster_poll_interval_sec'], 15.0)
+        self.assertEqual(DEFAULT_SETTINGS['cluster_refresh_mode'], '30s')
+        self.assertEqual(DEFAULT_SETTINGS['cluster_poll_interval_sec'], 30.0)
 
     def test_cluster_sample_async(self):
         import time
@@ -208,7 +208,7 @@ class TestCluster(unittest.TestCase):
 
     def test_cluster_refresh_modes_i18n(self):
         keys = [
-            "Вручную", "15 сек", "30 сек", "60 сек",
+            "Вручную", "15 сек", "30 сек", "60 сек", "2 мин",
             "Обновление:", "Последнее обновление: {time}", "Опрос..."
         ]
         for k in keys:
@@ -217,8 +217,10 @@ class TestCluster(unittest.TestCase):
 
         self.assertEqual(catalog("en").get("Вручную"), "Manual")
         self.assertEqual(catalog("uk").get("Вручную"), "Вручну")
-        self.assertEqual(catalog("en").get("15 сек"), "15 sec")
-        self.assertEqual(catalog("uk").get("15 сек"), "15 сек")
+        self.assertEqual(catalog("en").get("30 сек"), "30 sec")
+        self.assertEqual(catalog("uk").get("30 сек"), "30 сек")
+        self.assertEqual(catalog("en").get("2 мин"), "2 min")
+        self.assertEqual(catalog("uk").get("2 мин"), "2 хв")
 
     def test_control_center_has_redesigned_cluster_methods(self):
         self.assertTrue(hasattr(ControlCenter, '_trigger_manual_cluster_refresh'))

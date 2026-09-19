@@ -68,17 +68,18 @@ class ClusterPage:
             top_btn_box, text=tr('Обновление:'), font=('Segoe UI', 11), text_color=MUTED
         ).pack(side='left', padx=(0, 6))
 
-        mode_options = [tr('Вручную'), tr('15 сек'), tr('30 сек'), tr('60 сек')]
+        mode_options = [tr('30 сек'), tr('60 сек'), tr('2 мин'), tr('Вручную')]
         self._mode_keys = {
-            tr('Вручную'): 'manual',
-            tr('15 сек'): '15s',
             tr('30 сек'): '30s',
-            tr('60 сек'): '60s'
+            tr('60 сек'): '60s',
+            tr('2 мин'): '120s',
+            tr('Вручную'): 'manual'
         }
         self._keys_to_mode = {v: k for k, v in self._mode_keys.items()}
+        self._keys_to_mode['15s'] = tr('30 сек')
 
-        current_mode_key = config.get('cluster_refresh_mode', 'manual')
-        initial_display_mode = self._keys_to_mode.get(current_mode_key, tr('Вручную'))
+        current_mode_key = config.get('cluster_refresh_mode', '30s')
+        initial_display_mode = self._keys_to_mode.get(current_mode_key, tr('30 сек'))
 
         self.cluster_mode_combo = ctk.CTkComboBox(
             top_btn_box, values=mode_options, width=105, height=30,
@@ -170,6 +171,8 @@ class ClusterPage:
 
     def _on_cluster_page_shown(self):
         self._refresh_cluster_ui()
+        if self.cluster_manager.get_nodes() and not self.cluster_manager.get_snapshot().get('snapshots'):
+            self._trigger_manual_cluster_refresh()
         self._schedule_cluster_timer()
 
     def _on_cluster_mode_changed(self, choice):
@@ -188,17 +191,17 @@ class ClusterPage:
         if getattr(self, 'current_page_name', '') != 'cluster':
             return
 
-        mode = config.get('cluster_refresh_mode', 'manual')
+        mode = config.get('cluster_refresh_mode', '30s')
         if mode == 'manual':
             return
 
-        ms = 15000
-        if mode == '15s':
-            ms = 15000
-        elif mode == '30s':
+        ms = 30000
+        if mode in ('15s', '30s'):
             ms = 30000
         elif mode == '60s':
             ms = 60000
+        elif mode == '120s':
+            ms = 120000
 
         self._cluster_timer_id = self.after(ms, self._cluster_auto_tick)
 
@@ -206,7 +209,7 @@ class ClusterPage:
         self._cluster_timer_id = None
         if getattr(self, 'current_page_name', '') != 'cluster':
             return
-        mode = config.get('cluster_refresh_mode', 'manual')
+        mode = config.get('cluster_refresh_mode', '30s')
         if mode == 'manual':
             return
 

@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0-beta.9
+
+### English
+
+- **Cluster UI Refresh Redesign & In-Place Updates**: Decoupled cluster page updating from local GPU telemetry ticks. Replaced destructive widget rebuilds (`child.destroy()`) with smooth in-place card updates (`_update_node_card_inplace`), eliminating GUI flickering, scroll position jumps, and missed clicks.
+- **Adjustable Polling Intervals & Default 30s**: Set default cluster refresh interval to relaxed 30 seconds (`30s`), with selectable modes in header: `30 sec`, `60 sec`, `2 min`, and `Manual`. Polling automatically pauses when user is not viewing the cluster page.
+- **Manual Trigger with Live Status**: Added `[⟳ Refresh]` button with temporary `[⏳ Polling...]` busy state and last updated timestamp indicator.
+- **Non-Blocking Async Sampling**: `ClusterManager.sample_async(callback)` samples nodes on a background thread with safe join timeouts, avoiding any UI stalls.
+
+### Русский
+
+- **Переработка обновления вкладки кластера и in-place рендеринг**: обновление интерфейса кластера полностью отвязано от ежесекундного тика локальной телеметрии GPU. Вместо полного пересоздания виджетов (`child.destroy()`) внедрено гладкое in-place обновление карточек (`_update_node_card_inplace`), полностью устранившее мерцание, скачки скролла и потерю кликов.
+- **Настраиваемые интервалы опроса и комфортный дефолт 30с**: интервал обновления по умолчанию установлен на спокойные 30 секунд (`30s`), в шапку добавлен выпадающий список: `30 сек`, `60 сек`, `2 мин` и `Вручную`. Фоновый опрос останавливается при переходе на другие вкладки.
+- **Кнопка ручного опроса с индикацией**: кнопка `[⟳ Обновить]` с визуальным индикатором `[⏳ Опрос...]` и меткой времени последнего успешного обновления.
+- **Неблокирующий асинхронный опрос**: метод `ClusterManager.sample_async(callback)` опрашивает узлы в фоновом потоке с безопасными таймаутами без малейшего зависания UI.
+
+### Українська
+
+- **Переробка оновлення вкладки кластера та in-place рендеринг**: оновлення інтерфейсу кластера повністю відв'язано від щосекундного тіку локальної телеметрії GPU. Замість повного перевидалення віджетів (`child.destroy()`) впроваджено плавне in-place оновлення карток (`_update_node_card_inplace`), що повністю усунуло мерехтіння, стрибки скролу та втрату кліків.
+- **Налаштовувані інтервали опитування та комфортний дефолт 30с**: інтервал оновлення за замовчуванням встановлено на спокійні 30 секунд (`30s`), у шапку додано випадний список: `30 сек`, `60 сек`, `2 хв` та `Вручну`. Фонове опитування зупиняється під час переходу на інші вкладки.
+- **Кнопка ручного опитування з індикацією**: кнопка `[⟳ Оновити]` з візуальним індикатором `[⏳ Опитування...]` та міткою часу останнього успішного оновлення.
+- **Неблокуюче асинхронне опитування**: метод `ClusterManager.sample_async(callback)` опитує вузли у фоновому потоці з безпечними таймаутами без найменшого зависання UI.
+
 ## 0.2.0-beta.8
 
 ### English
