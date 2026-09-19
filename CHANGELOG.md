@@ -8,6 +8,8 @@
 - **Adjustable Polling Intervals & Default 30s**: Set default cluster refresh interval to relaxed 30 seconds (`30s`), with selectable modes in header: `30 sec`, `60 sec`, `2 min`, and `Manual`. Polling automatically pauses when user is not viewing the cluster page.
 - **Manual Trigger with Live Status**: Added `[⟳ Refresh]` button with temporary `[⏳ Polling...]` busy state and last updated timestamp indicator.
 - **Non-Blocking Async Sampling**: `ClusterManager.sample_async(callback)` samples nodes on a background thread with safe join timeouts, avoiding any UI stalls.
+- **Seamless Updater & Setup Guard**: Installer automatically detects and closes running Station and LLM engine processes before file copy, eliminating `DeleteFile code 5 (Access Denied)` during updates.
+- **Smarter GPU Helper Lifecycle**: GPU helper service task is now unchecked by default; on updates, existing services are safely stopped and restarted (`sc stop` / `sc start`) without unnecessary reinstallation.
 
 ### Русский
 
@@ -15,13 +17,17 @@
 - **Настраиваемые интервалы опроса и комфортный дефолт 30с**: интервал обновления по умолчанию установлен на спокойные 30 секунд (`30s`), в шапку добавлен выпадающий список: `30 сек`, `60 сек`, `2 мин` и `Вручную`. Фоновый опрос останавливается при переходе на другие вкладки.
 - **Кнопка ручного опроса с индикацией**: кнопка `[⟳ Обновить]` с визуальным индикатором `[⏳ Опрос...]` и меткой времени последнего успешного обновления.
 - **Неблокирующий асинхронный опрос**: метод `ClusterManager.sample_async(callback)` опрашивает узлы в фоновом потоке с безопасными таймаутами без малейшего зависания UI.
+- **Бесшовное обновление инсталлятором и Setup Guard**: инсталлятор автоматически обнаруживает и закрывает работающие процессы Station и LLM перед распаковкой, исключая ошибку `DeleteFile код 5 (Отказано в доступе)`.
+- **Умное управление службой GPU Helper**: чекбокс службы GPU снят по умолчанию; при обновлении существующая служба плавно перезапускается (`sc stop` / `sc start`) без переустановки.
 
 ### Українська
 
 - **Переробка оновлення вкладки кластера та in-place рендеринг**: оновлення інтерфейсу кластера повністю відв'язано від щосекундного тіку локальної телеметрії GPU. Замість повного перевидалення віджетів (`child.destroy()`) впроваджено плавне in-place оновлення карток (`_update_node_card_inplace`), що повністю усунуло мерехтіння, стрибки скролу та втрату кліків.
-- **Налаштовувані інтервали опитування та комфортний дефолт 30с**: інтервал оновлення за замовчуванням встановлено на спокійні 30 секунд (`30s`), у шапку додано випадний список: `30 сек`, `60 сек`, `2 хв` та `Вручну`. Фонове опитування зупиняється під час переходу на інші вкладки.
+- **Налаштовувані інтервали опитування та комфортний дефолт 30с**: інтервал оновлення за замовчуванням встановлено на спокійні 30 секунд (`30s`), у шапку додано випадний список: `30 сек`, `60 сек`, `2 хв` та `Вручную`. Фонове опитування зупиняється під час переходу на інші вкладки.
 - **Кнопка ручного опитування з індикацією**: кнопка `[⟳ Оновити]` з візуальним індикатором `[⏳ Опитування...]` та міткою часу останнього успішного оновлення.
 - **Неблокуюче асинхронне опитування**: метод `ClusterManager.sample_async(callback)` опитує вузли у фоновому потоці з безпечними таймаутами без найменшого зависання UI.
+- **Безшовне оновлення інсталятором та Setup Guard**: інсталятор автоматично виявляє та закриває запущені процеси Station та LLM перед копіюванням файлів, усуваючи помилку `DeleteFile код 5 (Відмовлено в доступі)`.
+- **Розумне керування службою GPU Helper**: встановлення служби GPU тепер вимкнено за замовчуванням; при оновленні наявна служба плавно перезапускається (`sc stop` / `sc start`) без перевстановлення.
 
 ## 0.2.0-beta.8
 
