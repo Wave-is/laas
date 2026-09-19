@@ -30,10 +30,11 @@ if ([IO.Path]::GetFullPath($sourcePath) -ne $targetPath) { Copy-Item -LiteralPat
 $binaryPath = '"' + $targetPath + '" --user-sid ' + $AllowedUserSid
 # New-Service passes the quoted path intact; sc.exe via Windows PowerShell 5 mangles embedded quotes.
 if ($existingService) {
-    & sc.exe delete $serviceName | Out-Null
-    for ($i = 0; $i -lt 50 -and (Get-Service -Name $serviceName -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 200 }
+    # Service already exists - safely update config and start without deleting the registration
+    & sc.exe config $serviceName binPath= $binaryPath | Out-Null
+} else {
+    New-Service -Name $serviceName -BinaryPathName $binaryPath -DisplayName 'Local Agent AI Station GPU Mode Helper' `
+        -Description 'Switches NVIDIA GPU driver modes (WDDM/TCC) for Local Agent AI Station. Typed plans only.' -StartupType Automatic | Out-Null
 }
-New-Service -Name $serviceName -BinaryPathName $binaryPath -DisplayName 'Local Agent AI Station GPU Mode Helper' `
-    -Description 'Switches NVIDIA GPU driver modes (WDDM/TCC) for Local Agent AI Station. Typed plans only.' -StartupType Automatic | Out-Null
 Start-Service -Name $serviceName
 Get-Service -Name $serviceName

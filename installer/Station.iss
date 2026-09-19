@@ -37,9 +37,9 @@ OutputBaseFilename=LocalAgentAIStation-{#AppVersion}-Setup-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-AppMutex=Local\LocalAgentAIStation.SetupGuard
+AppMutex=Global\LocalAgentAIStation.SetupGuard,Local\LocalAgentAIStation.SetupGuard
 SetupMutex=Local\LocalAgentAIStation.Installer
-CloseApplications=no
+CloseApplications=yes
 RestartApplications=no
 UninstallLogging=yes
 LicenseFile=..\LICENSE
@@ -59,7 +59,7 @@ uk.ServicesGroup=Служби:
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "gpuhelper"; Description: "{cm:GpuHelperTask}"; GroupDescription: "{cm:ServicesGroup}"; Check: IsAdminInstallMode
+Name: "gpuhelper"; Description: "{cm:GpuHelperTask}"; GroupDescription: "{cm:ServicesGroup}"; Flags: unchecked; Check: IsAdminInstallMode
 
 [Files]
 Source: "..\dist\LocalAgentAIStation.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -83,7 +83,7 @@ Name: "{autoprograms}\Local Agent AI Station"; Filename: "{app}\LocalAgentAIStat
 Name: "{autodesktop}\Local Agent AI Station"; Filename: "{app}\LocalAgentAIStation.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\install_helper.ps1"" -InstallPath ""{app}"""; Flags: runhidden waituntilterminated; Tasks: gpuhelper; StatusMsg: "GPU helper service..."
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\install_helper.ps1"" -InstallPath ""{app}"""; Flags: runhidden waituntilterminated; Tasks: gpuhelper; Check: NeedsGpuHelperFreshInstall; StatusMsg: "GPU helper service..."
 Filename: "{app}\LocalAgentAIStation.exe"; Description: "{cm:LaunchProgram,Local Agent AI Station}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
@@ -95,10 +95,23 @@ const
 
 var
   StartupLinkExisted: Boolean;
+  GpuServiceExisted: Boolean;
 
 function StartupLinkPath(): String;
 begin
   Result := ExpandConstant('{userstartup}\Local Agent AI Station.lnk');
+end;
+
+function IsGpuHelperInstalled(): Boolean;
+var
+  Code: Integer;
+begin
+  Result := Exec(ExpandConstant('{sys}\sc.exe'), 'query LocalAgentGpuModeHelper', '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
+end;
+
+function NeedsGpuHelperFreshInstall(): Boolean;
+begin
+  Result := IsAdminInstallMode and WizardIsTaskSelected('gpuhelper') and (not GpuServiceExisted);
 end;
 
 // Earlier versions installed per user into %LOCALAPPDATA%\Programs. When installing for all users,
@@ -110,11 +123,22 @@ var
 begin
   Result := '';
   StartupLinkExisted := FileExists(StartupLinkPath());
-  // The running service locks its EXE in {app}; it is started again after files are copied.
-  if IsAdminInstallMode then
+
+  // 1. Terminate running Station processes so files in {app} are unlocked for upgrade
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM LocalAgentAIStation.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Sleep(1000);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM LocalAgentAIStation.exe /IM llama-server.exe /IM llama-swap.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Sleep(300);
+
+  // 2. If the GPU helper service is already installed, stop it so its EXE in {app} is unlocked.
+  // It will be restarted in CurStepChanged after files are updated without deleting the service.
+  GpuServiceExisted := False;
+  if IsAdminInstallMode and IsGpuHelperInstalled() then begin
+    GpuServiceExisted := True;
     Exec(ExpandConstant('{sys}\sc.exe'), 'stop LocalAgentGpuModeHelper', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  if IsAdminInstallMode then
-    Sleep(1500);
+    Sleep(1000);
+  end;
+
   if IsAdminInstallMode and not RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', Uninstaller) then
     Uninstaller := ExpandConstant('{localappdata}\Programs\Local Agent AI Station\unins000.exe');
   if IsAdminInstallMode and FileExists(RemoveQuotes(Uninstaller)) then begin
@@ -126,12 +150,20 @@ begin
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Code: Integer;
 begin
-  // Keep "start with Windows": recreate a removed shortcut or point an old one at this copy.
-  if (CurStep = ssPostInstall) and StartupLinkExisted then
-    CreateShellLink(StartupLinkPath(), 'Local Agent AI Station '#$2014' Windows startup', ExpandConstant('{app}\LocalAgentAIStation.exe'),
-      '--data-dir "' + ExpandConstant('{localappdata}\LocalAgentAIStation') + '" --startup',
-      ExpandConstant('{app}'), ExpandConstant('{app}\LocalAgentAIStation.exe'), 0, SW_SHOWNORMAL);
+  if CurStep = ssPostInstall then begin
+    // Restart the GPU helper service if it was previously installed and running
+    if IsAdminInstallMode and GpuServiceExisted then
+      Exec(ExpandConstant('{sys}\sc.exe'), 'start LocalAgentGpuModeHelper', '', SW_HIDE, ewWaitUntilTerminated, Code);
+
+    // Keep "start with Windows": recreate a removed shortcut or point an old one at this copy.
+    if StartupLinkExisted then
+      CreateShellLink(StartupLinkPath(), 'Local Agent AI Station '#$2014' Windows startup', ExpandConstant('{app}\LocalAgentAIStation.exe'),
+        '--data-dir "' + ExpandConstant('{localappdata}\LocalAgentAIStation') + '" --startup',
+        ExpandConstant('{app}'), ExpandConstant('{app}\LocalAgentAIStation.exe'), 0, SW_SHOWNORMAL);
+  end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
