@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.2.0-beta.8
+
+### English
+
+- **Single Instance Mutex**: Kernel-level Win32 Named Mutex in `src/instance.py` preventing duplicate instances or duplicate tray icons on rapid double-clicks; secondary launches signal the running instance and exit cleanly.
+- **Dynamic GPU Adaptation & Tray Defaults**: Default tray style changed to `dual_tile` (two metrics in one tray icon); tray icon count clamped to 1 when system has < 2 GPUs; model dialog GPU selector hides multi-GPU options on single-GPU systems.
+- **Cluster UDP Auto-Discovery & Header Polish**: Added UDP broadcast beacon (`src/cluster_discovery.py`) on port 47150 with automatic TTL expiry and «🔍 Auto-discover» button with 1-click addition to cluster; restructured cluster summary header to prevent button overlap.
+- **Overheat Alert Threshold**: Default temperature alert threshold set to 90°C.
+- **Default Models Directory**: Automatically defaults to `D:\LLM` if drive D: exists (fallback to `C:\LLM`), with directory auto-creation on model downloads.
+- **Agent Frontend Auto-Selection**: Automatically selects the first installed frontend (e.g. CLI/terminal) when preferred desktop app is absent, enabling immediate agent launch.
+- **Navigation & Dashboard Layout Polish**: Left sidebar buttons compacted to 33px height to fit 768p displays; balanced dashboard padding (`pady=(5, 6)`) eliminating unnecessary scrollbars.
+- **ComfyUI Cluster Sync**: Importing cluster nodes now automatically updates `SharedServices` active ComfyUI service URL and deploys the agent skill; clearly separated local vs remote ComfyUI UX.
+- **Configurable Logging Directory**: Added `logs_dir` setting supporting local folders and UNC network shares (`\\server\share\laas-logs`), with fallback to default AppData if unreachable.
+
+### Русский
+
+- **Защита от повторного запуска (Named Mutex)**: нативный Win32 Named Mutex в `src/instance.py` исключает запуск дубликатов процесса и появление двойных иконок в трее при быстром двойном клике; второй запуск активирует окно первой копии и мгновенно завершается.
+- **Адаптация под 1 GPU и трей по умолчанию**: стиль трея по умолчанию изменён на `dual_tile` (две метрики в одной иконке); число иконок ограничено одной при наличии менее 2 GPU; селектор GPU в диалоге моделей скрывает мульти-GPU при 1 карте.
+- **Сетевой автопоиск узлов (UDP Discovery) и шапка кластера**: реализован UDP-маяк (`src/cluster_discovery.py`) на порту 47150 с автоочисткой по TTL и кнопка «🔍 Автопоиск в сети» с добавлением найденных узлов в кластер в 1 клик; шапка кластера разделена на заголовок и панель действий, исключая наложение кнопок.
+- **Порог предупреждения о перегреве**: значение порога по умолчанию повышено до 90°C.
+- **Дефолтная папка моделей D:\LLM**: автовыбор `D:\LLM` при наличии диска D: (или `C:\LLM`) с автосозданием папки при начале загрузки модели.
+- **Автовыбор доступного фронтенда агента**: если десктопный клиент не установлен, автоматически выбирается первый установленный фронтенд (CLI/терминал), делая кнопку запуска агента активной сразу.
+- **Компактизация боковой панели и баланс дашборда**: высота кнопок навигации уменьшена до 33px для экранов 768p; сбалансированные отступы карточек (`pady=(5, 6)`) убирают ложный скроллбар.
+- **Синхронизация ComfyUI из кластера**: импорт нод обновляет активный URL ComfyUI в `SharedServices` и внедряет навык агентам; разделены сценарии локального и удалённого ComfyUI.
+- **Настраиваемая папка логов**: добавлен параметр `logs_dir` с поддержкой локальных папок и сетевых путей UNC (`\\server\share\laas-logs`), с безопасным откатом на стандартную папку при недоступности сети.
+
+### Українська
+
+- **Захист від повторного запуску (Named Mutex)**: нативний Win32 Named Mutex у `src/instance.py` виключає запуск дублікатів процесу та появу подвійних іконок у треї при швидкому подвійному кліку; другий запуск активує вікно першої копії та миттєво завершується.
+- **Адаптація під 1 GPU та трей за замовчуванням**: стиль трею за замовчуванням змінено на `dual_tile` (дві метрики в одній іконці); кількість іконок обмежена однією за наявності менше 2 GPU; селектор GPU в діалозі моделей приховує мульти-GPU при 1 карті.
+- **Мережевий автопошук вузлів (UDP Discovery) та шапка кластера**: реалізовано UDP-маяк (`src/cluster_discovery.py`) на порту 47150 з автоочищенням за TTL та кнопка «🔍 Автопошук у мережі» з додаванням знайдених вузлів до кластера в 1 клік; шапка кластера розділена на заголовок і панель дій, виключаючи накладання кнопок.
+- **Поріг попередження про перегрів**: значення порогу за замовчуванням підвищено до 90°C.
+- **Дефолтна папка моделей D:\LLM**: автовибір `D:\LLM` за наявності диска D: (або `C:\LLM`) з автостворенням папки під час початку завантаження моделі.
+- **Автовибір доступного фронтенду агента**: якщо десктопний клієнт не встановлено, автоматично вибирається перший встановлений фронтенд (CLI/термінал), роблячи кнопку запуску агента активною одразу.
+- **Компактизація бічної панелі та баланс дашборду**: висота кнопок навігації зменшена до 33px для екранів 768p; збалансовані відступи карток (`pady=(5, 6)`) прибирають хибний скролбар.
+- **Синхронізація ComfyUI з кластера**: імпорт вузлів оновлює активний URL ComfyUI у `SharedServices` та впроваджує навичку агентам; розділено сценарії локального та віддаленого ComfyUI.
+- **Налаштовувана папка логів**: додано параметр `logs_dir` з підтримкою локальних папок та мережевих шляхів UNC (`\\server\share\laas-logs`), з безпечним відкатом на стандартну папку при недоступності мережі.
+
 ## 0.2.0-beta.7
 
 ### English
