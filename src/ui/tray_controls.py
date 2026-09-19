@@ -141,6 +141,12 @@ class TrayControls:
             return tr('GPU недоступен')
         return f'{device.index}: {device.name} · {device.driver_mode} · ' + format_metric(device.temp_c, 'temp')
 
+    def _gpu_device_count(self):
+        if not getattr(self, 'topology', None) or not self.topology.devices:
+            return 1
+        nvidia = [d for d in self.topology.devices if d.vendor == 'NVIDIA']
+        return len(nvidia) if nvidia else len(self.topology.devices)
+
     def _create_tray(self):
         if self.no_tray:
             return
@@ -153,7 +159,7 @@ class TrayControls:
                     if lparam == 0x0205:  # WM_RBUTTONUP
                         icon.menu = icon.pending_menu
                     return super()._on_notify(wparam, lparam)
-            count = 2 if config.get('tray_style') == 'two_icons' else 1
+            count = 2 if config.get('tray_style') == 'two_icons' and self._gpu_device_count() >= 2 else 1
             self.tray_icons = []
             menu = self._tray_menu()
             for index in range(count):
@@ -176,7 +182,7 @@ class TrayControls:
         if not self.tray:
             return
         prefs = self._tray_preferences()
-        desired = 2 if prefs['tray_style'] == 'two_icons' else 1
+        desired = 2 if prefs['tray_style'] == 'two_icons' and self._gpu_device_count() >= 2 else 1
         if desired != len(self.tray_icons):
             for icon in self.tray_icons:
                 icon.stop()
@@ -250,7 +256,7 @@ class TrayControls:
         from PIL import Image
         prefs = self._pending_tray_preferences()
         rows = [d.to_dict() for d in self.topology.devices] if self.topology else []
-        count = 2 if prefs['tray_style'] == 'two_icons' else 1
+        count = 2 if prefs['tray_style'] == 'two_icons' and self._gpu_device_count() >= 2 else 1
         preview = Image.new('RGBA', (64*count, 64))
         for i in range(count):
             preview.alpha_composite(renderer.render(rows, settings=prefs, is_running=self.backend_online,

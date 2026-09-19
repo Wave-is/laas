@@ -187,21 +187,21 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         sidebar = ctk.CTkFrame(self, width=215, fg_color='#141d27', corner_radius=0)
         sidebar.grid(row=0, column=0, sticky='nsew')
         sidebar.grid_propagate(False)
-        self.brand_image = ctk.CTkImage(mark_image(128), size=(56, 56))
+        self.brand_image = ctk.CTkImage(mark_image(128), size=(48, 48))
         brand = ctk.CTkLabel(sidebar, text='', image=self.brand_image)
-        brand.pack(anchor='w', padx=24, pady=(24, 0))
+        brand.pack(anchor='w', padx=20, pady=(16, 0))
         brand.bind('<Button-3>', self._show_quick_menu)
-        ctk.CTkLabel(sidebar, text='LOCAL AGENT\nAI STATION', font=('Segoe UI', 16, 'bold'), justify='left').pack(anchor='w', padx=24, pady=(8, 30))
+        ctk.CTkLabel(sidebar, text='LOCAL AGENT\nAI STATION', font=('Segoe UI', 14, 'bold'), justify='left').pack(anchor='w', padx=20, pady=(6, 12))
         self.nav_buttons = {}
         for page_id in PAGE_IDS:
-            button = ctk.CTkButton(sidebar, text=page_title(page_id), anchor='w', height=42, corner_radius=7,
-                fg_color='transparent', hover_color=EDGE, command=lambda name=page_id: self.show_page(name))
-            button.pack(fill='x', padx=12, pady=3)
+            button = ctk.CTkButton(sidebar, text=page_title(page_id), anchor='w', height=33, corner_radius=6,
+                font=('Segoe UI', 12), fg_color='transparent', hover_color=EDGE, command=lambda name=page_id: self.show_page(name))
+            button.pack(fill='x', padx=10, pady=1)
             self.nav_buttons[page_id] = button
-        ctk.CTkButton(sidebar, text=tr('Меню действий'), fg_color=EDGE, command=self._show_quick_menu).pack(fill='x', padx=20, pady=(25, 0))
-        ctk.CTkButton(sidebar, text=tr('Свернуть в трей'), fg_color='transparent', hover_color=EDGE, command=self.hide_to_tray).pack(fill='x', padx=20, pady=(8, 0))
-        ctk.CTkLabel(sidebar, text=tr('Независимый локальный\nцентр управления') + '\n\nv' + VERSION, justify='left',
-            text_color=MUTED, font=('Segoe UI', 12)).pack(side='bottom', anchor='w', padx=24, pady=25)
+        ctk.CTkButton(sidebar, text=tr('Меню действий'), fg_color=EDGE, height=32, corner_radius=6, command=self._show_quick_menu).pack(fill='x', padx=14, pady=(10, 0))
+        ctk.CTkButton(sidebar, text=tr('Свернуть в трей'), fg_color='transparent', hover_color=EDGE, height=32, corner_radius=6, command=self.hide_to_tray).pack(fill='x', padx=14, pady=(3, 0))
+        ctk.CTkLabel(sidebar, text=tr('Независимый локальный\nцентр управления') + '\nv' + VERSION, justify='left',
+            text_color=MUTED, font=('Segoe UI', 11)).pack(side='bottom', anchor='w', padx=20, pady=12)
 
     def page(self, name):
         page = ctk.CTkScrollableFrame(self.body, fg_color=BG, corner_radius=0)
@@ -255,13 +255,13 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
 
     def card(self, parent, title, description=''):
         frame = ctk.CTkFrame(parent, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
-        frame.pack(fill='x', padx=1, pady=(0, 10))
-        ctk.CTkLabel(frame, text=title, font=('Segoe UI', 16, 'bold'), anchor='w', height=0).pack(fill='x', padx=20, pady=(10, 2))
+        frame.pack(fill='x', padx=1, pady=(0, 12))
+        ctk.CTkLabel(frame, text=title, font=('Segoe UI', 16, 'bold'), anchor='w', height=0).pack(fill='x', padx=20, pady=(12, 3))
         if description:
-            ctk.CTkLabel(frame, text=description, text_color=MUTED, wraplength=760, justify='left', anchor='w', height=0).pack(fill='x', padx=20, pady=(0, 6))
+            ctk.CTkLabel(frame, text=description, text_color=MUTED, wraplength=760, justify='left', anchor='w', height=0).pack(fill='x', padx=20, pady=(0, 8))
         return frame
 
-    def button(self, parent, text, command, primary=False, width=140, pady=(4, 5)):
+    def button(self, parent, text, command, primary=False, width=140, pady=(5, 6)):
         button = StationButton(parent, text=text, command=command, height=36, corner_radius=7,
             width=width, primary=primary)
         button.pack(side='left', padx=(0, 10), pady=pady)
@@ -273,7 +273,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         frame.pack(fill='x', padx=20)
         return frame
 
-    def combo(self, parent, values, value=None, width=365, pady=(4, 5)):
+    def combo(self, parent, values, value=None, width=365, pady=(5, 6)):
         def label(id):
             for collection in (profile_storage.gpu_profiles, profile_storage.model_profiles, profile_storage.station_presets):
                 if id in collection:
@@ -326,7 +326,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         row = self.row(card)
         # Same field look as the selectors above: a read-only status box, then primary/secondary buttons.
         box = ctk.CTkFrame(row, width=395, height=36, fg_color='#111b25', border_color=EDGE, border_width=2, corner_radius=6)
-        box.pack(side='left', padx=(0, 12), pady=(4, 5))
+        box.pack(side='left', padx=(0, 12), pady=(5, 6))
         box.pack_propagate(False)
         self.dashboard_server_dot = ctk.CTkLabel(box, text='●', text_color=MUTED, width=18, height=0)
         self.dashboard_server_dot.pack(side='left', padx=(10, 2))
@@ -335,7 +335,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.dashboard_server_start = self.button(row, tr('Запустить сервер'), lambda: self.worker(gpu_mode_manager.start_backend, label=tr('Запуск сервера моделей')), True, width=150)
         self.dashboard_server_stop = self.button(row, tr('Остановить сервер'), lambda: (self._notify_watchdog_stop(), self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей'))), width=150)
         self.combination_label = ctk.CTkLabel(card, text=tr('Выберите модель и нажмите «Загрузить модель».'), anchor='w', justify='left', text_color=MUTED, height=0)
-        self.combination_label.pack(fill='x', padx=20, pady=(2, 8))
+        self.combination_label.pack(fill='x', padx=20, pady=(4, 10))
 
     def _build_agents(self):
         page = self.page('agents')
@@ -440,7 +440,8 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.path_entries = {}
         for key, title, hint in [
                 ('runtime_dir', tr('Папка движка'), tr('Программы, которые запускают модели: llama-swap.exe и llama-server.exe (llama.cpp). Встроенный движок ставится вместе со Station — оставьте поле пустым, чтобы использовать его. Другую папку указывайте, только если нужна своя сборка llama.cpp.')),
-                ('models_dir', tr('Папка моделей'), tr('Где лежат файлы моделей .gguf. Если в профиле модели указано только имя файла, он ищется здесь.'))]:
+                ('models_dir', tr('Папка моделей'), tr('Где лежат файлы моделей .gguf. Если в профиле модели указано только имя файла, он ищется здесь.')),
+                ('logs_dir', tr('Папка журналов (логов)'), tr('Куда сохраняются журналы работы станции (station.log). Оставьте пустым для папки по умолчанию. Можно указать локальный путь или общую сетевую папку (например \\\\server\\share\\laas-logs).'))]:
             ctk.CTkLabel(card, text=title, anchor='w', font=('Segoe UI', 13, 'bold')).pack(fill='x', padx=20, pady=(8, 0))
             ctk.CTkLabel(card, text=hint, anchor='w', text_color=MUTED, wraplength=900, justify='left').pack(fill='x', padx=20)
             row = self.row(card)
@@ -461,6 +462,8 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self._refresh_path_hints()
         row = self.row(card)
         self.button(row, tr('Сохранить'), self._save_paths, True)
+        from ..paths import logs_dir
+        self.button(row, tr('Открыть папку логов'), lambda: self._open_path(logs_dir()), width=180)
         self.button(row, tr('Открыть папку данных'), lambda: self._open_path(data_dir()), width=190)
         card = self.card(page, tr('Управление режимами GPU'), tr('Переключать видеокарты между WDDM и TCC может только администратор. '
             'Служба переключения ставится установщиком Station и выполняет только эту операцию, без окна подтверждения прав. '
@@ -516,9 +519,15 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
     def _save_paths(self):
         try:
             values = {key: entry.get().strip() for key, entry in self.path_entries.items()}
-            for key in ('runtime_dir', 'models_dir'):
-                if values[key] and not Path(values[key]).is_dir():
-                    raise ValueError(tr('Папка не найдена: {path}', path=values[key]))
+            for key in ('runtime_dir', 'models_dir', 'logs_dir'):
+                if values.get(key):
+                    p = Path(values[key])
+                    try:
+                        p.mkdir(parents=True, exist_ok=True)
+                    except Exception as e:
+                        raise ValueError(tr('Папка не найдена или недоступна: {path}', path=values[key]))
+                    if not p.is_dir():
+                        raise ValueError(tr('Папка не найдена: {path}', path=values[key]))
             lan_changed = (config.get('llama_swap_lan_access') is True) != self.lan_var.get()
             values['llama_swap_lan_access'] = self.lan_var.get()
             if values['runtime_dir'] != config.get('runtime_dir'):
@@ -587,7 +596,13 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         choices = [id for id, f in self.controller.frontends.items() if f['runtime_id'] == runtime]
         self.frontend_combo.configure(values=choices or ['—'])
         preferred = config.get('preferred_frontend')
-        self.frontend_combo.set(preferred if preferred in choices else choices[0] if choices else '—')
+        def is_installed(fid):
+            return self.controller.frontends.get(fid, {}).get('status') in ('INSTALLED', 'SUPPORTED (experimental)')
+        if preferred in choices and is_installed(preferred):
+            selected = preferred
+        else:
+            selected = next((id for id in choices if is_installed(id)), preferred if preferred in choices else (choices[0] if choices else '—'))
+        self.frontend_combo.set(selected)
 
     def _select_runtime(self, runtime):
         def done(result):
@@ -951,8 +966,10 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         if action == 'page':
             self.deiconify(); self.lift(); self.show_page(value)
         elif action == 'logs':
-            if (data_dir() / 'logs').exists():
-                os.startfile(str(data_dir() / 'logs'))
+            from ..paths import logs_dir
+            ld = logs_dir()
+            if ld.exists():
+                os.startfile(str(ld))
         elif action == 'quit':
             self.quit_app()
         elif getattr(self, 'gpu_dialog', None) and self.gpu_dialog.winfo_exists():

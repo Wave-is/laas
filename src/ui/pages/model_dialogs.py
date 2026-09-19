@@ -36,8 +36,9 @@ def status_names():
 
 def gpu_names(count):
     names = {model_library.GPU_ALL: tr('Все подходящие GPU'), model_library.GPU_ONE: tr('Одна GPU с наибольшей памятью')}
-    for n in range(2, max(2, count) + 1):
-        names[str(n)] = tr('Не меньше {count} GPU', count=n)
+    if count >= 2:
+        for n in range(2, count + 1):
+            names[str(n)] = tr('Не меньше {count} GPU', count=n)
     return names
 
 

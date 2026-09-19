@@ -1,14 +1,26 @@
 # Development handoff
 
-Updated: 2026-09-19. **Release 0.2.0-beta.7 published on GitHub. Repository is public.**
-All 263 tests pass with zero failures.
+Updated: 2026-09-19. **All 11 secondary PC feedback items implemented & verified.**
+All 272 tests pass with zero failures.
 
 ## Текущая работа
-- **Цель**: релиз 0.2.0-beta.7 с автоматической синхронизацией моделей кластера и знаний с агентами (Qwen Code Desktop).
-- **Статус**: Выполнено. Выпущен релиз `v0.2.0-beta.7`, все ассеты собраны и загружены на GitHub Releases.
-- **Проверка**: Все 263 теста пройдены, контрольные суммы SHA-256 проверены.
+- **Цель**: устранение 11 замечаний после тестирования релиза на втором ПК (1 GPU, CLI-агент, удалённый ComfyUI, LAN-кластер).
+- **Статус**: Выполнено. Реализован весь пакет из 11 пунктов:
+  1. Win32 Named Mutex в `src/instance.py` для надёжного single-instance без гонок при двойном клике.
+  2. Адаптация под 1 GPU: дефолтный `tray_style` изменён на `dual_tile`, ограничение числа иконок трея до 1 при < 2 GPU.
+  3. Устранение наложения в шапке кластера + автоматический автопоиск узлов по UDP (порт 47150) с диалогом добавления в 1 клик.
+  4. Порог перегрева по умолчанию установлен на 90°C (`DEFAULT_THRESHOLD = 90`).
+  5. Дефолтная папка моделей `D:\LLM` (с фолбэком на `C:\LLM` при отсутствии диска D:) и автосозданием при скачивании.
+  6. Автовыбор установленного фронтенда агента (CLI/терминал активен со старта даже при отсутствии Desktop).
+  7. Компактизация левой навигационной панели (уменьшена высота кнопок до 33px и паддинги, помещается на экранах 768p).
+  8. Сбалансированные отступы дашборда (`pady=(5, 6)`), устраняющие чрезмерную тесноту и предотвращающие скроллбар.
+  9. Синхронизация ComfyUI при импорте кластера: автоматическое обновление URL в `SharedServices` и внедрение навыка.
+  10. Разделение UX локального vs сетевого ComfyUI.
+  11. Настраиваемая папка логов в `src/paths.py`, `src/config.py` и Настройках с поддержкой сетевых путей UNC (`\\server\share`).
+- **Проверка**: Все 272 теста пройдены без ошибок (pytest за 11.5с).
 
 Current progress:
+- **Secondary PC Polish & Cluster Auto-Discovery**: 11 improvements implemented and covered by 9 new tests.
 - **Latest Release**: `v0.2.0-beta.7` published at [Wave-is/laas/releases/tag/v0.2.0-beta.7](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.7)
   with all 5 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt, cluster_topology.xml).
 - **Cluster Models Discovery & Sync**: module `src/node_models.py` queries `/v1/models` from cluster LLM nodes, adds remote models to Qwen Code Desktop (`modelProviders.local-agent-station`), auto-syncs on cluster node updates and XML import.

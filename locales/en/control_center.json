@@ -204,5 +204,9 @@
   "НЕ НАЙДЕН": "NOT FOUND",
   "Папка проекта для {name}": "Project folder for {name}",
   "Не запущен · установлен. При запуске Station спросит папку проекта, с которой будет работать агент.": "Not running · installed. When you start it, Station asks for the project folder the agent will work in.",
-  "Не запущен · установлен.": "Not running · installed."
+  "Не запущен · установлен.": "Not running · installed.",
+  "Папка журналов (логов)": "Logs folder",
+  "Куда сохраняются журналы работы станции (station.log). Оставьте пустым для папки по умолчанию. Можно указать локальный путь или общую сетевую папку (например \\\\server\\share\\laas-logs).": "Where Station operation logs (station.log) are saved. Leave empty for default folder. You can specify a local path or a shared network folder (e.g. \\\\server\\share\\laas-logs).",
+  "Открыть папку логов": "Open logs folder",
+  "Папка не найдена или недоступна: {path}": "Folder not found or inaccessible: {path}"
 }

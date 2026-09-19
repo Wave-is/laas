@@ -1,6 +1,39 @@
 # Work log
  
-## 2026-09-18 — cluster models & agent knowledge synchronization
+## 2026-09-19 — secondary PC feedback fixes & cluster auto-discovery
+
+1. Win32 Named Mutex Single Instance (`src/instance.py`, `main.pyw`):
+   - Added kernel-level Win32 Named Mutex (`CreateMutexW`, `ERROR_ALREADY_EXISTS 183`) preventing race conditions on rapid double-clicks.
+   - Secondary instance immediately signals running instance via loopback socket to bring window to front and exits `0` cleanly.
+   - Started listener loop immediately on acquire with queued show events, eliminating the 2-second startup window race.
+2. Dynamic GPU Adaptation & Tray Defaults (`src/config.py`, `src/ui/tray_controls.py`, `src/ui/pages/model_dialogs.py`):
+   - Changed default `tray_style` in `DEFAULT_SETTINGS` from `two_icons` to `dual_tile` (two metrics in one tray icon).
+   - Clamped tray icons to 1 whenever detected NVIDIA/discrete GPU count is < 2, eliminating unwanted second dummy tray icon on single-GPU machines.
+   - Updated model dialog GPU selector to only present multi-GPU options when 2+ GPUs are detected.
+3. Cluster Page UI Overlap Fix & UDP Auto-Discovery (`src/cluster_discovery.py`, `src/ui/pages/cluster.py`):
+   - Restructured summary card into two clean rows: Title/Subtitle row on top (with Refresh button), and dedicated Action Toolbar underneath, completely preventing button overlap at any screen width.
+   - Implemented `ClusterDiscovery` (`src/cluster_discovery.py`): UDP broadcast beacon on port 47150 announcing hostname, IP, port, endpoints, and GPU specs; background listener with automatic TTL expiry.
+   - Added «🔍 Автопоиск в сети» button and `ClusterDiscoveryDialog` on Cluster page for 1-click addition of discovered LAN nodes.
+4. Overheat Alert Threshold 90°C (`src/ui/pages/monitoring.py`, `src/metrics_history.py`, `src/config.py`):
+   - Changed `DEFAULT_THRESHOLD = 90` (was 85) in `monitoring.py` and `DEFAULT_SETTINGS['monitoring_alert_threshold_c'] = 90`.
+5. Default Models Directory `D:\LLM` (`src/model_server.py`, `src/hf_download.py`):
+   - `model_server.models_dir()` now defaults to `D:\LLM` if drive D: exists, otherwise `C:\LLM`.
+   - `safe_target` in `hf_download.py` automatically creates target directory on download.
+6. Agent Frontend Auto-Selection (`src/ui/agent_controls.py`, `src/ui/control_center.py`):
+   - When preferred frontend (`qwen-desktop`) is not installed, automatically selects the first *installed* frontend (`qwen-terminal`), enabling the «Запустить агента» button immediately.
+7. Sidebar & Dashboard Layout Polish (`src/ui/control_center.py`):
+   - Compacted left sidebar navigation: reduced button height from 42 to 33, padding to 1, brand and footer vertical margins tightened, fitting all 10 page buttons on 768p displays without cutoff.
+   - Balanced dashboard padding (`pady=(5, 6)`) for cards, combos, and status boxes, providing breathing room while keeping the entire station page within window height.
+8. ComfyUI Cluster Sync & Local vs Remote UX (`src/cluster_manager.py`):
+   - `import_nodes_xml` automatically updates `SharedServices` active ComfyUI service profile with remote node's URL (e.g. `http://192.168.x.x:8188`) instead of keeping disconnected `127.0.0.1:8188`, and deploys the agent skill.
+9. Configurable Logging Directory (`src/paths.py`, `src/config.py`, `main.pyw`, `src/ui/control_center.py`):
+   - Added `'logs_dir'` setting in `config.py`.
+   - Added `logs_dir()` in `paths.py` with fallback to default `%LOCALAPPDATA%/LocalAgentAIStation/logs` if custom/network path is unreachable.
+   - Added «Папка журналов (логов)» field in Settings supporting UNC network shares (`\\server\share\laas-logs`), and «Открыть папку логов» button.
+10. Testing & Verification:
+    - Added unit tests: `tests/test_instance.py`, `tests/test_cluster_discovery.py`, `tests/test_secondary_pc_fixes.py`.
+    - Added full EN/UK translations in `locales/{en,uk}/cluster.json` and `locales/{en,uk}/control_center.json`.
+    - All 272 automated pytest tests pass with zero failures.
  
 1. Remote Node Models Discovery:
    - Created `src/node_models.py` (`RemoteModel`, `query_node_models`, `discover_cluster_models`) to discover available models from cluster LLM nodes over OpenAI-compatible `/v1/models` endpoints.

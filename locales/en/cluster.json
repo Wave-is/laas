@@ -62,5 +62,18 @@
   "Обнаружение кластерных моделей: {error}": "Cluster model discovery: {error}",
   "{agent}: модели синхронизированы": "{agent}: models synchronized",
   "{agent}: уже синхронизирован": "{agent}: already in sync",
-  "{agent}: ошибка — {error}": "{agent}: error — {error}"
+  "{agent}: ошибка — {error}": "{agent}: error — {error}",
+  "🔍 Автопоиск в сети": "🔍 LAN Auto-Discovery",
+  "Автопоиск узлов в локальной сети": "LAN Node Auto-Discovery",
+  "Обнаружение других экземпляров Station на компьютерах в вашей сети (UDP 47150).": "Discover other Station instances on computers in your network (UDP 47150).",
+  "Поиск узлов…": "Discovering nodes…",
+  "🔍 Повторить поиск": "🔍 Probe Network",
+  "Опрос сети…": "Probing network…",
+  "Узлы не найдены": "No nodes found",
+  "Узлы Station в локальной сети не найдены.\nУбедитесь, что Station запущена на других ПК и брандмауэр разрешает UDP порт 47150.": "No Station nodes found on LAN.\nEnsure Station is running on other PCs and firewall permits UDP port 47150.",
+  "Обнаружено узлов в сети: {count}": "Discovered nodes on LAN: {count}",
+  "Уже в кластере ✓": "Already in Cluster ✓",
+  "+ Добавить в кластер": "+ Add to Cluster",
+  "GPU:": "GPU:",
+  "GPU не обнаружены": "No GPUs detected"
 }

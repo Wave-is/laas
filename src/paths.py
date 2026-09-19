@@ -13,6 +13,23 @@ def data_dir() -> Path:
         return Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData/Local')) / 'LocalAgentAIStation'
     return Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share')) / 'local-agent-ai-station'
 
+def default_logs_dir() -> Path:
+    return data_dir() / 'logs'
+
+def logs_dir() -> Path:
+    try:
+        from .config import config
+        custom = config.get('logs_dir')
+        if custom:
+            p = Path(custom)
+            p.mkdir(parents=True, exist_ok=True)
+            return p
+    except Exception:
+        pass
+    p = default_logs_dir()
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
 def legacy_dir() -> Path:
     return Path(os.environ.get('APPDATA', Path.home() / 'AppData/Roaming')) / 'HermesStation2'
 

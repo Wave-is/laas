@@ -75,7 +75,8 @@ def main():
         else:
             raise ValueError('Use --migrate --output report.json with the windowed executable')
         return 0
-    logs = data_dir() / 'logs'
+    from src.paths import logs_dir
+    logs = logs_dir()
     logs.mkdir(parents=True, exist_ok=True)
     from logging.handlers import RotatingFileHandler
     logging.basicConfig(level=logging.INFO, handlers=[RotatingFileHandler(logs / 'station.log', maxBytes=2_000_000, backupCount=3, encoding='utf-8')],

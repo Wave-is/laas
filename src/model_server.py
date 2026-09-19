@@ -112,9 +112,18 @@ def runtime_dir():
     return None
 
 
+def default_models_dir():
+    try:
+        if Path('D:/').exists():
+            return Path('D:/LLM')
+    except Exception:
+        pass
+    return Path('C:/LLM')
+
+
 def models_dir():
     value = config.get('models_dir')
-    return Path(value) if value else None
+    return Path(value) if value else default_models_dir()
 
 
 def detect_models_dir(profiles):

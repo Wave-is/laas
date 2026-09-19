@@ -31,11 +31,17 @@ class ClusterPage:
         except Exception as e:
             log.warning("Could not start telemetry server: %s", e)
 
+        try:
+            from ...cluster_discovery import cluster_discovery
+            cluster_discovery.start()
+        except Exception as e:
+            log.warning("Could not start cluster discovery: %s", e)
+
         # Top summary card
         self.cluster_summary_card = ctk.CTkFrame(page, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
         self.cluster_summary_card.pack(fill='x', padx=1, pady=(0, 14))
 
-        # Header row with title and action buttons
+        # Header row 1: Title and top refresh button
         header_row = ctk.CTkFrame(self.cluster_summary_card, fg_color='transparent')
         header_row.pack(fill='x', padx=20, pady=(15, 6))
 
@@ -45,37 +51,47 @@ class ClusterPage:
         ctk.CTkLabel(title_box, text=tr('Распределенный мониторинг видеокарт и генерации моделей по HTTP'),
                      text_color=MUTED, font=('Segoe UI', 12), anchor='w').pack(anchor='w')
 
-        btn_box = ctk.CTkFrame(header_row, fg_color='transparent')
-        btn_box.pack(side='right')
+        top_btn_box = ctk.CTkFrame(header_row, fg_color='transparent')
+        top_btn_box.pack(side='right')
 
         ctk.CTkButton(
-            btn_box, text=tr('📥 Импорт XML'), fg_color='#238636', hover_color='#2ea043',
-            height=34, corner_radius=7, font=('Segoe UI', 12),
+            top_btn_box, text=tr('⟳ Обновить'), fg_color=EDGE, hover_color='#364a60',
+            height=32, corner_radius=7, font=('Segoe UI', 12),
+            command=lambda: self._refresh_cluster_ui()
+        ).pack(side='right')
+
+        # Action toolbar row 2: clean dedicated row underneath title
+        toolbar_row = ctk.CTkFrame(self.cluster_summary_card, fg_color='transparent')
+        toolbar_row.pack(fill='x', padx=20, pady=(2, 10))
+
+        ctk.CTkButton(
+            toolbar_row, text=tr('📥 Импорт XML'), fg_color='#238636', hover_color='#2ea043',
+            height=32, corner_radius=7, font=('Segoe UI', 12),
             command=self._import_cluster_xml
         ).pack(side='left', padx=(0, 8))
 
         ctk.CTkButton(
-            btn_box, text=tr('📤 Экспорт XML'), fg_color=EDGE, hover_color='#364a60',
-            height=34, corner_radius=7, font=('Segoe UI', 12),
+            toolbar_row, text=tr('📤 Экспорт XML'), fg_color=EDGE, hover_color='#364a60',
+            height=32, corner_radius=7, font=('Segoe UI', 12),
             command=self._export_cluster_xml
         ).pack(side='left', padx=(0, 8))
 
         ctk.CTkButton(
-            btn_box, text=tr('📢 Рассказать агентам'), fg_color='#8957e5', hover_color='#a371f7',
-            height=34, corner_radius=7, font=('Segoe UI', 12, 'bold'),
+            toolbar_row, text=tr('📢 Рассказать агентам'), fg_color='#8957e5', hover_color='#a371f7',
+            height=32, corner_radius=7, font=('Segoe UI', 12, 'bold'),
             command=lambda: self._share_comfyui_with_agents()
         ).pack(side='left', padx=(0, 8))
 
         ctk.CTkButton(
-            btn_box, text=tr('+ Добавить узел'), fg_color='#1f6feb', hover_color='#238636',
-            height=34, corner_radius=7, font=('Segoe UI', 12, 'bold'),
+            toolbar_row, text=tr('+ Добавить узел'), fg_color='#1f6feb', hover_color='#238636',
+            height=32, corner_radius=7, font=('Segoe UI', 12, 'bold'),
             command=lambda: self._open_cluster_node_dialog()
         ).pack(side='left', padx=(0, 8))
 
         ctk.CTkButton(
-            btn_box, text=tr('⟳ Обновить'), fg_color=EDGE, hover_color='#364a60',
-            height=34, corner_radius=7, font=('Segoe UI', 12),
-            command=lambda: self._refresh_cluster_ui()
+            toolbar_row, text=tr('🔍 Автопоиск в сети'), fg_color='#0969da', hover_color='#2188ff',
+            height=32, corner_radius=7, font=('Segoe UI', 12, 'bold'),
+            command=lambda: self._open_discovery_dialog()
         ).pack(side='left')
 
         # KPI Tiles
@@ -554,3 +570,126 @@ class ClusterPage:
             tr('Оповестить агентов'),
             "\n\n".join(parts)
         )
+
+    def _open_discovery_dialog(self):
+        ClusterDiscoveryDialog(self, self.cluster_manager, on_nodes_added=self._refresh_cluster_ui)
+
+
+class ClusterDiscoveryDialog(ctk.CTkToplevel):
+    def __init__(self, parent, cluster_manager, on_nodes_added=None):
+        super().__init__(parent)
+        self.cluster_manager = cluster_manager
+        self.on_nodes_added = on_nodes_added
+        self.title(tr('Автопоиск узлов в локальной сети'))
+        self.geometry('760x520')
+        self.minsize(640, 420)
+        self.configure(fg_color=BG)
+        self.transient(parent)
+
+        # Header
+        hdr = ctk.CTkFrame(self, fg_color='transparent')
+        hdr.pack(fill='x', padx=24, pady=(20, 10))
+        ctk.CTkLabel(hdr, text=tr('Автопоиск узлов в локальной сети'), font=('Segoe UI', 20, 'bold')).pack(anchor='w')
+        ctk.CTkLabel(hdr, text=tr('Обнаружение других экземпляров Station на компьютерах в вашей сети (UDP 47150).'),
+                     text_color=MUTED, font=('Segoe UI', 12)).pack(anchor='w')
+
+        # Actions row
+        act_row = ctk.CTkFrame(self, fg_color='transparent')
+        act_row.pack(fill='x', padx=24, pady=(0, 10))
+        self.status_lbl = ctk.CTkLabel(act_row, text=tr('Поиск узлов…'), font=('Segoe UI', 12, 'bold'), text_color=ACCENT)
+        self.status_lbl.pack(side='left')
+        ctk.CTkButton(act_row, text=tr('🔍 Повторить поиск'), fg_color=EDGE, hover_color='#364a60', height=30,
+                      command=self._refresh_nodes).pack(side='right')
+
+        # List frame
+        self.list_frame = ctk.CTkScrollableFrame(self, fg_color=PANEL, corner_radius=10, border_color=EDGE, border_width=1)
+        self.list_frame.pack(fill='both', expand=True, padx=24, pady=(0, 14))
+
+        # Bottom row
+        btm = ctk.CTkFrame(self, fg_color='transparent')
+        btm.pack(fill='x', padx=24, pady=(0, 18))
+        ctk.CTkButton(btm, text=tr('Закрыть'), fg_color=EDGE, width=120, height=34, command=self.destroy).pack(side='right')
+
+        self._probe_and_render()
+
+    def _probe_and_render(self):
+        try:
+            from ...cluster_discovery import cluster_discovery
+            cluster_discovery.probe()
+        except Exception:
+            pass
+        self.after(500, self._render_nodes)
+
+    def _refresh_nodes(self):
+        self.status_lbl.configure(text=tr('Опрос сети…'), text_color=MUTED)
+        try:
+            from ...cluster_discovery import cluster_discovery
+            cluster_discovery.probe()
+        except Exception:
+            pass
+        self.after(600, self._render_nodes)
+
+    def _render_nodes(self):
+        try:
+            from ...cluster_discovery import cluster_discovery
+            nodes = cluster_discovery.get_discovered_nodes()
+        except Exception:
+            nodes = []
+
+        existing_urls = {n.get('url', '').rstrip('/') for n in self.cluster_manager.get_nodes()}
+        existing_ips = {n.get('url', '').split('://')[-1].split(':')[0] for n in self.cluster_manager.get_nodes()}
+
+        for child in self.list_frame.winfo_children():
+            child.destroy()
+
+        if not nodes:
+            self.status_lbl.configure(text=tr('Узлы не найдены'), text_color=MUTED)
+            ctk.CTkLabel(self.list_frame, text=tr('Узлы Station в локальной сети не найдены.\nУбедитесь, что Station запущена на других ПК и брандмауэр разрешает UDP порт 47150.'),
+                         text_color=MUTED, font=('Segoe UI', 13), justify='center').pack(pady=60)
+            return
+
+        self.status_lbl.configure(text=tr('Обнаружено узлов в сети: {count}', count=len(nodes)), text_color=ACCENT)
+        for n in nodes:
+            row = ctk.CTkFrame(self.list_frame, fg_color='#121a24', corner_radius=8, border_color=EDGE, border_width=1)
+            row.pack(fill='x', padx=8, pady=4)
+
+            info_col = ctk.CTkFrame(row, fg_color='transparent')
+            info_col.pack(side='left', fill='both', expand=True, padx=14, pady=10)
+
+            title_txt = f"● {n.get('hostname', 'Station')} ({n.get('ip')}:{n.get('port', 9292)})"
+            ctk.CTkLabel(info_col, text=title_txt, font=('Segoe UI', 14, 'bold'), text_color=TEXT, anchor='w').pack(fill='x')
+
+            gpu_list = n.get('gpus', [])
+            gpu_str = ", ".join(f"{g.get('name')} ({g.get('vram_gb')} GB)" for g in gpu_list) if gpu_list else tr('GPU не обнаружены')
+            sub_txt = f"{tr('GPU:')} {gpu_str}  ·  v{n.get('version', '')}"
+            ctk.CTkLabel(info_col, text=sub_txt, font=('Segoe UI', 11), text_color=MUTED, anchor='w').pack(fill='x', pady=(2, 0))
+
+            btn_col = ctk.CTkFrame(row, fg_color='transparent')
+            btn_col.pack(side='right', padx=14, pady=10)
+
+            is_already = (n.get('url', '').rstrip('/') in existing_urls) or (n.get('ip') in existing_ips)
+            if is_already:
+                ctk.CTkLabel(btn_col, text=tr('Уже в кластере ✓'), text_color=ACCENT, font=('Segoe UI', 12, 'bold')).pack(pady=4)
+            else:
+                ctk.CTkButton(
+                    btn_col, text=tr('+ Добавить в кластер'), fg_color='#238636', hover_color='#2ea043',
+                    height=32, font=('Segoe UI', 12, 'bold'),
+                    command=lambda node=n: self._add_node(node)
+                ).pack()
+
+    def _add_node(self, node):
+        nid = f"node-{node.get('hostname', 'pc').lower()}-{int(time.time())}"
+        ndata = {
+            'id': nid,
+            'name': node.get('hostname', 'Station PC'),
+            'url': node.get('url', f"http://{node.get('ip')}:{node.get('port', 9292)}"),
+            'telemetry_url': node.get('telemetry_url', f"http://{node.get('ip')}:47050/metrics"),
+            'type': node.get('type', 'llama_swap'),
+            'notes': f"Auto-discovered LAN node (v{node.get('version', '')})",
+            'enabled': True
+        }
+        self.cluster_manager.add_node(ndata)
+        self._render_nodes()
+        if self.on_nodes_added:
+            self.on_nodes_added()
+

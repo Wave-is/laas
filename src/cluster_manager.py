@@ -328,10 +328,30 @@ class ClusterManager:
                     self._history["node_gpu_utils"][nid] = deque(maxlen=HISTORY_MAX)
                 count += 1
 
-            self.save_nodes()
             try:
                 for n in imported_nodes:
-                    if n.get("type") == "comfyui":
+                    if n.get("type") == "comfyui" and n.get("url"):
+                        try:
+                            from .shared_services import SharedServices
+                            from .service_profiles import profile_from_form
+                            ss = SharedServices()
+                            profs = ss.profiles()
+                            target_id = next((sid for sid, p in profs.items() if p.get("kind") == "comfyui"), "service-comfyui")
+                            orig = profs.get(target_id)
+                            updated_prof = profile_from_form(
+                                original=orig,
+                                name=n.get("name") or "ComfyUI (Image Server)",
+                                location="remote",
+                                kind="comfyui",
+                                url=n.get("url"),
+                                monitor=True,
+                                restart=False
+                            )
+                            updated_prof["id"] = target_id
+                            _, exp = ss.edit_snapshot(target_id)
+                            ss.save(updated_prof, exp)
+                        except Exception as ss_ex:
+                            log.debug("Could not update SharedServices comfyui: %s", ss_ex)
                         from .skill_distributor import skill_distributor
                         skill_distributor.deploy(server_url=n.get("url"))
                         break

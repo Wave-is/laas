@@ -7,19 +7,30 @@ from .i18n import tr, system_language
 
 CONFIG_DIR = data_dir() / 'config'
 CONFIG_FILE = CONFIG_DIR / 'station.yaml'
+def _default_models_folder():
+    from pathlib import Path
+    try:
+        if Path('D:/').exists():
+            return 'D:\\LLM'
+    except Exception:
+        pass
+    return 'C:\\LLM'
+
 DEFAULT_SETTINGS = {
     'version': '3.0.0', 'language': system_language(), 'station_mode': 'disabled',
     'active_engine': 'llama_swap', 'active_model_profile': 'none',
     'active_gpu_profile': 'gpu-unchanged', 'primary_agent_runtime': 'qwen-code',
-    'preferred_frontend': 'qwen-desktop', 'tray_style': 'two_icons',
+    'preferred_frontend': 'qwen-desktop', 'tray_style': 'dual_tile',
     'tray_theme': 'dark_tile', 'tray_display_mode': 'temp',
     'tray_metric_gpu0': 'temp', 'tray_metric_gpu1': 'temp',
     'tray_channels': None,
     'suppress_gpu_switch_warning': False,
     'poll_interval_sec': 3.0, 'excluded_gpu_uuids': [], 'autostart': False,
     'llama_swap_url': 'http://127.0.0.1:9292', 'ollama_url': 'http://127.0.0.1:11434',
+    'monitoring_alert_threshold_c': 90,
     # runtime_dir holds llama.cpp and llama-swap; explicit executables override the search there.
-    'workspace': '', 'last_agent_folder': '', 'runtime_dir': '', 'models_dir': '', 'llama_swap_lan_access': False,
+    'workspace': '', 'last_agent_folder': '', 'runtime_dir': '', 'models_dir': '',
+    'logs_dir': '', 'llama_swap_lan_access': False,
     'llama_swap_executable': '', 'llama_server_executable': '',
     'cluster_nodes': None, 'cluster_poll_interval_sec': 2.0,
 }

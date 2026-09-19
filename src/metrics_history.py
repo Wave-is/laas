@@ -507,7 +507,7 @@ class MetricsSampler:
         try:
             enabled, threshold = self.alert_settings()
         except Exception:
-            enabled, threshold = True, 85.0
+            enabled, threshold = True, 90.0
         alerts = [gpu for gpu in gpus if self.overheat.update(gpu['uuid'], gpu.get('temp'), threshold, now, enabled)]
         for gpu in alerts:
             if self.on_alert:

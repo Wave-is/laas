@@ -120,6 +120,10 @@ def file_url(repo, filename, revision='main'):
 def safe_target(folder, filename):
     """Destination inside folder; repository sub-folders are kept, escaping paths are refused."""
     folder = Path(folder).resolve()
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
     parts = [p for p in filename.replace('\\', '/').split('/') if p]
     if not parts or any(p in ('.', '..') or ':' in p for p in parts):
         raise ValueError(tr('Недопустимое имя файла: {name}', name=filename))

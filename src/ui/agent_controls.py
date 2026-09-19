@@ -27,8 +27,12 @@ class AgentControls:
         if not choices:
             return
         preferred = config.get('preferred_frontend')
-        selected = preferred if preferred in choices else next((id for id in choices if
-            self.controller.frontends[id].get('status') == 'INSTALLED'), choices[0])
+        def is_installed(fid):
+            return self.controller.frontends.get(fid, {}).get('status') in ('INSTALLED', 'SUPPORTED (experimental)')
+        if preferred in choices and is_installed(preferred):
+            selected = preferred
+        else:
+            selected = next((id for id in choices if is_installed(id)), preferred if preferred in choices else choices[0])
         row = self.row(card)
         combo = self.combo(row, choices, selected, width=375)
         combo.configure(command=lambda value: self._refresh_agent_launch_states())
