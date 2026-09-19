@@ -1,24 +1,26 @@
 # Development handoff
 
-Updated: 2026-09-19. **Release 0.2.0-beta.8 built, published and verified on GitHub.**
+Updated: 2026-09-19. **Release 0.2.0-beta.9 built, published and verified on GitHub.**
 All 276 tests pass with zero failures.
 
 ## Текущая работа
-- **Цель**: переработка механики обновления вкладки «LLM-кластер» для медленных ПК (устранение постоянных перерисовок и дерганий, внедрение ручного режима обновления и настраиваемых интервалов, in-place обновление виджетов без destroy).
-- **Статус**: Завершена.
+- **Цель**: переработка механики обновления вкладки «LLM-кластер» для медленных ПК (устранение постоянных перерисовок и дерганий, внедрение спокойного дефолтного интервала 30с и настраиваемых интервалов, in-place обновление виджетов без destroy, сборка и публикация нового инсталлятора).
+- **Статус**: Завершена. Релиз `v0.2.0-beta.9` собран и опубликован на GitHub.
 - **Подтверждённый результат**:
   - Полностью отвязано обновление UI вкладки кластера от ежесекундного тика локальной телеметрии GPU.
   - Реализован in-place рендеринг карточек узлов (`_update_node_card_inplace`): виджеты больше не уничтожаются (`destroy()`) при обновлении метрик, устранены мерцания, прыжки скролла и потеря кликов.
-  - В шапку вкладки кластера добавлены контролы: режим обновления (`Вручную`, `15 сек`, `30 сек`, `60 сек`), кнопка ручного опроса `[⟳ Обновить]` с визуальным индикатором `[⏳ Опрос...]` и метка времени последнего успешного обновления.
+  - В шапку вкладки кластера добавлены контролы: спокойные интервалы (`30 сек`, `60 сек`, `2 мин`, `Вручную`) с дефолтом 30 секунд, кнопка ручного опроса `[⟳ Обновить]` с визуальным индикатором `[⏳ Опрос...]` и метка времени последнего успешного обновления.
   - В `ClusterManager` добавлен неблокирующий опрос `sample_async(callback)`, поллер переведён в режим сна при `manual` и использует адаптивный таймаут.
   - Все 276 тестов проходят успешно (включая i18n, `test_cluster.py` и все регрессионные тесты).
-- **Следующий конкретный шаг**: подготовка сборки/релиза или дальнейшее тестирование на физических машинах.
-- **Критерий завершения**: 276 тестов пройдено, интерфейс кластера не мигает и не расходует лишние ресурсы на медленных ПК.
+  - Скомпилирован полный инсталлятор Inno Setup с бандлом llama.cpp/llama-swap (`LocalAgentAIStation-0.2.0-beta.9-Setup-x64.exe`, 182.7 MB).
+  - Релиз `v0.2.0-beta.9` успешно опубликован на GitHub со всеми 4 ассетами и проверенными контрольными суммами SHA256.
+- **Следующий конкретный шаг**: установка и тестирование нового инсталлятора на втором ПК.
+- **Критерий завершения**: инсталлятор скачан и успешно развёрнут на втором ПК, опрос кластера работает плавно без нагрузки на CPU.
 
 Current progress:
-- **Latest Release**: `v0.2.0-beta.8` published at [Wave-is/laas/releases/tag/v0.2.0-beta.8](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.8)
+- **Latest Release**: `v0.2.0-beta.9` published at [Wave-is/laas/releases/tag/v0.2.0-beta.9](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.9)
   with all 4 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt).
-- **Cluster Refresh Overhaul for Slow PCs**: in-place node card updates, manual and interval-based polling (Manual/15s/30s/60s), zero widget destruction on telemetry ticks, non-blocking sampling.
+- **Cluster Refresh Overhaul for Slow PCs**: in-place node card updates, relaxed 30s defaults with interval dropdown (30s/60s/2min/Manual), zero widget destruction on telemetry ticks, non-blocking sampling.
 - **Secondary PC Polish & Cluster Auto-Discovery**: 11 improvements implemented and covered by automated tests.
 - **Cluster Models Discovery & Sync**: module `src/node_models.py` queries `/v1/models` from cluster LLM nodes, adds remote models to Qwen Code Desktop (`modelProviders.local-agent-station`), auto-syncs on cluster node updates and XML import.
 - **Dashboard Layout Reorder & Compaction**: swapped «Оборудование сейчас» and «Модель и агент», compacted vertical paddings and label heights so the page fits without triggering the scrollbar.
