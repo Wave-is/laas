@@ -1,5 +1,25 @@
 # Work log
 
+## 2026-09-19 — installer auto-close running processes, unchecked gpuhelper, safe service update
+
+1. Running Process Handling & DeleteFile Code 5 Elimination (`installer/Station.iss`, `src/setup_guard.py`):
+   - In `src/setup_guard.py`: Created dual Win32 named mutexes (`Global\LocalAgentAIStation.SetupGuard` and `Local\LocalAgentAIStation.SetupGuard`), allowing elevated installer instances (UAC) to see user-session running processes across session boundaries.
+   - In `installer/Station.iss`: Configured `AppMutex` with both Global and Local names; enabled `CloseApplications=yes` to leverage Windows Restart Manager.
+   - Added `PrepareToInstall` hook that gracefully requests running Station instances to close (`taskkill /IM LocalAgentAIStation.exe`), waits for clean termination, and issues forced termination (`taskkill /F /IM LocalAgentAIStation.exe /IM llama-server.exe /IM llama-swap.exe`) to ensure zero locked files in the installation directory prior to extraction.
+
+2. GPU Helper Service Preservation on Updates (`installer/Station.iss`, `src/services/install_helper.ps1`):
+   - In `installer/Station.iss`: Marked `gpuhelper` task with `Flags: unchecked` so it is not selected by default on fresh installs or updates.
+   - Added detection of already installed `LocalAgentGpuModeHelper` service (`GpuServiceExisted`). If the service is present:
+     - Stopped via `sc stop LocalAgentGpuModeHelper` before file replacement.
+     - Safely restarted via `sc start LocalAgentGpuModeHelper` in `CurStepChanged(ssPostInstall)`.
+     - Completely skips running `install_helper.ps1`, eliminating destructive service deletion (`sc delete`) and 10-second polling delays.
+   - In `src/services/install_helper.ps1`: Changed update logic to modify `binPath=` in-place and restart rather than deleting and recreating.
+
+3. Testing, Build & Release:
+   - All 276 unit/integration tests passed.
+   - Built full release installer `LocalAgentAIStation-0.2.0-beta.9-Setup-x64.exe` (182.7 MB).
+   - Re-published release assets to GitHub tag `v0.2.0-beta.9` and updated `SHA256SUMS.txt`.
+
 ## 2026-09-19 — cluster refresh overhaul for slow PCs
 
 1. Decoupled UI from Local Telemetry Ticks (`src/ui/pages/cluster.py`):

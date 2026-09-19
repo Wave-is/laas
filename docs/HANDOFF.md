@@ -1,25 +1,28 @@
 # Development handoff
 
-Updated: 2026-09-19. **Release 0.2.0-beta.9 built, published and verified on GitHub.**
+Updated: 2026-09-19. **Release 0.2.0-beta.9 rebuilt with installer auto-close & service preservation, published and verified on GitHub.**
 All 276 tests pass with zero failures.
 
 ## Текущая работа
-- **Цель**: переработка механики обновления вкладки «LLM-кластер» для медленных ПК (устранение постоянных перерисовок и дерганий, внедрение спокойного дефолтного интервала 30с и настраиваемых интервалов, in-place обновление виджетов без destroy, сборка и публикация нового инсталлятора).
-- **Статус**: Завершена. Релиз `v0.2.0-beta.9` собран и опубликован на GitHub.
+- **Цель**: устранение ошибки обновления инсталлятором `DeleteFile код 5 (Отказано в доступе)` при запущенном приложении, отключение автоустановки службы GPU-режима по умолчанию и сохранение существующей службы без удаления при апдейтах.
+- **Статус**: Завершена. Релиз `v0.2.0-beta.9` пересобран и перезалит на GitHub.
 - **Подтверждённый результат**:
-  - Полностью отвязано обновление UI вкладки кластера от ежесекундного тика локальной телеметрии GPU.
-  - Реализован in-place рендеринг карточек узлов (`_update_node_card_inplace`): виджеты больше не уничтожаются (`destroy()`) при обновлении метрик, устранены мерцания, прыжки скролла и потеря кликов.
-  - В шапку вкладки кластера добавлены контролы: спокойные интервалы (`30 сек`, `60 сек`, `2 мин`, `Вручную`) с дефолтом 30 секунд, кнопка ручного опроса `[⟳ Обновить]` с визуальным индикатором `[⏳ Опрос...]` и метка времени последнего успешного обновления.
-  - В `ClusterManager` добавлен неблокирующий опрос `sample_async(callback)`, поллер переведён в режим сна при `manual` и использует адаптивный таймаут.
-  - Все 276 тестов проходят успешно (включая i18n, `test_cluster.py` и все регрессионные тесты).
-  - Скомпилирован полный инсталлятор Inno Setup с бандлом llama.cpp/llama-swap (`LocalAgentAIStation-0.2.0-beta.9-Setup-x64.exe`, 182.7 MB).
-  - Релиз `v0.2.0-beta.9` успешно опубликован на GitHub со всеми 4 ассетами и проверенными контрольными суммами SHA256.
-- **Следующий конкретный шаг**: установка и тестирование нового инсталлятора на втором ПК.
-- **Критерий завершения**: инсталлятор скачан и успешно развёрнут на втором ПК, опрос кластера работает плавно без нагрузки на CPU.
+  - `src/setup_guard.py`: добавлены глобальный и пользовательский мьютексы (`Global\LocalAgentAIStation.SetupGuard` и `Local\LocalAgentAIStation.SetupGuard`), что позволяет инсталлятору с повышенными привилегиями (UAC) обнаруживать работающую копию в пользовательской сессии.
+  - `installer/Station.iss`:
+    - `CloseApplications=yes` для интеграции с Windows Restart Manager.
+    - В `PrepareToInstall` добавлен автоматический корректный вызов `taskkill /IM LocalAgentAIStation.exe` (WM_CLOSE) с последующим принудительным завершением зависших процессов Station и LLM (`llama-server.exe`, `llama-swap.exe`), полностью гарантируя освобождение файлов в `{app}` перед копированием.
+    - Задача установки службы `gpuhelper` снята по умолчанию (`Flags: unchecked`).
+    - Обнаружение существующей службы `LocalAgentGpuModeHelper` (`GpuServiceExisted`): если служба уже установлена, она плавно останавливается (`sc stop`) перед копированием файлов и запускается (`sc start`) после завершения установки, без вызова `sc delete` и пересоздания.
+  - `src/services/install_helper.ps1`: удалена разрушительная логика `sc delete` с 10-секундным циклом ожидания; служба обновляется по месту через `sc config ... binPath=` и `Start-Service`.
+  - Все 276 тестов пройдены успешно, инсталлятор скомпилирован (Inno Setup) и опубликован на GitHub Release `v0.2.0-beta.9`.
+- **Следующий конкретный шаг**: установка обновлённого инсталлятора на втором ПК.
+- **Критерий завершения**: обновление проходит гладко в один клик без ошибки `DeleteFile код 5`, без переустановки службы и без необходимости вручную выгружать процесс из трея.
 
 Current progress:
 - **Latest Release**: `v0.2.0-beta.9` published at [Wave-is/laas/releases/tag/v0.2.0-beta.9](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.9)
   with all 4 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt).
+- **Seamless Updater & Setup Guard**: auto-close of running processes and zero file locks during update.
+- **Smarter GPU Helper Lifecycle**: `gpuhelper` unchecked by default; preserves and restarts existing service without deletion.
 - **Cluster Refresh Overhaul for Slow PCs**: in-place node card updates, relaxed 30s defaults with interval dropdown (30s/60s/2min/Manual), zero widget destruction on telemetry ticks, non-blocking sampling.
 - **Secondary PC Polish & Cluster Auto-Discovery**: 11 improvements implemented and covered by automated tests.
 - **Cluster Models Discovery & Sync**: module `src/node_models.py` queries `/v1/models` from cluster LLM nodes, adds remote models to Qwen Code Desktop (`modelProviders.local-agent-station`), auto-syncs on cluster node updates and XML import.
