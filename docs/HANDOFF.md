@@ -1,37 +1,29 @@
 # Development handoff
 
-Updated: 2026-09-19. **Release 0.2.0-beta.8 ready for build and packaging.**
+Updated: 2026-09-19. **Release 0.2.0-beta.8 built, published and verified on GitHub.**
 All 272 tests pass with zero failures.
 
 ## Текущая работа
 - **Цель**: сборка инсталлятора с bundled engine, фиксация тега `v0.2.0-beta.8`, загрузка релиза на GitHub.
-- **Статус**: В процессе сборки и публикации релиза 0.2.0-beta.8.
-- **Следующий шаг**: запуск `build_installer.ps1`, верификация артефактов `dist/release`, пуш тега и создание релиза на GitHub.
-- **Критерий завершения**: опубликован релиз `v0.2.0-beta.8` на GitHub с инсталлятором `LocalAgentAIStation-0.2.0-beta.8-Setup-x64.exe` и сопутствующими ассетами.
+- **Статус**: Выполнено. Релиз `v0.2.0-beta.8` опубликован на GitHub:
+  https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.8
+- **Проверка**: Все 4 ассета (инсталлятор x64, исходный код, BUILD.json, SHA256SUMS.txt) загружены, скачаны и верифицированы по SHA256.
+- **Следующий шаг**: Тестирование инсталлятора на втором ПК пользователем.
 
 Current progress:
-- **Release 0.2.0-beta.8**: 11 improvements for single/multi-GPU setups, UDP cluster discovery, single instance mutex, layout compaction, configurable logs and defaults. All 272 automated tests pass cleanly.
+- **Latest Release**: `v0.2.0-beta.8` published at [Wave-is/laas/releases/tag/v0.2.0-beta.8](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.8)
+  with all 4 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt).
+- **Secondary PC Polish & Cluster Auto-Discovery**: 11 improvements implemented and covered by automated tests.
 - **Cluster Models Discovery & Sync**: module `src/node_models.py` queries `/v1/models` from cluster LLM nodes, adds remote models to Qwen Code Desktop (`modelProviders.local-agent-station`), auto-syncs on cluster node updates and XML import.
 - **Dashboard Layout Reorder & Compaction**: swapped «Оборудование сейчас» and «Модель и агент», compacted vertical paddings and label heights so the page fits without triggering the scrollbar.
 - **Repository Visibility**: switched to `public` per owner request.
-- **Latest Release**: `v0.2.0-beta.2` published at [Wave-is/laas/releases/tag/v0.2.0-beta.2](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.2)
-  with all 4 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt).
 - **Installer Language Selection**: added `ShowLanguageDialog=yes` and `UsePreviousLanguage=no` to `installer/Station.iss`
   so the three-language dialog (EN/RU/UK) always appears on every installation and upgrade.
-- **UI Polish**: dynamic auto-hiding scrollbars across all pages (`src/ui/control_center.py`), eliminating
-  unnecessary scrollbar tracks on pages where content fits the window.
-- **Schedules & Idle Unload**: time and day-of-week task automation engine (`src/schedules.py`),
-  `SchedulesPage` UI with `AddTaskDialog` (`src/ui/pages/schedules.py`), configurable idle unload timer,
-  full EN/UK localization catalogs (`locales/{en,uk}/schedules.json`), and 4 automated tests (`tests/test_schedules.py`).
-- **Model Dialog Fixes**: corrected parameter binding across `ScanDialog`, `HfDialog`, and `MoveDialog`
-  (`on_add`/`on_saved` signature compatibility, `on_done` default), verified via `tests/test_model_features.py::test_dialog_signatures`.
-- **Telemetry & Validation**: verified live telemetry (2x RTX A5000 TCC + Intel UHD 770), model server health (PID 29208),
-  and 10 compiled C# helper protocol checks. All 245 tests pass in 5.3s.
 
 ## Current state
 
 The official release is published at
-[Wave-is/laas](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.2).
+[Wave-is/laas](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.8).
 Repository visibility is public. Setup, release notes, README, quick-start,
 and application UI are fully localized in English, Russian and Ukrainian.
 
