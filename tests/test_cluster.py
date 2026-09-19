@@ -187,6 +187,47 @@ class TestCluster(unittest.TestCase):
         self.assertEqual(catalog("uk").get("📢 Рассказать агентам"), "📢 Оповістити агентів")
         self.assertEqual(catalog("en").get("📢 Рассказать агентам"), "📢 Share with Agents")
 
+    def test_cluster_refresh_mode_config(self):
+        from src.config import DEFAULT_SETTINGS
+        self.assertIn('cluster_refresh_mode', DEFAULT_SETTINGS)
+        self.assertEqual(DEFAULT_SETTINGS['cluster_refresh_mode'], 'manual')
+        self.assertEqual(DEFAULT_SETTINGS['cluster_poll_interval_sec'], 15.0)
+
+    def test_cluster_sample_async(self):
+        import time
+        received = []
+        def on_done(snap):
+            received.append(snap)
+
+        t = self.cm.sample_async(callback=on_done)
+        self.assertIsNotNone(t)
+        t.join(timeout=5.0)
+        self.assertEqual(len(received), 1)
+        self.assertIn('summary', received[0])
+        self.assertIn('nodes', received[0])
+
+    def test_cluster_refresh_modes_i18n(self):
+        keys = [
+            "Вручную", "15 сек", "30 сек", "60 сек",
+            "Обновление:", "Последнее обновление: {time}", "Опрос..."
+        ]
+        for k in keys:
+            self.assertIn(k, catalog("en"), f"Missing EN translation for {k}")
+            self.assertIn(k, catalog("uk"), f"Missing UK translation for {k}")
+
+        self.assertEqual(catalog("en").get("Вручную"), "Manual")
+        self.assertEqual(catalog("uk").get("Вручную"), "Вручну")
+        self.assertEqual(catalog("en").get("15 сек"), "15 sec")
+        self.assertEqual(catalog("uk").get("15 сек"), "15 сек")
+
+    def test_control_center_has_redesigned_cluster_methods(self):
+        self.assertTrue(hasattr(ControlCenter, '_trigger_manual_cluster_refresh'))
+        self.assertTrue(hasattr(ControlCenter, '_on_cluster_mode_changed'))
+        self.assertTrue(hasattr(ControlCenter, '_schedule_cluster_timer'))
+        self.assertTrue(hasattr(ControlCenter, '_cluster_auto_tick'))
+        self.assertTrue(hasattr(ControlCenter, '_build_node_card'))
+        self.assertTrue(hasattr(ControlCenter, '_update_node_card_inplace'))
+
 
 if __name__ == '__main__':
     unittest.main()

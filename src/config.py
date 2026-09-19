@@ -32,7 +32,8 @@ DEFAULT_SETTINGS = {
     'workspace': '', 'last_agent_folder': '', 'runtime_dir': '', 'models_dir': '',
     'logs_dir': '', 'llama_swap_lan_access': False,
     'llama_swap_executable': '', 'llama_server_executable': '',
-    'cluster_nodes': None, 'cluster_poll_interval_sec': 2.0,
+    'cluster_nodes': None, 'cluster_poll_interval_sec': 15.0,
+    'cluster_refresh_mode': 'manual',
 }
 
 class AppConfig:

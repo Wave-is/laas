@@ -375,14 +375,41 @@ class ClusterManager:
     def stop(self):
         self._stop_event.set()
 
-    def _poll_loop(self):
-        while not self._stop_event.is_set():
+    def sample_async(self, callback=None):
+        """Run an asynchronous one-shot sample of all cluster nodes without blocking UI."""
+        def worker():
             try:
                 self._sample_all_nodes()
             except Exception as e:
-                log.exception("Cluster sample loop error: %s", e)
-            poll_sec = max(1.0, float(config.get("cluster_poll_interval_sec", 2.0)))
-            self._stop_event.wait(poll_sec)
+                log.exception("Cluster sample_async error: %s", e)
+            if callback:
+                try:
+                    snap = self.get_snapshot()
+                    callback(snap)
+                except Exception as cb_err:
+                    log.exception("Cluster sample_async callback error: %s", cb_err)
+
+        t = threading.Thread(target=worker, name="ClusterAsyncSample", daemon=True)
+        t.start()
+        return t
+
+    def _poll_loop(self):
+        while not self._stop_event.is_set():
+            mode = str(config.get("cluster_refresh_mode", "manual")).lower()
+            if mode != "manual":
+                try:
+                    self._sample_all_nodes()
+                except Exception as e:
+                    log.exception("Cluster sample loop error: %s", e)
+                sec = 15.0
+                if mode.endswith("s") and mode[:-1].isdigit():
+                    sec = max(5.0, float(mode[:-1]))
+                else:
+                    sec = max(5.0, float(config.get("cluster_poll_interval_sec", 15.0)))
+                self._stop_event.wait(sec)
+            else:
+                # In manual mode, remain idle without hammering nodes over HTTP
+                self._stop_event.wait(2.0)
 
     def _sample_all_nodes(self):
         with self._lock:
@@ -400,7 +427,7 @@ class ClusterManager:
             t.start()
 
         for t in threads:
-            t.join(timeout=3.0)
+            t.join(timeout=2.0)
 
         now_str = time.strftime("%H:%M:%S")
 

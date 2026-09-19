@@ -1,6 +1,34 @@
 # Work log
- 
-## 2026-09-19 — secondary PC feedback fixes & cluster auto-discovery
+
+## 2026-09-19 — cluster refresh overhaul for slow PCs
+
+1. Decoupled UI from Local Telemetry Ticks (`src/ui/pages/cluster.py`):
+   - Removed `self.telemetry_hooks.append(self._refresh_cluster_ui)` which caused unconditional ~1-2s GUI re-rendering triggered by local GPU telemetry.
+   - Cluster tab now manages its own update cycle independently from local hardware polling.
+
+2. In-Place Widget Updates (`src/ui/pages/cluster.py`):
+   - Eliminated the destructive `for child in self.cluster_nodes_container.winfo_children(): child.destroy()` pattern on metric ticks.
+   - Separated rendering into structural creation (`_build_node_card`) and zero-destruction in-place updates (`_update_node_card_inplace`) caching references in `self._node_card_widgets`.
+   - Structural rebuilds only execute when the node set changes (add, remove, XML import).
+   - Solved UI flickering, scroll position jumping, and lost mouse clicks completely.
+
+3. User-Controlled Refresh Modes & Header Controls (`src/config.py`, `src/ui/pages/cluster.py`):
+   - Added `'cluster_refresh_mode'` setting in `DEFAULT_SETTINGS` (default: `'manual'`).
+   - Added mode selector dropdown: `[Вручную]`, `[15 сек]`, `[30 сек]`, `[60 сек]`.
+   - Added manual refresh button `[⟳ Обновить]` that changes state to `[⏳ Опрос...]` during HTTP querying.
+   - Added timestamp indicator showing the time of the last successful refresh.
+   - Automatic intervals only tick when the active page is `'cluster'` (`self.current_page_name == 'cluster'`).
+
+4. Adaptive Background Poller & Non-Blocking Sampling (`src/cluster_manager.py`):
+   - Added `sample_async(callback=None)` executing sampling on a daemon thread and dispatching results via thread-safe callbacks.
+   - Background `ClusterSampler` sleeps when mode is `'manual'`, preventing background HTTP request storm.
+   - Reduced unreachable node join timeout to 2.0s to avoid UI or thread stalls.
+
+5. Localization & Tests:
+   - Added EN/UK translations for all new UI labels and messages in `locales/en/cluster.json` and `locales/uk/cluster.json`.
+   - Added unit tests in `tests/test_cluster.py` covering config, `sample_async`, i18n keys, and UI methods.
+   - All 276 tests pass with 100% success.
+
 
 1. Win32 Named Mutex Single Instance (`src/instance.py`, `main.pyw`):
    - Added kernel-level Win32 Named Mutex (`CreateMutexW`, `ERROR_ALREADY_EXISTS 183`) preventing race conditions on rapid double-clicks.

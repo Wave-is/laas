@@ -232,6 +232,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         """Show a page by its ASCII id: station, hardware, models, agents, services or settings."""
         if name not in self.pages:
             return
+        self.current_page_name = name
         if name == 'startup':
             self._refresh_startup_choices()
         if name == 'settings':

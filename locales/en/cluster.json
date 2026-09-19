@@ -75,5 +75,14 @@
   "Уже в кластере ✓": "Already in Cluster ✓",
   "+ Добавить в кластер": "+ Add to Cluster",
   "GPU:": "GPU:",
-  "GPU не обнаружены": "No GPUs detected"
+  "GPU не обнаружены": "No GPUs detected",
+  "Вручную": "Manual",
+  "15 сек": "15 sec",
+  "30 сек": "30 sec",
+  "60 сек": "60 sec",
+  "Обновление:": "Refresh:",
+  "Последнее обновление: {time}": "Last updated: {time}",
+  "Опрос...": "Polling...",
+  "Не обновлялось": "Not updated",
+  "Ожидание...": "Waiting..."
 }
