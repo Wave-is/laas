@@ -19,7 +19,7 @@ from pathlib import Path
 import yaml
 
 from .i18n import tr
-from .paths import APP_NAME, VERSION, data_dir
+from .paths import APP_NAME, VERSION, data_dir, logs_dir as paths_logs_dir
 
 VIEW_LIMIT = 2 * 1024 * 1024
 BUNDLE_LOG_LIMIT = 5 * 1024 * 1024
@@ -115,7 +115,7 @@ def filter_lines(text, errors_only=False, query=''):
 
 
 def logs_dir():
-    return data_dir() / 'logs'
+    return paths_logs_dir()
 
 
 def _hashed(key):

@@ -538,7 +538,30 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
                     old = config.get(key)
                     if old and (not values['runtime_dir'] or not os.path.normcase(old).startswith(os.path.normcase(values['runtime_dir']))):
                         values[key] = ''
+            logs_dir_changed = values.get('logs_dir') != config.get('logs_dir')
             config.update(values)
+            if logs_dir_changed:
+                try:
+                    from ..paths import logs_dir as get_logs_dir
+                    from logging.handlers import RotatingFileHandler
+                    new_logs = get_logs_dir()
+                    new_logs.mkdir(parents=True, exist_ok=True)
+                    root_logger = logging.getLogger()
+                    old_handlers = [h for h in root_logger.handlers if isinstance(h, RotatingFileHandler)]
+                    new_handler = RotatingFileHandler(
+                        new_logs / 'station.log',
+                        maxBytes=2_000_000,
+                        backupCount=3,
+                        encoding='utf-8',
+                    )
+                    new_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s'))
+                    for h in old_handlers:
+                        h.close()
+                        root_logger.removeHandler(h)
+                    root_logger.addHandler(new_handler)
+                    logging.info('Logging redirected to %s', new_logs)
+                except Exception as log_err:
+                    logging.warning('Failed to redirect logger: %s', log_err)
             self._refresh_path_hints()
             message = tr('Настройки папок сохранены.')
             if lan_changed and self.backend_online:

@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 import threading
 import psutil
-from .paths import data_dir
+from .paths import data_dir, logs_dir
 from .storage import atomic_write, read_document
 from .hardware import hidden_options
 from .i18n import tr
@@ -53,7 +53,7 @@ class ProcessSupervisor:
         with self._lock:
             if self.owned_process(key):
                 return self.status(key)
-            logs = self.directory / 'logs'
+            logs = logs_dir()
             logs.mkdir(parents=True, exist_ok=True)
             logfile = logs / (log_name(key) + '.log')
             kwargs = hidden_options()
