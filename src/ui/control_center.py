@@ -533,9 +533,10 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             values['llama_swap_lan_access'] = self.lan_var.get()
             if values['runtime_dir'] != config.get('runtime_dir'):
                 # A new engine folder replaces explicit executables located elsewhere.
+                # When runtime_dir is cleared, clear explicit executables so bundled engine is used.
                 for key in ('llama_swap_executable', 'llama_server_executable'):
                     old = config.get(key)
-                    if old and not os.path.normcase(old).startswith(os.path.normcase(values['runtime_dir'])):
+                    if old and (not values['runtime_dir'] or not os.path.normcase(old).startswith(os.path.normcase(values['runtime_dir']))):
                         values[key] = ''
             config.update(values)
             self._refresh_path_hints()
