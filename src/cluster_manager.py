@@ -121,6 +121,12 @@ class ClusterManager:
                 skill_distributor.deploy(server_url=node_data.get("url"))
             except Exception as ex:
                 log.debug("Auto-deploy comfyui skill failed in add_node: %s", ex)
+        elif node_data.get("type") in ("llama_server", "llama_swap"):
+            try:
+                from .skill_distributor import skill_distributor
+                skill_distributor.sync_models_to_agents()
+            except Exception as ex:
+                log.debug("Auto-sync models failed in add_node: %s", ex)
         return nid
 
     def update_node(self, node_id, new_data):
@@ -133,12 +139,19 @@ class ClusterManager:
                     self.save_nodes()
                     updated = True
                     break
-        if updated and new_data.get("type") == "comfyui":
-            try:
-                from .skill_distributor import skill_distributor
-                skill_distributor.deploy(server_url=new_data.get("url"))
-            except Exception as ex:
-                log.debug("Auto-deploy comfyui skill failed in update_node: %s", ex)
+        if updated:
+            if new_data.get("type") == "comfyui":
+                try:
+                    from .skill_distributor import skill_distributor
+                    skill_distributor.deploy(server_url=new_data.get("url"))
+                except Exception as ex:
+                    log.debug("Auto-deploy comfyui skill failed in update_node: %s", ex)
+            elif new_data.get("type") in ("llama_server", "llama_swap"):
+                try:
+                    from .skill_distributor import skill_distributor
+                    skill_distributor.sync_models_to_agents()
+                except Exception as ex:
+                    log.debug("Auto-sync models failed in update_node: %s", ex)
         return updated
 
     def remove_node(self, node_id):
@@ -330,6 +343,12 @@ class ClusterManager:
                         break
             except Exception as ex:
                 log.debug("Auto-deploy comfyui skill failed in import_nodes_xml: %s", ex)
+            try:
+                if any(n.get("type") in ("llama_server", "llama_swap") for n in imported_nodes):
+                    from .skill_distributor import skill_distributor
+                    skill_distributor.sync_models_to_agents()
+            except Exception as ex:
+                log.debug("Auto-sync models failed in import_nodes_xml: %s", ex)
             return count
 
     def start(self):

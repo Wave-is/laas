@@ -1,16 +1,17 @@
 # Development handoff
 
-Updated: 2026-09-18. **Release 0.2.0-beta.6 published on GitHub. Repository is public.**
-All 258 tests pass with zero failures.
+Updated: 2026-09-19. **Release 0.2.0-beta.7 published on GitHub. Repository is public.**
+All 263 tests pass with zero failures.
 
 ## Текущая работа
-- **Цель**: релиз с последними правками (перестановка блоков дашборда и уплотнение вёрстки).
-- **Статус**: Выполнено. Выпущен релиз `v0.2.0-beta.6`, все 5 ассетов (включая инсталлятор `LocalAgentAIStation-0.2.0-beta.6-Setup-x64.exe` 182.6 МБ с бандлом движка) собраны и загружены на GitHub Releases.
-- **Проверка**: Все 258 тестов пройдены, контрольные суммы SHA-256 проверены.
+- **Цель**: релиз 0.2.0-beta.7 с автоматической синхронизацией моделей кластера и знаний с агентами (Qwen Code Desktop).
+- **Статус**: Выполнено. Выпущен релиз `v0.2.0-beta.7`, все ассеты собраны и загружены на GitHub Releases.
+- **Проверка**: Все 263 теста пройдены, контрольные суммы SHA-256 проверены.
 
 Current progress:
-- **Latest Release**: `v0.2.0-beta.6` published at [Wave-is/laas/releases/tag/v0.2.0-beta.6](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.6)
+- **Latest Release**: `v0.2.0-beta.7` published at [Wave-is/laas/releases/tag/v0.2.0-beta.7](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.7)
   with all 5 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt, cluster_topology.xml).
+- **Cluster Models Discovery & Sync**: module `src/node_models.py` queries `/v1/models` from cluster LLM nodes, adds remote models to Qwen Code Desktop (`modelProviders.local-agent-station`), auto-syncs on cluster node updates and XML import.
 - **Dashboard Layout Reorder & Compaction**: swapped «Оборудование сейчас» and «Модель и агент», compacted vertical paddings and label heights so the page fits without triggering the scrollbar.
 - **Repository Visibility**: switched to `public` per owner request.
 - **Latest Release**: `v0.2.0-beta.2` published at [Wave-is/laas/releases/tag/v0.2.0-beta.2](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.2)

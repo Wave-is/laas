@@ -1,4 +1,24 @@
 # Work log
+ 
+## 2026-09-18 — cluster models & agent knowledge synchronization
+ 
+1. Remote Node Models Discovery:
+   - Created `src/node_models.py` (`RemoteModel`, `query_node_models`, `discover_cluster_models`) to discover available models from cluster LLM nodes over OpenAI-compatible `/v1/models` endpoints.
+   - Non-LLM nodes (ComfyUI) and disabled nodes are automatically filtered out.
+   - Safe HTTP request handling with 3s timeout and robust JSON parsing.
+2. Agent Adapters & Controller Integration:
+   - Extended `QwenCodeAdapter.configure_model_provider` to accept `cluster_models` and register them into `modelProviders.local-agent-station` with remote `baseUrl`, deduplicating entries.
+   - Updated `AgentRuntimeAdapter` (`src/agents/base.py`), Hermes, OpenClaw, and Pi adapters to accept `cluster_models=None`.
+   - Updated `StationController.preview_sync` to query `discover_cluster_models(cluster_manager)` and forward remote models to the adapter.
+3. Knowledge Distribution & Auto-Sync:
+   - Expanded `src/skill_distributor.py` (`KnowledgeDistributor`) with `sync_models_to_agents()` method to automatically sync models to all discovered agents without requiring GUI interaction.
+   - Wired auto-sync into `ClusterManager` (`add_node`, `update_node`, `import_nodes_xml`) for LLM node changes.
+   - Overhauled the «📢 Рассказать агентам» button on `ClusterPage` (`src/ui/pages/cluster.py`) to deploy ComfyUI skills AND synchronize model catalogs with agents, reporting combined status to user.
+   - Added full translations in `locales/en/cluster.json` and `locales/uk/cluster.json`.
+4. Verification & Testing:
+   - Created `tests/test_node_models.py` (5 tests covering endpoint queries, format variations, error resilience, node filtering, adapter registration).
+   - Verified live synchronization against active cluster nodes: 7 models discovered on cluster nodes and successfully written into `~/.qwen/settings.json`.
+   - All 263 pytest tests pass with zero failures.
 
 ## 2026-09-17 — dashboard layout polish: block reordering & vertical compaction
 

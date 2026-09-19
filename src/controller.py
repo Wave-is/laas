@@ -43,8 +43,17 @@ class StationController:
 
     def preview_sync(self, runtime_id, bind_model=None):
         from .agent_sync import combine_previews
+        from .node_models import discover_cluster_models
+        from .cluster_manager import cluster_manager
+        cluster_models = []
+        try:
+            cluster_models = discover_cluster_models(cluster_manager)
+        except Exception:
+            pass
         adapter = self.adapters[runtime_id]
-        provider = adapter.configure_model_provider(list(profile_storage.model_profiles.values()))
+        provider = adapter.configure_model_provider(
+            list(profile_storage.model_profiles.values()),
+            cluster_models=cluster_models)
         if not provider.ok:
             raise ValueError(provider.message)
         previews = [provider.data]

@@ -67,7 +67,7 @@ class AgentRuntimeAdapter:
         return unsupported()
     def backup_configuration(self):
         return unsupported(tr('Резервная копия настроек агента создаётся автоматически при применении изменений.'))
-    def configure_model_provider(self, models):
+    def configure_model_provider(self, models, cluster_models=None):
         return unsupported()
     def configure_model_binding(self, model):
         return unsupported()

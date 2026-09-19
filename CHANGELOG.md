@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.2.0-beta.7
+
+### English
+
+- **Cluster LLM Models Discovery**: Introduced `src/node_models.py` (`RemoteModel`, `query_node_models`, `discover_cluster_models`) which queries `/v1/models` across cluster LLM nodes (`llama_swap`, `llama_server`) to automatically discover distributed inference models with timeouts and error handling. Non-LLM nodes (ComfyUI) are automatically excluded.
+- **Agent Knowledge & Model Synchronization**:
+  - Extended `QwenCodeAdapter.configure_model_provider` to register remote cluster models into `modelProviders.local-agent-station` with their network `baseUrl` (`http://<node-ip>:<port>/v1`), enabling Qwen Code Desktop to seamlessly use models hosted across cluster nodes.
+  - Aligned model provider signatures across all agent adapters (Base, Hermes, OpenClaw, Pi).
+  - Integrated cluster model discovery into `StationController.preview_sync()`.
+- **Automated Sync Pipeline & Cluster UI**:
+  - Expanded `KnowledgeDistributor` (`src/skill_distributor.py`) with `sync_models_to_agents()` to update all detected agent runtimes without manual intervention.
+  - Added auto-sync triggers to `ClusterManager` upon adding, modifying, or XML-importing cluster nodes.
+  - Overhauled "📢 Share with Agents" on the Cluster page to deploy ComfyUI generation skills AND synchronize model catalogs with agents, reporting per-agent status with full EN/UK localization.
+
+### Русский
+
+- **Обнаружение LLM-моделей в кластере**: создан модуль `src/node_models.py` (`RemoteModel`, `query_node_models`, `discover_cluster_models`), опрашивающий OpenAI-совместимый эндпоинт `/v1/models` узлов инференса (`llama_swap`, `llama_server`) с таймаутами и обработкой ошибок. Узлы ComfyUI автоматически фильтруются.
+- **Синхронизация моделей и знаний с агентами**:
+  - Метод `QwenCodeAdapter.configure_model_provider` расширен поддержкой удалённых моделей: модели кластера регистрируются в `modelProviders.local-agent-station` с их сетевыми адресами (`http://<ip>:<port>/v1`), благодаря чему Qwen Code Desktop видит и может использовать модели с удалённых нод кластера.
+  - Сигнатуры методов согласованы во всех адаптерах агентов (Base, Hermes, OpenClaw, Pi).
+  - Интегрирован вызов обнаружения моделей в `StationController.preview_sync()`.
+- **Автоматическая синхронизация и интерфейс кластера**:
+  - В `KnowledgeDistributor` добавлен метод `sync_models_to_agents()` для автоматического обновления конфигураций агентов на диске.
+  - В `ClusterManager` встроены триггеры автосинхронизации при добавлении, редактировании и XML-импорте узлов.
+  - Кнопка «📢 Рассказать агентам» на странице кластера теперь одновременно разворачивает навык ComfyUI и синхронизирует модели кластера с агентами, выводя подробный отчёт с полной локализацией EN/UK.
+
+### Українська
+
+- **Виявлення LLM-моделей у кластері**: створено модуль `src/node_models.py` (`RemoteModel`, `query_node_models`, `discover_cluster_models`), що опитує OpenAI-сумісний ендпоінт `/v1/models` вузлів інференсу (`llama_swap`, `llama_server`) з таймаутами та обробкою помилок. Вузли ComfyUI автоматично фільтруються.
+- **Синхронізація моделей та знань з агентами**:
+  - Метод `QwenCodeAdapter.configure_model_provider` розширено підтримкою віддалених моделей: моделі кластера реєструються в `modelProviders.local-agent-station` з їхніми мережевими адресами (`http://<ip>:<port>/v1`), завдяки чому Qwen Code Desktop бачить та може використовувати моделі з віддалених вузлів кластера.
+  - Сигнатури методів узгоджено в усіх адаптерах агентів (Base, Hermes, OpenClaw, Pi).
+  - Інтегровано виклик виявлення моделей у `StationController.preview_sync()`.
+- **Автоматична синхронізація та інтерфейс кластера**:
+  - У `KnowledgeDistributor` додано метод `sync_models_to_agents()` для автоматичного оновлення конфігурацій агентів на диску.
+  - У `ClusterManager` вбудовано тригери автосинхронізації під час додавання, редагування та XML-імпорту вузлів.
+  - Кнопка «📢 Оповістити агентів» на сторінці кластера тепер одночасно розгортає навичку ComfyUI та синхронізує моделі кластера з агентами, виводячи детальний звіт із повною локалізацією EN/UK.
+
 ## 0.2.0-beta.6
 
 ### English

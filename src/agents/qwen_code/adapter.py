@@ -66,13 +66,16 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
             paths['project'] = str(Path(workspace) / '.qwen/settings.json')
         return Result(Support.SUPPORTED, data=paths)
 
-    def configure_model_provider(self, models):
+    def configure_model_provider(self, models, cluster_models=None):
         if not self.schema_confirmed:
             return unsupported(tr('Формат настроек этой версии Qwen Code не распознан — автоматическая настройка модели отключена.'))
         entries = []
+        seen_keys = set()
         for model in models:
             if model.id == 'none' or model.status == 'disabled':
                 continue
+            key = (model.backend_model_id, model.endpoint)
+            seen_keys.add(key)
             entries.append({'id': model.backend_model_id, 'name': model.name,
                 'baseUrl': model.endpoint, 'envKey': 'LOCAL_AGENT_STATION_API_KEY',
                 'generationConfig': {'contextWindowSize': model.context,
@@ -80,6 +83,18 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
                     'modalities': {'image': bool(model.vision and model.qualified)}},
                 'capabilities': {'vision': bool(model.vision and model.qualified),
                     'agent': bool(model.tool_calling and model.qualified)}})
+        # Append models discovered from remote cluster nodes
+        for rm in (cluster_models or []):
+            key = (rm.id, rm.endpoint)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            entries.append({'id': rm.id, 'name': f'{rm.name} @ {rm.node_name}' if rm.node_name else rm.name,
+                'baseUrl': rm.endpoint, 'envKey': 'LOCAL_AGENT_STATION_API_KEY',
+                'generationConfig': {'contextWindowSize': rm.context,
+                    'timeout': 240000, 'maxRetries': 0,
+                    'modalities': {'image': rm.vision}},
+                'capabilities': {'vision': rm.vision, 'agent': rm.tool_calling}})
         path = self.get_config_locations().data['user']
         preview = preview_merge(path, [(['modelProviders', MANAGED_ID], entries),
             (['providerProtocol', MANAGED_ID], 'openai')])

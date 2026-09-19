@@ -48,7 +48,7 @@ class PiAdapter(AgentRuntimeAdapter):
         return Result(Support.SUPPORTED, data={'headless': '--print' in self.help_text,
             'provider_sync': bool(self.command and '--provider' in self.help_text), 'daemon': False, 'task_control': False})
 
-    def configure_model_provider(self, models):
+    def configure_model_provider(self, models, cluster_models=None):
         if not self.get_capabilities().data['provider_sync']:
             return unsupported(tr('Pi Coding Agent не найден или не поддерживает выбор модели. Установите или обновите Pi и нажмите «Найти агенты заново».'))
         changes = [(['providers', provider_id(m)], provider_record(m)) for m in enabled_models(models)]

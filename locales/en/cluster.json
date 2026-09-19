@@ -55,5 +55,12 @@
   "Оповестить агентов": "Share with Agents",
   "Навык генерации изображений ComfyUI успешно внедрен в агентов ({count}):\n{agents}": "ComfyUI image generation skill successfully deployed to agents ({count}):\n{agents}",
   "Не найдено ни одного поддерживаемого агента (Qwen, Antigravity, OpenClaw, Hermes).": "No supported AI agents found (Qwen, Antigravity, OpenClaw, Hermes).",
-  "В кластере не найден запущенный или настроенный узел ComfyUI.": "No ComfyUI service configured or found in cluster."
+  "В кластере не найден запущенный или настроенный узел ComfyUI.": "No ComfyUI service configured or found in cluster.",
+  "🎨 Навык ComfyUI: {agents}": "🎨 ComfyUI Skill: {agents}",
+  "🤖 Модели:\n{summary}": "🤖 Models:\n{summary}",
+  "{count} моделей обнаружено на кластерных нодах": "{count} models discovered on cluster nodes",
+  "Обнаружение кластерных моделей: {error}": "Cluster model discovery: {error}",
+  "{agent}: модели синхронизированы": "{agent}: models synchronized",
+  "{agent}: уже синхронизирован": "{agent}: already in sync",
+  "{agent}: ошибка — {error}": "{agent}: error — {error}"
 }

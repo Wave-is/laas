@@ -79,7 +79,7 @@ class OpenClawAdapter(AgentRuntimeAdapter):
                 'Исправьте его или укажите другую папку настроек.', path=self.get_config_locations().data['user']))
         return doc
 
-    def configure_model_provider(self, models):
+    def configure_model_provider(self, models, cluster_models=None):
         if not self.get_capabilities().data['provider_sync']:
             return unsupported(tr('OpenClaw не найден или его версия не поддерживает проверку настроек (config validate). Установите или обновите OpenClaw и нажмите «Найти агенты заново».'))
         self._configuration()

@@ -1,6 +1,7 @@
 """
-Skill Distributor for LAAS.
-Automatically generates and distributes the 'comfyui-image-gen' skill to all
+Knowledge Distributor for LAAS.
+Automatically generates and distributes the 'comfyui-image-gen' skill and
+synchronizes model catalogs (local profiles + cluster nodes) to all
 locally installed AI agent runtimes (Qwen Code Desktop, Antigravity/AGY, OpenClaw, Hermes).
 """
 import json
@@ -275,7 +276,7 @@ python "{script_path}" --prompt "<detailed visual prompt in English>" --output-d
 """
 
 
-class SkillDistributor:
+class KnowledgeDistributor:
     def __init__(self):
         pass
 
@@ -368,5 +369,44 @@ class SkillDistributor:
             "paths": deployed_paths
         }
 
+    def sync_models_to_agents(self) -> dict:
+        """Discover cluster models and sync the full model catalog to all agents.
 
-skill_distributor = SkillDistributor()
+        This triggers the same sync pipeline as the Models page 'Sync with agents'
+        button, but enriched with models discovered from cluster LLM nodes.
+        Returns a summary dict with per-agent results.
+        """
+        results = {}
+        try:
+            from .controller import StationController
+            from .node_models import discover_cluster_models
+            from .cluster_manager import cluster_manager as cm
+
+            cluster_models = discover_cluster_models(cm)
+            results['cluster_models_found'] = len(cluster_models)
+            log.info("sync_models_to_agents: discovered %d cluster models", len(cluster_models))
+
+            ctrl = StationController()
+            ctrl.discover_agents()
+            for agent_id in ctrl.adapters:
+                try:
+                    preview = ctrl.preview_sync(agent_id, bind_model=None)
+                    if preview.status != 'IN SYNC':
+                        from .agent_sync import apply_preview
+                        apply_preview(preview, accept_custom=True)
+                        results[agent_id] = 'synced'
+                    else:
+                        results[agent_id] = 'in_sync'
+                except Exception as exc:
+                    log.debug("Auto-sync models for agent %s failed: %s", agent_id, exc)
+                    results[agent_id] = str(exc)
+        except Exception as exc:
+            log.warning("sync_models_to_agents: cluster discovery failed: %s", exc)
+            results['cluster_models_found'] = 0
+        return results
+
+
+# Backward compatibility alias
+SkillDistributor = KnowledgeDistributor
+
+skill_distributor = KnowledgeDistributor()

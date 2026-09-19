@@ -487,6 +487,8 @@ class ClusterPage:
             messagebox.showerror(tr('Ошибка импорта XML'), str(e))
 
     def _share_comfyui_with_agents(self, node=None):
+        """Deploy ComfyUI skill + sync all models (local + cluster) to agents."""
+        # 1. ComfyUI skill deployment (existing logic)
         target_url = None
         if node and node.get('url'):
             target_url = node.get('url')
@@ -500,20 +502,55 @@ class ClusterPage:
         if not target_url:
             target_url = skill_distributor.get_comfy_endpoint()
 
+        skill_results = []
         try:
             res = skill_distributor.deploy(server_url=target_url)
-            agents = res.get('agents_updated', [])
-            if agents:
-                agents_str = "\n".join(f"• {a}" for a in agents)
-                messagebox.showinfo(
-                    tr('Оповестить агентов'),
-                    tr('Навык генерации изображений ComfyUI успешно внедрен в агентов ({count}):\n{agents}',
-                       count=len(agents), agents=agents_str)
-                )
-            else:
-                messagebox.showwarning(
-                    tr('Оповестить агентов'),
-                    tr('Не найдено ни одного поддерживаемого агента (Qwen, Antigravity, OpenClaw, Hermes).')
-                )
+            skill_results = res.get('agents_updated', [])
         except Exception as ex:
-            messagebox.showerror(tr('Ошибка'), str(ex))
+            log.warning("ComfyUI skill deploy failed: %s", ex)
+
+        # 2. Model synchronization (new logic)
+        model_summary = []
+        try:
+            from src.node_models import discover_cluster_models
+            cluster_models = discover_cluster_models(self.cluster_manager)
+            if cluster_models:
+                model_summary.append(tr('{count} моделей обнаружено на кластерных нодах', count=len(cluster_models)))
+            # Trigger agent model sync via controller
+            if hasattr(self, 'controller') and self.controller:
+                for id, adapter in self.controller.adapters.items():
+                    try:
+                        from src.gpu_modes import gpu_mode_manager
+                        model = gpu_mode_manager.get_active_model_profile()
+                        preview = self.controller.preview_sync(id, model)
+                        if preview.status != 'IN SYNC':
+                            from src.agent_sync import apply_preview
+                            apply_preview(preview, accept_custom=True)
+                            model_summary.append(tr('{agent}: модели синхронизированы',
+                                agent=self.controller.adapters[id].manifest.get('name', id)))
+                        else:
+                            model_summary.append(tr('{agent}: уже синхронизирован',
+                                agent=self.controller.adapters[id].manifest.get('name', id)))
+                    except Exception as ex:
+                        model_summary.append(tr('{agent}: ошибка — {error}',
+                            agent=self.controller.adapters[id].manifest.get('name', id), error=str(ex)[:80]))
+        except Exception as ex:
+            model_summary.append(tr('Обнаружение кластерных моделей: {error}', error=str(ex)[:80]))
+
+        # 3. Combined result message
+        parts = []
+        if skill_results:
+            agents_str = "\n".join(f"• {a}" for a in skill_results)
+            parts.append(tr('🎨 Навык ComfyUI: {agents}', agents=agents_str))
+        if model_summary:
+            parts.append(tr('🤖 Модели:\n{summary}', summary="\n".join(f"• {s}" for s in model_summary)))
+        if not parts:
+            messagebox.showwarning(
+                tr('Оповестить агентов'),
+                tr('Не найдено ни одного поддерживаемого агента (Qwen, Antigravity, OpenClaw, Hermes).')
+            )
+            return
+        messagebox.showinfo(
+            tr('Оповестить агентов'),
+            "\n\n".join(parts)
+        )

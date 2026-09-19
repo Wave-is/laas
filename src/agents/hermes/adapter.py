@@ -54,7 +54,7 @@ class HermesAdapter(AgentRuntimeAdapter):
             'skills': str(primary / 'skills'), 'memory': str(primary / 'memories'),
             'sessions': str(primary / 'sessions'), 'state_db': str(primary / 'state.db')})
 
-    def configure_model_provider(self, models):
+    def configure_model_provider(self, models, cluster_models=None):
         if not self.command:
             return unsupported(tr('Hermes Agent не установлен. Установите его и нажмите «Найти агенты заново».'))
         entries = {m.id: {'api': m.endpoint, 'transport': 'chat_completions',
