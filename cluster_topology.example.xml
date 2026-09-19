@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='utf-8'?>
+<laas-cluster version="1.0">
+  <nodes>
+    <node id="comfyui-local" enabled="true">
+      <name>ComfyUI Worker (Local)</name>
+      <type>comfyui</type>
+      <url>http://127.0.0.1:8188</url>
+      <telemetry_url>http://127.0.0.1:9273/metrics</telemetry_url>
+      <notes>Image Generation Worker • Local / LAN</notes>
+    </node>
+    <node id="primary-node" enabled="true">
+      <name>Primary LLM Node</name>
+      <type>llama_swap</type>
+      <url>http://127.0.0.1:9292</url>
+      <telemetry_url />
+      <notes>Cluster Primary • Local / LAN</notes>
+    </node>
+    <node id="worker-1" enabled="false">
+      <name>Worker Node 1 (Example)</name>
+      <type>llama_server</type>
+      <url>http://192.168.1.100:8080</url>
+      <telemetry_url />
+      <notes>Secondary Worker Example</notes>
+    </node>
+    <node id="remote-worker" enabled="false">
+      <name>Remote Worker (Example)</name>
+      <type>llama_server</type>
+      <url>http://192.0.2.1:8080</url>
+      <telemetry_url>http://192.0.2.1:9273/metrics</telemetry_url>
+      <notes>Remote Worker Example • Telegraf Prometheus</notes>
+    </node>
+  </nodes>
+  <services>
+    <service id="comfyui-local" enabled="true">
+      <name>ComfyUI (Image Server)</name>
+      <kind>comfyui</kind>
+      <url>http://127.0.0.1:8188</url>
+      <health_url>http://127.0.0.1:8188/system_stats</health_url>
+      <executable>C:\AI\ComfyUI\.venv\Scripts\python.exe</executable>
+      <working_directory>C:\AI\ComfyUI</working_directory>
+      <arguments>
+        <arg>main.py</arg>
+        <arg>--listen</arg>
+        <arg>127.0.0.1</arg>
+        <arg>--port</arg>
+        <arg>8188</arg>
+      </arguments>
+    </service>
+  </services>
+</laas-cluster>

@@ -30,3 +30,5 @@ secrets.*.yaml
 _archive/
 START_HERE.md
 scratch/
+cluster_topology.xml
+!cluster_topology.example.xml

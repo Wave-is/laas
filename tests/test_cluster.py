@@ -19,10 +19,8 @@ class TestCluster(unittest.TestCase):
         nodes = self.cm.get_nodes()
         self.assertGreaterEqual(len(nodes), 4)
         ids = [n['id'] for n in nodes]
-        self.assertIn('renderpc-local', ids)
-        self.assertIn('ai-station', ids)
-        self.assertIn('wavevm', ids)
-        self.assertIn('remote-worker', ids)
+        self.assertIn('comfyui-local', ids)
+        self.assertIn('primary-node', ids)
 
     def test_add_remove_node(self):
         initial_len = len(self.cm.get_nodes())
@@ -64,16 +62,16 @@ class TestCluster(unittest.TestCase):
         xml_text = self.cm.export_nodes_xml()
         self.assertIn('<laas-cluster version="1.0">', xml_text)
         self.assertIn('<nodes>', xml_text)
-        self.assertIn('renderpc-local', xml_text)
-        self.assertIn('remote-worker', xml_text)
+        self.assertIn('comfyui-local', xml_text)
+        self.assertIn('primary-node', xml_text)
 
         # Import into fresh manager with merge=False
         fresh_cm = ClusterManager()
         count = fresh_cm.import_nodes_xml(xml_text, merge=False)
         self.assertGreaterEqual(count, 4)
         imported_ids = [n['id'] for n in fresh_cm.get_nodes()]
-        self.assertIn('renderpc-local', imported_ids)
-        self.assertIn('remote-worker', imported_ids)
+        self.assertIn('comfyui-local', imported_ids)
+        self.assertIn('primary-node', imported_ids)
 
     def test_import_invalid_xml(self):
         with self.assertRaises(ValueError):

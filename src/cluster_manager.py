@@ -24,29 +24,29 @@ HISTORY_MAX = 60  # ~2-3 minutes of timeline data
 
 DEFAULT_NODES = [
     {
-        "id": "renderpc-local",
-        "name": "RenderPC (ComfyUI / RTX 3060)",
+        "id": "comfyui-local",
+        "name": "ComfyUI Worker (Local)",
         "url": "http://127.0.0.1:8188",
-        "telemetry_url": "http://127.0.0.1:9273/metrics",
+        "telemetry_url": "",
         "type": "comfyui",
         "enabled": True,
-        "notes": "Image Generation Worker • RTX 3060 12GB • FLUX & Z-Image"
+        "notes": "Image Generation Worker • Local or LAN ComfyUI"
     },
     {
-        "id": "ai-station",
-        "name": "AI Station (2× A5000)",
-        "url": "http://192.168.1.100:9292",
+        "id": "primary-node",
+        "name": "Primary LLM Node",
+        "url": "http://127.0.0.1:9292",
         "type": "llama_swap",
         "enabled": True,
-        "notes": "Cluster Primary • 2× RTX A5000 NVLink 48GB • MTP3"
+        "notes": "Cluster Primary LLM Router / Server"
     },
     {
-        "id": "wavevm",
-        "name": "WaveVM (A4000)",
-        "url": "http://192.168.1.101:8080",
+        "id": "worker-node-1",
+        "name": "LAN Worker Node (Example)",
+        "url": "http://192.168.1.100:8080",
         "type": "llama_server",
-        "enabled": True,
-        "notes": "Local VM • RTX A4000 16GB • Qwen3.8-27B 64K"
+        "enabled": False,
+        "notes": "Secondary Inference Worker • Example"
     },
     {
         "id": "remote-worker",
@@ -54,8 +54,8 @@ DEFAULT_NODES = [
         "url": "http://192.0.2.1:8080",
         "telemetry_url": "http://192.0.2.1:9273/metrics",
         "type": "llama_server",
-        "enabled": True,
-        "notes": "Remote Worker • RTX A4000 16GB • Telegraf Prometheus"
+        "enabled": False,
+        "notes": "Remote Worker Example • Telegraf Prometheus"
     }
 ]
 
@@ -80,14 +80,8 @@ class ClusterManager:
                 self._nodes = deepcopy(saved)
                 # Auto-migrate legacy renderpc-local node
                 for n in self._nodes:
-                    if n.get("id") == "renderpc-local":
-                        if n.get("url") == "http://127.0.0.1:8888" or n.get("type") == "local":
-                            n["url"] = "http://127.0.0.1:8188"
-                            n["type"] = "comfyui"
-                            n["name"] = "RenderPC (ComfyUI / RTX 3060)"
-                            n["notes"] = "Image Generation Worker • RTX 3060 12GB • FLUX & Z-Image"
-                        if not n.get("telemetry_url"):
-                            n["telemetry_url"] = "http://127.0.0.1:9273/metrics"
+                    if n.get("id") == "renderpc-local" and n.get("type") == "local":
+                        n["type"] = "comfyui"
                 config.set("cluster_nodes", self._nodes)
             else:
                 self._nodes = deepcopy(DEFAULT_NODES)
@@ -448,7 +442,7 @@ class ClusterManager:
         return {
             "status": "online",
             "latency_ms": round((time.time() - t0) * 1000),
-            "ip": "127.0.0.1 (WireGuard)",
+            "ip": "127.0.0.1 (Local)",
             "role": "Agent Host / Workstation",
             "gpus": gpus,
             "inference": inf
@@ -762,7 +756,7 @@ class ClusterManager:
                 pass
 
         # Fallback 2: Local nvidia-smi if local host
-        if not gpus and any(h in url for h in ("127.0.0.1", "localhost", "127.0.0.1")):
+        if not gpus and any(h in url for h in ("127.0.0.1", "localhost")):
             try:
                 cmd = ["nvidia-smi", "--query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw", "--format=csv,noheader,nounits"]
                 cflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
