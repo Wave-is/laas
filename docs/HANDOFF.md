@@ -1,21 +1,23 @@
 # Development handoff
 
-Updated: 2026-09-20. **Release 0.2.0-beta.10 prepared with Review dialog fix, cluster model deduplication and Qwen smoke hardening.**
+Updated: 2026-09-20. **Release 0.2.0-beta.10 built with Review dialog fix, cluster model deduplication and Qwen smoke hardening, published and verified on GitHub.**
 All 278 tests pass with zero failures.
 
 ## Текущая работа
 - **Цель**: сборка и публикация релиза v0.2.0-beta.10 (исправление `unsupported operand type(s) for +: 'CTkLabel' and 'str'`, дедупликация моделей кластера, надёжный smoke test Qwen Code, пресет «Игры + ИИ» и VRAM-префиксы в каталоге) на GitHub.
-- **Статус**: В процессе сборки.
+- **Статус**: Завершена. Релиз `v0.2.0-beta.10` опубликован на GitHub со всеми 4 ассетами.
 - **Подтверждённый результат**:
   - `src/ui/control_center.py`: `title_label` больше не затеняет параметр `label`, `worker()` безопасно приводит `label` к строке.
   - `src/agents/qwen_code/adapter.py`: дедупликация локальных моделей при сетевом опросе кластера, в `smoke()` передаются `--auth-type openai --model ... --openai-base-url ...`, каталог workspace создаётся автоматически.
   - `~/.qwen/settings.json`: статус обновлён на `IN SYNC`, привязка `READY`.
   - Все 278 тестов pytest пройдены успешно на 100%.
-- **Следующий конкретный шаг**: запустить `./build_installer.ps1 -EngineDir "D:\AI\QWEN_LOCAL_STACK_2026"`, запушить коммит в main и опубликовать релиз через `tools/publish_release.py`.
-- **Критерий завершения**: сборка инсталлятора завершена без ошибок, тесты пройдены, релиз `v0.2.0-beta.10` опубликован на GitHub.
+  - Сборка инсталлятора `LocalAgentAIStation-0.2.0-beta.10-Setup-x64.exe` (182 МБ со встроенным движком) завершена успешно.
+  - Релиз опубликован: https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.10
+- **Следующий конкретный шаг**: при желании обновить установленную Station через новый инсталлятор `LocalAgentAIStation-0.2.0-beta.10-Setup-x64.exe` или пользоваться текущей синхронизацией.
+- **Критерий завершения**: запуск Qwen Code Desktop происходит мгновенно с подключённой моделью `qwen3.8-27b-single-tcc`.
 
 Current progress:
-- **Latest Release**: `v0.2.0-beta.10` in packaging.
+- **Latest Release**: `v0.2.0-beta.10` published at [Wave-is/laas/releases/tag/v0.2.0-beta.10](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.10)
   with all 4 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt).
 - **Seamless Updater & Setup Guard**: auto-close of running processes and zero file locks during update.
 - **Smarter GPU Helper Lifecycle**: `gpuhelper` unchecked by default; preserves and restarts existing service without deletion.
