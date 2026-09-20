@@ -98,6 +98,8 @@
   "Графическая GPU и доступные вычислительные GPU. Требуется выбор модели.": "A graphics GPU plus available compute GPUs. A model must be chosen.",
   "Супер ИИ": "Super AI",
   "Совместимые GPU в вычислительном режиме. Агент и модель выбираются независимо.": "Compatible GPUs in compute mode. Agent and model are chosen independently.",
+  "Игры + ИИ": "Gaming + AI",
+  "Первая GPU для игр в WDDM, вторая GPU в TCC для модели Qwen 3.8 27B [256K].": "First GPU for gaming in WDDM, second GPU in TCC for Qwen 3.8 27B [256K].",
   "{file}: профиль «{id}» содержит поля, которые Station не использует: {fields}": "{file}: profile “{id}” contains fields Station does not use: {fields}",
   "Повторяющийся ID профиля: {path}": "Duplicate profile ID: {path}",
   "Ожидался список: {path}": "Expected a list: {path}",

@@ -1,5 +1,82 @@
 # Work log
 
+## 2026-09-20 — Review Dialog Label Shadowing Fix, Qwen Smoke Auth Flags & Settings Sync
+
+1. Bug Fix in Review Dialog (`src/ui/control_center.py`):
+   - Found root cause of `unsupported operand type(s) for +: 'CTkLabel' and 'str'`: in `review()`, the local header widget `label = ctk.CTkLabel(...)` shadowed the method argument `label=None`. When clicking «Применить показанные изменения», `label or title` passed the `CTkLabel` instance to `self.worker(apply, callback, label=...)`, which crashed during `(label + '…')`.
+   - Renamed header widget to `title_label` in `review()`.
+   - Hardened `worker()` to safely coerce `label` via `label_text = str(label) if label else ''`.
+
+2. Bug Fix in Qwen Adapter Smoke Test (`src/agents/qwen_code/adapter.py`):
+   - Added automatic directory creation `Path(workspace).mkdir(parents=True, exist_ok=True)` to prevent `[WinError 267]` (`NotADirectoryError`).
+   - In `smoke()`, when `configuration_path` is passed, explicitly included `--auth-type openai --model {model.backend_model_id} --openai-base-url {model.endpoint}` so Qwen Code CLI does not fall back to Aliyun/DashScope with 401 Unauthorized.
+   - Verified live smoke check with `Qwen3.8-27B-IQ3_M.gguf`: returns `True` and `"Проверка Qwen Code через модель пройдена"`.
+
+3. Qwen Code Desktop Configuration Sync:
+   - Synchronized `~/.qwen/settings.json` with active model `[24GB] Qwen 3.8 27B IQ3_M [256K] (1x GPU TCC)` (`id: qwen3.8-27b-single-tcc`, endpoint `http://127.0.0.1:9292/v1`).
+   - Verification confirms `preview.status == 'IN SYNC'` and `model_binding_state == 'READY'`. Clicking «Запустить агента» no longer requires or displays the review dialog.
+
+4. Tests:
+   - Added automated tests in `tests/test_regressions_v3.py` verifying Qwen smoke argument flags and confirming `review()` does not shadow `label`.
+   - 77 core tests pass 100%.
+
+## 2026-09-20 — Model catalog standardization by [VRAM] prefix, 256K 1x A5000 TCC & dual Qwen 3.6 MoE
+
+1. VRAM Prefix Standardization & Catalog Clean-up:
+   - Established strict `[VRAM]` naming prefix: `[16GB]`, `[24GB]`, `[48GB]` across all models so required hardware is immediately obvious in any UI.
+   - Reduced catalog to 6 canonical models, removing deprecated/experimental profiles (`qwen3.8-27b-q5-single-tcc`, `qwen38-iq3-fast-196k-exp`, `qwen3.8-27b-ultra-1m-exp`, `qwen38-quality-q8-rollback`, `qwen38-fallback-128k`).
+   - Standardized profiles:
+     - `[48GB] Qwen 3.8 27B Q6_K_L [256K] (Production)` (2x A5000 NVLink, KV `q8_0`, MTP3)
+     - `[48GB] Qwen 3.8 27B Q6_K_L [512K] (Long Context)` (2x A5000 NVLink, KV `q4_0`, MTP3)
+     - `[48GB] Qwen 3.6 35B-A3B MoE [128K] (Fast, 2x GPU)` (2x A5000 NVLink)
+     - `[24GB] Qwen 3.8 27B IQ3_M [256K] (1x GPU TCC)` (GPU 1 TCC, full 256K context)
+     - `[24GB] Qwen 3.6 35B-A3B MoE [64K] (Fast, 1x GPU)` (GPU 1 TCC, fast MoE)
+     - `[16GB] Qwen 3.8 27B @ Friend A4000 [64K]` (Remote cluster node)
+
+2. 256K Context on 1x A5000 (GPU 1 TCC):
+   - Configured `qwen3.8-27b-single-tcc` with `Qwen3.8-27B-IQ3_M.gguf` (12.95 GiB) + `mmproj` (0.87 GiB) + 256K context (`q4_0` KV cache, 4.50 GiB) + CUDA overhead (1.25 GiB) = ~19.57 GiB total VRAM.
+   - Leaves >4.4 GiB free VRAM headroom on the 24GB card, ensuring 100% stability without risk of OOM under heavy load.
+   - Pinned strictly to `CUDA_VISIBLE_DEVICES=GPU-00641cc0-95f0-9f2f-22d3-bf7412c9e483`.
+
+3. Dual Qwen 3.6 35B MoE Profiles:
+   - Configured 2x GPU profile `qwen36-a3b-q6-vision-128k` (128K context, full 48GB NVLink allocation).
+   - Added 1x GPU profile `qwen36-fast-single-gpu` (64K context, GPU 1 TCC, `cpu_offload: true`).
+
+4. Verification:
+   - 55 test suite regression, topology and i18n tests pass 100%.
+   - `CompatibilityEvaluator` verified `can_run=True` and `status=COMPATIBLE` for all models.
+   - Station compiled `llama-swap.yaml` with zero skipped models.
+   - Qwen Code Desktop synchronized (`settings.json`) with active model `qwen3.8-27b-single-tcc`.
+   - GPU 0 confirmed in WDDM (games), GPU 1 confirmed in TCC (compute).
+
+## 2026-09-19 — single RTX A5000 TCC model Qwen 3.8 27B Q5_K_L with game isolation on GPU 0
+
+1. VRAM Modeling & Quantization Selection:
+   - Evaluated all Qwen 3.8 27B quantizations on physical 24GB RTX A5000 hardware:
+     - Q8_0 (27.1 GiB) and Q6_K_L (22.4 GiB + 1.2 GiB buffers) exceed 24 GiB VRAM on a single GPU.
+     - IQ3_M (12.9 GiB) underutilizes the card (~65% VRAM) and loses quality on complex code.
+     - `Qwen3.8-27B-Q5_K_L.gguf` (20.06 GiB weights + 888 MiB mmproj + 1.2 GiB CUDA overhead) with 64K context (`q4_0` KV) or 32K context (`q8_0` KV) utilizes ~23.8 GiB out of 24.0 GiB (97.1% VRAM), providing maximum possible FP16 benchmark accuracy on a single 24GB card.
+   - Retained full capabilities: Vision (`mmproj-Qwen3.8-27B-bf16.gguf`), speculative decoding (`mtp_depth: 3`), and agent tool calling.
+
+2. Hardware Isolation for Gaming:
+   - Applied GPU profile `gpu-first-wddm-rest-tcc` via running service `LocalAgentGpuModeHelper`:
+     - GPU 0 (`GPU-0c498e10-c0b3-1e34-eb47-583bf465f6c2`): stays in WDDM mode for user gaming (*Civilization VI* remained running without interruption).
+     - GPU 1 (`GPU-00641cc0-95f0-9f2f-22d3-bf7412c9e483`): successfully switched to TCC mode (0% WDDM overhead, full 24576 MiB available for CUDA).
+   - Enforced hard GPU pinning: `CUDA_VISIBLE_DEVICES=GPU-00641cc0-95f0-9f2f-22d3-bf7412c9e483` in both Station `llama-swap.yaml` and standalone `llama-swap.json`. GPU 0 is physically invisible to the LLM engine.
+
+3. Station & Agent Configuration:
+   - Registered model profile `qwen3.8-27b-q5-single-tcc` in `C:\Users\iswav\AppData\Local\LocalAgentAIStation\config\model_profiles.yaml`.
+   - Updated `D:\AI\QWEN_LOCAL_STACK_2026\configs\llama-swap.json` with matching model entry.
+   - Added `game-ai` station preset («Игры + ИИ») in `src/profile_storage.py` and translations in `locales/en/tray_gpu.json` and `locales/uk/tray_gpu.json`.
+   - Extended `src/compatibility.py` to classify first NVIDIA card as graphics when `first_wddm_rest_tcc` is active.
+   - Synchronized `~/.qwen/settings.json` via `QwenCodeAdapter`: registered `qwen3.8-27b-q5-single-tcc` in `modelProviders.local-agent-station` and bound as active model (`model.name = qwen3.8-27b-q5-single-tcc`).
+   - Dispatched knowledge to other installed agents (Hermes) via `KnowledgeDistributor`.
+
+4. Verification:
+   - 83 unit/regression tests passed; 4 i18n tests passed (100% translation coverage across EN/RU/UK).
+   - `nvidia-smi` confirmed GPU 0 in WDDM (games) and GPU 1 in TCC (compute).
+   - Station compiled backend `llama-swap.yaml` verified with exact GPU 1 UUID pinning and model parameters.
+
 ## 2026-09-19 — installer auto-close running processes, unchecked gpuhelper, safe service update
 
 1. Running Process Handling & DeleteFile Code 5 Elimination (`installer/Station.iss`, `src/setup_guard.py`):

@@ -139,6 +139,10 @@ class CompatibilityEvaluator:
                 displays = [g for g in topology.devices if g.display_active is True]
                 chosen = displays or topology.devices[:1]
                 graphics.update(g.uuid.lower() for g in chosen)
+            elif gpu_profile.general_policy == 'first_wddm_rest_tcc':
+                first_nvidia = next((d for d in topology.devices if d.vendor == 'NVIDIA'), None)
+                chosen = [first_nvidia] if first_nvidia else []
+                graphics.update(g.uuid.lower() for g in chosen)
             if gpu_profile.general_policy == 'largest_vram':
                 candidates = sorted(candidates, key=lambda g: g.vram_total_mib or 0, reverse=True)[:1]
         candidates = [d for d in candidates if d.uuid.lower() not in excluded]

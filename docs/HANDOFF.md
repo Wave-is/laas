@@ -1,25 +1,21 @@
 # Development handoff
 
-Updated: 2026-09-19. **Release 0.2.0-beta.9 rebuilt with installer auto-close & service preservation, published and verified on GitHub.**
-All 276 tests pass with zero failures.
+Updated: 2026-09-20. **Release 0.2.0-beta.10 prepared with Review dialog fix, cluster model deduplication and Qwen smoke hardening.**
+All 278 tests pass with zero failures.
 
 ## Текущая работа
-- **Цель**: устранение ошибки обновления инсталлятором `DeleteFile код 5 (Отказано в доступе)` при запущенном приложении, отключение автоустановки службы GPU-режима по умолчанию и сохранение существующей службы без удаления при апдейтах.
-- **Статус**: Завершена. Релиз `v0.2.0-beta.9` пересобран и перезалит на GitHub.
+- **Цель**: сборка и публикация релиза v0.2.0-beta.10 (исправление `unsupported operand type(s) for +: 'CTkLabel' and 'str'`, дедупликация моделей кластера, надёжный smoke test Qwen Code, пресет «Игры + ИИ» и VRAM-префиксы в каталоге) на GitHub.
+- **Статус**: В процессе сборки.
 - **Подтверждённый результат**:
-  - `src/setup_guard.py`: добавлены глобальный и пользовательский мьютексы (`Global\LocalAgentAIStation.SetupGuard` и `Local\LocalAgentAIStation.SetupGuard`), что позволяет инсталлятору с повышенными привилегиями (UAC) обнаруживать работающую копию в пользовательской сессии.
-  - `installer/Station.iss`:
-    - `CloseApplications=yes` для интеграции с Windows Restart Manager.
-    - В `PrepareToInstall` добавлен автоматический корректный вызов `taskkill /IM LocalAgentAIStation.exe` (WM_CLOSE) с последующим принудительным завершением зависших процессов Station и LLM (`llama-server.exe`, `llama-swap.exe`), полностью гарантируя освобождение файлов в `{app}` перед копированием.
-    - Задача установки службы `gpuhelper` снята по умолчанию (`Flags: unchecked`).
-    - Обнаружение существующей службы `LocalAgentGpuModeHelper` (`GpuServiceExisted`): если служба уже установлена, она плавно останавливается (`sc stop`) перед копированием файлов и запускается (`sc start`) после завершения установки, без вызова `sc delete` и пересоздания.
-  - `src/services/install_helper.ps1`: удалена разрушительная логика `sc delete` с 10-секундным циклом ожидания; служба обновляется по месту через `sc config ... binPath=` и `Start-Service`.
-  - Все 276 тестов пройдены успешно, инсталлятор скомпилирован (Inno Setup) и опубликован на GitHub Release `v0.2.0-beta.9`.
-- **Следующий конкретный шаг**: установка обновлённого инсталлятора на втором ПК.
-- **Критерий завершения**: обновление проходит гладко в один клик без ошибки `DeleteFile код 5`, без переустановки службы и без необходимости вручную выгружать процесс из трея.
+  - `src/ui/control_center.py`: `title_label` больше не затеняет параметр `label`, `worker()` безопасно приводит `label` к строке.
+  - `src/agents/qwen_code/adapter.py`: дедупликация локальных моделей при сетевом опросе кластера, в `smoke()` передаются `--auth-type openai --model ... --openai-base-url ...`, каталог workspace создаётся автоматически.
+  - `~/.qwen/settings.json`: статус обновлён на `IN SYNC`, привязка `READY`.
+  - Все 278 тестов pytest пройдены успешно на 100%.
+- **Следующий конкретный шаг**: запустить `./build_installer.ps1 -EngineDir "D:\AI\QWEN_LOCAL_STACK_2026"`, запушить коммит в main и опубликовать релиз через `tools/publish_release.py`.
+- **Критерий завершения**: сборка инсталлятора завершена без ошибок, тесты пройдены, релиз `v0.2.0-beta.10` опубликован на GitHub.
 
 Current progress:
-- **Latest Release**: `v0.2.0-beta.9` published at [Wave-is/laas/releases/tag/v0.2.0-beta.9](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.9)
+- **Latest Release**: `v0.2.0-beta.10` in packaging.
   with all 4 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt).
 - **Seamless Updater & Setup Guard**: auto-close of running processes and zero file locks during update.
 - **Smarter GPU Helper Lifecycle**: `gpuhelper` unchecked by default; preserves and restarts existing service without deletion.

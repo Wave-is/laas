@@ -83,13 +83,16 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
                     'modalities': {'image': bool(model.vision and model.qualified)}},
                 'capabilities': {'vision': bool(model.vision and model.qualified),
                     'agent': bool(model.tool_calling and model.qualified)}})
+        local_ids = {m.backend_model_id for m in models if m.id != 'none' and m.status != 'disabled'}
         # Append models discovered from remote cluster nodes
         for rm in (cluster_models or []):
-            key = (rm.id, rm.endpoint)
-            if key in seen_keys:
+            if rm.id in local_ids or (rm.id, rm.endpoint) in seen_keys:
                 continue
-            seen_keys.add(key)
-            entries.append({'id': rm.id, 'name': f'{rm.name} @ {rm.node_name}' if rm.node_name else rm.name,
+            seen_keys.add((rm.id, rm.endpoint))
+            display_name = f'{rm.name} @ {rm.node_name}' if rm.node_name else rm.name
+            if 'a4000' in (rm.node_name or '').lower() or 'a4000' in rm.id.lower():
+                display_name = f'[16GB] Qwen 3.8 27B @ Friend A4000 [64K]'
+            entries.append({'id': rm.id, 'name': display_name,
                 'baseUrl': rm.endpoint, 'envKey': 'LOCAL_AGENT_STATION_API_KEY',
                 'generationConfig': {'contextWindowSize': rm.context,
                     'timeout': 240000, 'maxRetries': 0,
@@ -156,6 +159,7 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
         flags = ('--bare', '--safe-mode', '--max-tool-calls', '--max-wall-time', '--auth-type')
         if not self.command or not all(flag in self.help_text for flag in flags):
             return unsupported(tr('Проверка Qwen Code через модель недоступна: Qwen Code не установлен или его версия не поддерживает безопасный режим проверки. Обновите Qwen Code.'))
+        Path(workspace).mkdir(parents=True, exist_ok=True)
         args = self.command + ['--bare', '--safe-mode', '--auth-type', 'openai', '--model', model.backend_model_id,
             '--openai-base-url', model.endpoint, '--prompt', 'Reply exactly STATION_OK. Do not use tools.',
             '--system-prompt', 'You are a connectivity test. Reply STATION_OK.', '--max-tool-calls', '0',
@@ -164,7 +168,8 @@ class QwenCodeAdapter(AgentRuntimeAdapter):
         env = dict(os.environ, OPENAI_API_KEY='local-station', LOCAL_AGENT_STATION_API_KEY='local-station',
             QWEN_HOME=str(Path(workspace) / '.qwen-smoke'), QWEN_CODE_DISABLE_AUTO_UPDATE='1')
         if configuration_path:
-            args = self.command + ['--safe-mode', '--prompt', 'Reply exactly STATION_OK. Do not use tools.',
+            args = self.command + ['--safe-mode', '--auth-type', 'openai', '--model', model.backend_model_id,
+                '--openai-base-url', model.endpoint, '--prompt', 'Reply exactly STATION_OK. Do not use tools.',
                 '--max-tool-calls', '0', '--max-session-turns', '1', '--max-wall-time', str(timeout-5),
                 '--output-format', 'json', '--chat-recording=false']
             env['QWEN_HOME'] = str(Path(configuration_path).parent)

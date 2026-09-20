@@ -191,3 +191,34 @@ def test_migration_preview_has_no_writes_and_apply_preserves_source(tmp_path):
     assert Path(report['backup']).is_dir()
     with pytest.raises(ValueError):
         apply_migration(plan)
+
+def test_qwen_smoke_passes_model_and_auth_flags(tmp_path, monkeypatch):
+    from src.agents.qwen_code.adapter import QwenCodeAdapter
+    adapter = QwenCodeAdapter()
+    adapter.command = ['qwen.cmd']
+    adapter.help_text = '--bare --safe-mode --max-tool-calls --max-wall-time --auth-type'
+    recorded_cmd = []
+    def fake_run(args, **kwargs):
+        recorded_cmd.append(args)
+        import subprocess
+        return subprocess.CompletedProcess(args, 0, stdout='[{"type":"system","subtype":"init","model":"test-model"},{"type":"result","result":"STATION_OK"}]', stderr='')
+    monkeypatch.setattr('subprocess.run', fake_run)
+    test_model = model(id='test-model', endpoint='http://127.0.0.1:9292/v1')
+    target_workspace = tmp_path / 'non_existent_subdir'
+    cfg_path = tmp_path / 'settings.json'
+    cfg_path.write_text('{}')
+    result = adapter.smoke(test_model, str(target_workspace), configuration_path=cfg_path)
+    assert result.ok
+    assert target_workspace.exists()
+    assert '--auth-type' in recorded_cmd[0]
+    assert 'openai' in recorded_cmd[0]
+    assert '--model' in recorded_cmd[0]
+    assert 'test-model' in recorded_cmd[0]
+    assert '--openai-base-url' in recorded_cmd[0]
+    assert 'http://127.0.0.1:9292/v1' in recorded_cmd[0]
+
+def test_review_method_does_not_shadow_label_parameter():
+    import inspect, re
+    from src.ui.control_center import ControlCenter
+    source = inspect.getsource(ControlCenter.review)
+    assert not re.search(r'\blabel\s*=\s*ctk\.CTkLabel\b', source)

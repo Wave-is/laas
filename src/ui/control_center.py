@@ -642,8 +642,8 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
     def review(self, title, content, apply=None, callback=None, label=None):
         window = ctk.CTkToplevel(self)
         window.title(title); window.geometry('900x600'); window.transient(self)
-        label = ctk.CTkLabel(window, text=title, font=('Segoe UI', 20, 'bold'))
-        label.pack(anchor='w', padx=20, pady=15)
+        title_label = ctk.CTkLabel(window, text=title, font=('Segoe UI', 20, 'bold'))
+        title_label.pack(anchor='w', padx=20, pady=15)
         text = ctk.CTkTextbox(window, font=('Consolas', 12))
         text.pack(fill='both', expand=True, padx=20, pady=(0, 10))
         text.insert('1.0', content); text.configure(state='disabled')
@@ -781,18 +781,19 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             self.status_label.configure(text=tr('Дождитесь завершения: {action}.', action=self.busy_label), text_color=MUTED)
             return
         self.busy = True
-        self.busy_label = label or tr('текущее действие')
+        label_text = str(label) if label else ''
+        self.busy_label = label_text or tr('текущее действие')
         self._refresh_agent_launch_states()
         for control in self.controls:
             if control.winfo_exists():
                 control.configure(state='disabled')
-        self.status_label.configure(text=(label + '…') if label else tr('Выполняется…'), text_color=MUTED)
+        self.status_label.configure(text=(label_text + '…') if label_text else tr('Выполняется…'), text_color=MUTED)
         def work():
             try:
                 self.events.put(('result', action(), callback))
             except Exception as exc:
-                logging.getLogger(__name__).exception('Action failed: %s', label)
-                self.events.put(('result', {'Success': False, 'Message': ((label + ': ') if label else tr('Ошибка: ')) + str(exc)}, None))
+                logging.getLogger(__name__).exception('Action failed: %s', label_text)
+                self.events.put(('result', {'Success': False, 'Message': ((label_text + ': ') if label_text else tr('Ошибка: ')) + str(exc)}, None))
         threading.Thread(target=work, daemon=True).start()
 
     def _poll(self):

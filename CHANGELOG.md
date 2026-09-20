@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0-beta.10
+
+### English
+
+- **Review Dialog & Worker Label Shadowing Fix**: Resolved `TypeError: unsupported operand type(s) for +: 'CTkLabel' and 'str'` when confirming agent synchronization by preventing local header widget assignment from shadowing the `label` parameter and safely converting worker action labels to strings.
+- **Cluster Model Discovery Deduplication**: Automatically deduplicate local models discovered via LAN cluster node addresses, preventing redundant entries with `@ AI Station` suffixes from being added to Qwen Code Desktop settings.
+- **Qwen Code Adapter Smoke Test Hardening**: Ensured the qualification workspace directory is created before executing CLI commands, preventing `[WinError 267]` (`NotADirectoryError`). Explicitly included `--auth-type openai`, `--model`, and `--openai-base-url` during configuration smoke tests, avoiding unauthorized fallback to Aliyun/DashScope.
+- **Hardware Isolation & Gaming Preset**: Added `first_wddm_rest_tcc` topology evaluation logic and «Игры + ИИ» preset, reserving GPU 0 for gaming in WDDM while pinning AI models to GPU 1 in TCC.
+
+### Русский
+
+- **Исправление ошибки диалога синхронизации и воркера**: Устранена ошибка `TypeError: unsupported operand type(s) for +: 'CTkLabel' and 'str'` при нажатии «Применить показанные изменения» в диалоге подключения модели: заголовок окна больше не затеняет параметр `label`, а воркер безопасно приводит метки действий к строке.
+- **Дедупликация моделей кластера**: Исключено появление локальных дубликатов с суффиксом `@ AI Station` в настройках Qwen Code Desktop при сетевом опросе собственного узла по LAN IP.
+- **Надёжность smoke-теста адаптера Qwen Code**: Добавлено автоматическое создание каталога workspace (исключает сбой `[WinError 267]`). В аргументы проверки явно передаются `--auth-type openai`, `--model` и `--openai-base-url`, исключая ошибочную переадресацию в облако Aliyun/DashScope с ошибкой 401.
+- **Аппаратная изоляция и пресет «Игры + ИИ»**: Добавлена политика `first_wddm_rest_tcc` в оценщик совместимости и встроенный пресет «Игры + ИИ», сохраняющий GPU 0 для игр в WDDM и выделяющий GPU 1 в TCC для вычислений ИИ.
+
+### Українська
+
+- **Виправлення помилки діалогу синхронізації та воркера**: Усунено помилку `TypeError: unsupported operand type(s) for +: 'CTkLabel' and 'str'` під час натискання «Застосувати показані зміни» в діалозі підключення моделі: заголовок вікна більше не затінює параметр `label`, а воркер безпечно перетворює мітки дій на рядок.
+- **Дедуплікація моделей кластера**: Виключено появу локальних дублікатів із суфіксом `@ AI Station` у налаштуваннях Qwen Code Desktop під час мережевого опитування власного вузла за LAN IP.
+- **Надійність smoke-тесту адаптера Qwen Code**: Додано автоматичне створення каталогу workspace (виключає помилку `[WinError 267]`). В аргументи перевірки явно передаються `--auth-type openai`, `--model` та `--openai-base-url`, усуваючи помилкову переадресацію в хмару Aliyun/DashScope з кодом 401.
+- **Апаратна ізоляція та пресет «Ігри + ШІ»**: Додано політику `first_wddm_rest_tcc` в оцінювач сумісності та вбудований пресет «Ігри + ШІ», що зберігає GPU 0 для ігор у WDDM та виділяє GPU 1 у TCC для обчислень ШІ.
+
 ## 0.2.0-beta.9
 
 ### English
