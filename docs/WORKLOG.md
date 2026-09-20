@@ -1,5 +1,42 @@
 # Work log
 
+## 2026-09-20 — Telegram-style Over-The-Air (OTA) Updates Engine & UI Integration
+
+1. OTA Update Engine (`src/app_updates.py`):
+   - Implemented `UpdateManager` (singleton `update_manager`) and `UpdateState` state machine (`IDLE`, `CHECKING`, `AVAILABLE`, `DOWNLOADING`, `READY`, `INSTALLING`, `ERROR`).
+   - GitHub Releases API integration querying latest release for `LocalAgentAIStation-*-Setup-x64.exe` and `SHA256SUMS.txt`.
+   - Streaming HTTP chunked download with live progress calculation and cancellation support (`cancel_download()`).
+   - Checksum verification: downloads `SHA256SUMS.txt`, computes SHA256 of the downloaded `.exe.part`, checks match before promoting to `.exe`.
+   - Detached 1-click updater (`apply_update(silent=True)`): writes a detached PowerShell runner script (`apply_update.ps1`) that waits for Station's PID to terminate, executes the installer with `/SILENT /CLOSEAPPLICATIONS /NORESTART`, relaunches `LocalAgentAIStation.exe`, and cleans up temp files.
+
+2. Telegram-Style UI Sidebar Integration (`src/ui/control_center.py`):
+   - Added dynamic update button/badge (`self.sidebar_update_btn`) packed directly above `self.sidebar_version_label` at the bottom of the sidebar.
+   - Real-time reactivity via `update_manager.subscribe`:
+     - `AVAILABLE`: `[ 📥 Обновить до v... ]` (accent pill)
+     - `DOWNLOADING`: `[ ⏳ Загрузка 45% ]` (blue progress pill)
+     - `READY`: `[ 🚀 Перезапустить: v... ]` (green restart pill)
+     - `INSTALLING`: `[ ⏳ Установка… ]` (amber installing pill)
+     - `IDLE`: hidden (`pack_forget`) with zero extra blank space.
+   - Non-blocking delayed check 15s after startup and periodic hourly check in background polling thread.
+   - Clean unsubscribe on application shutdown.
+
+3. Maintenance Page Enhancements (`src/ui/pages/maintenance.py`):
+   - Replaced static check section with full OTA dashboard: status label, progress bar, action buttons (Check, Download, Restart & Apply, Cancel, Releases), and switches for `app_update_check` and `app_update_auto_download`.
+
+4. Telegram-style Update Dialog (`src/ui/update_dialog.py`):
+   - Modal window showing version, release date, download size, scrollable release notes (changelog), live download progress bar, and action buttons.
+   - Developer mode warning for Git checkouts (`sys.frozen == False`) recommending `git pull` or manual install.
+
+5. Configuration & Strict i18n (`src/config.py`, `locales/`):
+   - Added configuration keys `app_update_check: True`, `app_update_auto_download: False`, `app_update_interval_hours: 4`.
+   - Full English and Ukrainian translation catalogs in `locales/en/app_updates.json` and `locales/uk/app_updates.json`.
+   - Zero untranslated or raw Cyrillic strings in source files.
+
+6. Automated Tests & Verification:
+   - Created `tests/test_app_updates.py` with 7 comprehensive unit tests (semver comparison, update checking, chunked download, SHA256 match, SHA256 mismatch error handling, detached update script generation, and UI state transitions).
+   - All 4 i18n tests pass 100% (`pytest tests/test_i18n.py`).
+   - All 285 tests across the entire test suite pass with zero failures.
+
 ## 2026-09-20 — Review Dialog Label Shadowing Fix, Qwen Smoke Auth Flags & Settings Sync
 
 1. Bug Fix in Review Dialog (`src/ui/control_center.py`):

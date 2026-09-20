@@ -34,6 +34,9 @@ DEFAULT_SETTINGS = {
     'llama_swap_executable': '', 'llama_server_executable': '',
     'cluster_nodes': None, 'cluster_poll_interval_sec': 30.0,
     'cluster_refresh_mode': '30s',
+    'app_update_check': True,
+    'app_update_auto_download': False,
+    'app_update_interval_hours': 4,
 }
 
 class AppConfig:
@@ -57,7 +60,7 @@ class AppConfig:
         self._data['startup'] = startup_settings(self._data.get('startup'))
         from .tray_settings import validate_tray
         validate_tray(self._data)
-        for key in ('llama_swap_lan_access', 'suppress_gpu_switch_warning'):
+        for key in ('llama_swap_lan_access', 'suppress_gpu_switch_warning', 'app_update_check', 'app_update_auto_download'):
             if type(self._data.get(key)) is not bool:
                 raise ConfigurationError(tr('{key}: нужно логическое значение (true/false)', key=key))
         if type(self._data.get('suppress_gpu_switch_warning')) is not bool:

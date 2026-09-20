@@ -1,22 +1,22 @@
 # Development handoff
 
-Updated: 2026-09-20. **Release 0.2.0-beta.10 built with Review dialog fix, cluster model deduplication and Qwen smoke hardening, published and verified on GitHub.**
-All 278 tests pass with zero failures.
+Updated: 2026-09-20. **Telegram-style Over-The-Air (OTA) Updates Engine & UI Integration completed.**
+All 285 tests pass with zero failures.
 
 ## Текущая работа
-- **Цель**: сборка и публикация релиза v0.2.0-beta.10 (исправление `unsupported operand type(s) for +: 'CTkLabel' and 'str'`, дедупликация моделей кластера, надёжный smoke test Qwen Code, пресет «Игры + ИИ» и VRAM-префиксы в каталоге) на GitHub.
-- **Статус**: Завершена. Релиз `v0.2.0-beta.10` опубликован на GitHub со всеми 4 ассетами.
-- **Подтверждённый результат**:
-  - `src/ui/control_center.py`: `title_label` больше не затеняет параметр `label`, `worker()` безопасно приводит `label` к строке.
-  - `src/agents/qwen_code/adapter.py`: дедупликация локальных моделей при сетевом опросе кластера, в `smoke()` передаются `--auth-type openai --model ... --openai-base-url ...`, каталог workspace создаётся автоматически.
-  - `~/.qwen/settings.json`: статус обновлён на `IN SYNC`, привязка `READY`.
-  - Все 278 тестов pytest пройдены успешно на 100%.
-  - Сборка инсталлятора `LocalAgentAIStation-0.2.0-beta.10-Setup-x64.exe` (182 МБ со встроенным движком) завершена успешно.
-  - Релиз опубликован: https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.10
-- **Следующий конкретный шаг**: при желании обновить установленную Station через новый инсталлятор `LocalAgentAIStation-0.2.0-beta.10-Setup-x64.exe` или пользоваться текущей синхронизацией.
-- **Критерий завершения**: запуск Qwen Code Desktop происходит мгновенно с подключённой моделью `qwen3.8-27b-single-tcc`.
+- **Цель**: разработка и внедрение механизма OTA-самообновления в стиле Telegram Desktop (фоновая проверка релизов GitHub, фоновая загрузка инсталлятора с проверкой контрольной суммы SHA256, ненавязчивый индикатор/бейдж в сайдбаре и бесшовный перезапуск с установкой в 1 клик).
+- **Этап**: Разработка и верификация завершены. Движок `UpdateManager`, фоновые загрузки с проверкой SHA256, бейдж в сайдбаре, модальное окно `UpdateDialog` и страница «Обслуживание» полностью реализованы, переведены (EN/UK/RU) и покрыты автоматическими тестами.
+- **Следующий конкретный шаг**: подготовка релиза `v0.2.0-beta.11` (сборка инсталлятора через Inno Setup и PyInstaller, публикация релиза на GitHub с артефактами и проверка самообновления в боевом режиме).
+- **Критерий завершения**: Релиз v0.2.0-beta.11 собран, опубликован на GitHub, Station автоматически определяет новый релиз и обновляется в 1 клик.
 
 Current progress:
+- **Telegram-style OTA Auto-Updates**:
+  - `src/app_updates.py`: stateful `UpdateManager` (IDLE, CHECKING, AVAILABLE, DOWNLOADING, READY, INSTALLING, ERROR) with chunked background streaming, SHA256 integrity verification against `SHA256SUMS.txt`, cancellation, and detached PowerShell runner (`apply_update.ps1`) for seamless 1-click update & restart.
+  - `src/ui/control_center.py`: unobtrusive sidebar badge packed directly above version label reacting in real time to update events (`[ 📥 Обновить до v... ]`, `[ ⏳ Загрузка 45% ]`, `[ 🚀 Перезапустить: v... ]`), delayed 15s check on boot, hourly periodic check.
+  - `src/ui/update_dialog.py`: dedicated modal dialog with version info, changelog markdown viewer, download progress bar, action buttons, and Git source mode detection.
+  - `src/ui/pages/maintenance.py`: updated Station update section with progress bar, action buttons, auto-check and auto-download toggles.
+  - `locales/en/app_updates.json`, `locales/uk/app_updates.json`: 100% complete localization, strict i18n validated.
+  - `tests/test_app_updates.py`: 7 automated tests covering SemVer comparisons, check flows, download chunking, hash verification & mismatch handling, detached script generation, and sidebar state transitions.
 - **Latest Release**: `v0.2.0-beta.10` published at [Wave-is/laas/releases/tag/v0.2.0-beta.10](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.10)
   with all 4 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt).
 - **Seamless Updater & Setup Guard**: auto-close of running processes and zero file locks during update.

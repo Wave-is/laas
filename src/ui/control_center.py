@@ -24,6 +24,8 @@ from ..tray_renderer import renderer
 from ..shared_services import shared_services
 from ..branding import mark_image
 from ..i18n import LANGUAGES, current_language, tr
+from ..app_updates import update_manager, UpdateState
+from .update_dialog import UpdateDialog
 from .tray_controls import TrayControls
 from .gpu_confirmation import GpuControls
 from .service_controls import ServiceControls
@@ -176,6 +178,10 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             self.after(3000, lambda: self.status_label.configure(text=tr('Предупреждение: {details}', details='; '.join(profile_storage.warnings)[:380]), text_color='#f8ad88'))
         if (start_minimized or config.get('startup', {}).get('minimized', False)) and self.tray:
             self.withdraw()
+        self._last_update_check = time.time()
+        update_manager.subscribe(self._on_app_update_event)
+        if config.get('app_update_check', True):
+            self.after(15000, self._initial_update_check)
         # Page modules may define _after_build_<name>(self) for work that needs the finished window.
         for name in sorted(n for n in dir(self) if n.startswith('_after_build_')):
             try:
@@ -200,8 +206,55 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             self.nav_buttons[page_id] = button
         ctk.CTkButton(sidebar, text=tr('Меню действий'), fg_color=EDGE, height=32, corner_radius=6, command=self._show_quick_menu).pack(fill='x', padx=14, pady=(10, 0))
         ctk.CTkButton(sidebar, text=tr('Свернуть в трей'), fg_color='transparent', hover_color=EDGE, height=32, corner_radius=6, command=self.hide_to_tray).pack(fill='x', padx=14, pady=(3, 0))
-        ctk.CTkLabel(sidebar, text=tr('Независимый локальный\nцентр управления') + '\nv' + VERSION, justify='left',
-            text_color=MUTED, font=('Segoe UI', 11)).pack(side='bottom', anchor='w', padx=20, pady=12)
+        self.sidebar_version_label = ctk.CTkLabel(sidebar, text=tr('Независимый локальный\nцентр управления') + '\nv' + VERSION, justify='left',
+            text_color=MUTED, font=('Segoe UI', 11))
+        self.sidebar_version_label.pack(side='bottom', anchor='w', padx=20, pady=12)
+        self.sidebar_update_btn = ctk.CTkButton(
+            sidebar, text='', fg_color=ACCENT, text_color=BG,
+            hover_color='#71e2c2', font=('Segoe UI', 11, 'bold'), height=30, corner_radius=6,
+            command=self._on_sidebar_update_clicked
+        )
+
+    def _on_app_update_event(self, state, data):
+        try:
+            self.after(0, self._handle_update_state_change, state, data)
+        except Exception:
+            pass
+
+    def _handle_update_state_change(self, state, data):
+        rel = data.get('release') or {}
+        ver = rel.get('tag_name', '').lstrip('v') or rel.get('version', '')
+        if state == UpdateState.AVAILABLE:
+            self.sidebar_update_btn.configure(
+                text=tr('📥 Обновить до v{version}', version=ver),
+                fg_color=ACCENT, hover_color='#71e2c2', text_color=BG, state='normal')
+            self.sidebar_update_btn.pack(side='bottom', fill='x', padx=14, pady=(0, 8))
+        elif state == UpdateState.DOWNLOADING:
+            pct = int(data.get('progress', 0.0) * 100)
+            self.sidebar_update_btn.configure(
+                text=tr('⏳ Загрузка {pct}%', pct=pct),
+                fg_color='#2563eb', hover_color='#1d4ed8', text_color='#ffffff', state='normal')
+            self.sidebar_update_btn.pack(side='bottom', fill='x', padx=14, pady=(0, 8))
+        elif state == UpdateState.READY:
+            self.sidebar_update_btn.configure(
+                text=tr('🚀 Перезапустить: v{version}', version=ver),
+                fg_color='#22c55e', hover_color='#16a34a', text_color='#ffffff', state='normal')
+            self.sidebar_update_btn.pack(side='bottom', fill='x', padx=14, pady=(0, 8))
+        elif state == UpdateState.INSTALLING:
+            self.sidebar_update_btn.configure(
+                text=tr('⏳ Установка…'),
+                fg_color='#eab308', hover_color='#ca8a04', text_color='#000000', state='disabled')
+            self.sidebar_update_btn.pack(side='bottom', fill='x', padx=14, pady=(0, 8))
+        else:
+            self.sidebar_update_btn.pack_forget()
+
+    def _on_sidebar_update_clicked(self):
+        UpdateDialog(self)
+
+    def _initial_update_check(self):
+        if not self.stop_event.is_set() and config.get('app_update_check', True):
+            self._last_update_check = time.time()
+            update_manager.check_updates(background=True)
 
     def page(self, name):
         page = ctk.CTkScrollableFrame(self.body, fg_color=BG, corner_radius=0)
@@ -821,6 +874,12 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
                         hook(top, backend_info, running)
                     except Exception:
                         logging.getLogger(__name__).exception('Poll hook failed')
+                if config.get('app_update_check', True):
+                    interval = max(1, int(config.get('app_update_interval_hours', 4))) * 3600
+                    now = time.time()
+                    if now - self._last_update_check > interval:
+                        self._last_update_check = now
+                        update_manager.check_updates(background=True)
             except Exception as exc:
                 if not self.events.full():
                     self.events.put(('poll_error', str(exc), None))
@@ -1064,6 +1123,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.withdraw() if self.tray else self.quit_app()
 
     def quit_app(self):
+        update_manager.unsubscribe(self._on_app_update_event)
         self.startup_cancel.set()
         self.stop_event.set()
         for job in self.tk.splitlist(self.tk.call('after', 'info')):
