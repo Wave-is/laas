@@ -1,16 +1,18 @@
 # Development handoff
 
-Updated: 2026-09-21. **Release v0.2.0-beta.12 published: bundle CUDA 13 DLLs (cublas, cublasLt, nvcudart_hybrid), fix models qualification import, purge legacy 3.0.0-alpha.1 release, harden detached update relaunch.**
+Updated: 2026-09-21. **Release v0.2.0-beta.13 published: extended context override (--override-kv) for 512K/1M windows, bulletproof per-user & system OTA updates (/CURRENTUSER /DIR /SP-).**
 
 ## Текущая работа
-- **Цель**: Релиз v0.2.0-beta.12 опубликован и подтверждён.
+- **Цель**: Релиз v0.2.0-beta.13 опубликован и подтверждён.
 - **Этап**: Завершено.
-- **Следующий конкретный шаг**: Обратная связь от пользователя по проверке работы на втором ПК и приёмочное тестирование обновления.
-- **Критерий завершения**: все 286 тестов проходят, инсталлятор с CUDA 13 DLL опубликован на GitHub, автообновление не зацикливается, проверка моделей работает штатно.
+- **Следующий конкретный шаг**: Проверка обновления и длинного контекста в Qwen Code Desktop.
+- **Критерий завершения**: все 287 тестов проходят, инсталлятор v0.2.0-beta.13 опубликован на GitHub, модель 512K принимает длинные промпты без ошибки 400, автообновление корректно заменяет файлы и перезапускается.
 
 Current progress:
-- **Published Release v0.2.0-beta.12**: published at [Wave-is/laas/releases/tag/v0.2.0-beta.12](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.12)
+- **Published Release v0.2.0-beta.13**: published at [Wave-is/laas/releases/tag/v0.2.0-beta.13](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.13)
   with all 4 assets (Setup installer x64 with bundled engine & CUDA 13 DLLs, source archive, BUILD.json, SHA256SUMS.txt).
+- **Extended Context Override for Large Windows (512K/1M)**: Added automated `--override-kv {arch}.context_length=int:{context}` injection in `src/model_backend.py` when profile context exceeds native GGUF metadata length (e.g. Qwen 3.8 27B native 262K extended to 512K). This completely resolves the `400 request exceeds available context size` error in Qwen Code Desktop when sending prompts above 262K tokens.
+- **Robust Per-User & System OTA In-Place Updates**: Overhauled detached installer invocation in `src/app_updates.py`: explicitly passes `/CURRENTUSER` (for `%LOCALAPPDATA%\Programs\...` installs) or `/ALLUSERS` along with `/DIR="{target_dir}"` and `/SP-`. This prevents elevation mismatch failures during silent updates and guarantees that in-place updates properly replace files and automatically relaunch Station.
 - **CUDA 13 Runtime DLLs Bundled**: `cublas64_13.dll` (50MB), `cublasLt64_13.dll` (477MB), and `nvcudart_hybrid64.dll` (1.1MB) placed into `D:\AI\QWEN_LOCAL_STACK_2026\llama.cpp` and packaged into `{app}\engine\llama.cpp` by `build_installer.ps1`. Full GPU compute out of the box on remote PCs.
 - **Model Qualification Import Fixed**: corrected relative import in `src/ui/pages/models.py` (`from ...qualification import qualify_model`), eliminating `No module named 'src.ui.qualification'` error.
 - **Purged Legacy 3.0.0-alpha.1 & Hardened OTA**: deleted obsolete release and tag `v3.0.0-alpha.1` from GitHub; added major version guard in SemVer comparisons; enhanced `apply_update.ps1` with `%TEMP%\laas_update.log`, codes 0/6, and fallback launcher.
@@ -19,22 +21,15 @@ Current progress:
 - **Direct Agent Launch**: `▶` launches agent directly without blocking diff or review modals. Dedicated `🔧` button opens configuration review dialog to preview and synchronize model endpoints with agent configs.
 - **OTA Auto-Download by Default**: `app_update_auto_download: True` in config; 1-click restart immediately applies update and relaunches Station.
 - **Legacy Release Tag Filter**: `src/app_updates.py` ignores legacy `3.0.0-alpha.1` release so SemVer comparison targets the active `0.2.0-beta.*` release line.
-- **Telegram-style OTA Auto-Updates**:
-  - `src/app_updates.py`: stateful `UpdateManager` (IDLE, CHECKING, AVAILABLE, DOWNLOADING, READY, INSTALLING, ERROR) with chunked background streaming, SHA256 integrity verification against `SHA256SUMS.txt`, cancellation, and detached PowerShell runner (`apply_update.ps1`) for seamless 1-click update & restart.
-  - `src/ui/control_center.py`: unobtrusive sidebar badge packed directly above version label reacting in real time to update events (`[ 📥 Обновить до v... ]`, `[ ⏳ Загрузка 45% ]`, `[ 🚀 Перезапустить: v... ]`), delayed 15s check on boot, hourly periodic check.
-  - `src/ui/update_dialog.py`: dedicated modal dialog with version info, changelog markdown viewer, download progress bar, action buttons, and Git source mode detection.
-  - `src/ui/pages/maintenance.py`: updated Station update section with progress bar, action buttons, auto-check and auto-download toggles.
-  - `locales/en/app_updates.json`, `locales/uk/app_updates.json`: 100% complete localization, strict i18n validated.
-  - `tests/test_app_updates.py`: 8 automated tests covering SemVer comparisons, check flows, download chunking, hash verification & mismatch handling, detached script generation, UI state transitions, and legacy tag filtering.
 
 ## Current state
 
 The official release is published at
-[Wave-is/laas](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.12).
+[Wave-is/laas](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.13).
 Repository visibility is public. Setup, release notes, README, quick-start,
 and application UI are fully localized in English, Russian and Ukrainian.
 
-Release source: `be0fe4d26508af00608f73345e2c6e21989ae05c`.
+Release source: `e7e55584da25164f9b8c005f7e7c805eb38cbddb`.
 Later documentation-only commits do not change the built installer or executable.
 BUILD.json, TESTING.json and SHA256SUMS.txt accompany the installer and source archive.
 All five uploaded assets were downloaded and verified by SHA256.

@@ -1,5 +1,24 @@
 # Work log
 
+## 2026-09-21 — Extended Context Override (--override-kv) for 512K/1M Windows & Robust In-Place OTA Installer Flags (Release v0.2.0-beta.13)
+
+1. Extended Context Override for Large Context Windows (512K / 1M):
+   - Root cause: GGUF models such as `Qwen3.8-27B-Q6_K_L.gguf` define `qwen35.context_length = 262144` in their header metadata. When llama-server was started with `-c 524288`, llama.cpp silently clamped the context buffer to the GGUF metadata default (`262144`). When Qwen Code Desktop sent requests larger than 256K (e.g. 262,490 tokens), llama-server rejected the request with `400 request (262490 tokens) exceeds the available context size (262144 tokens), try increasing it`.
+   - In `src/model_backend.py`, added automated GGUF header inspection via `read_gguf_cached(weights)`. When `model.context > (info.context_length or 0)`, `build_model_entry` automatically passes `--override-kv {info.architecture}.context_length=int:{model.context}` (e.g. `--override-kv qwen35.context_length=int:524288`).
+   - Verified with real backend configuration: `qwen3.8-27b-long` now properly allocates the full 524,288 token context window.
+
+2. Robust In-Place OTA Updates for Per-User & System Installs (`src/app_updates.py`):
+   - Root cause: In beta 11, `apply_update.ps1` ran the installer silently without `/CURRENTUSER` or `/DIR`. Because Inno Setup was configured with `PrivilegesRequired=admin`, silent execution from a standard user session without elevation failed to install into `Program Files`, resulting in an exit code failure without updating the existing per-user copy in `%LOCALAPPDATA%\Programs\Local Agent AI Station`.
+   - In `src/app_updates.py`, added automatic detection of installation scope (`/CURRENTUSER` for user-space installations in `%LOCALAPPDATA%\...` and `/ALLUSERS` for system-wide installations).
+   - Explicitly passed `/DIR="{target_dir}"`, `/SP-`, `/SILENT`, `/CLOSEAPPLICATIONS`, and `/NORESTART`.
+   - Enhanced relaunch candidates in `apply_update.ps1` to check both target executable path and standard path variants with spaces.
+
+3. Testing & Release:
+   - Added automated test `test_build_model_entry_adds_override_kv_for_extended_context` to `tests/test_model_server.py`.
+   - All 287 automated tests pass with 0 failures.
+   - Built standalone installer `LocalAgentAIStation-0.2.0-beta.13-Setup-x64.exe` (565.1 MB) bundled with full CUDA 13 engine.
+   - Published release `v0.2.0-beta.13` to GitHub with installer, source zip, `BUILD.json`, and `SHA256SUMS.txt`.
+
 ## 2026-09-21 — Bundle CUDA 13 Runtime DLLs, Fix Qualification Import, Purge Legacy 3.0.0-alpha.1 & Release v0.2.0-beta.12
 
 1. Missing CUDA 13 DLL Bundling for Remote/Worker PCs:
