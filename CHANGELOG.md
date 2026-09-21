@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0-beta.13
+
+### English
+
+- **Extended Context Override for Large Windows (512K/1M)**: Added automated `--override-kv {arch}.context_length=int:{context}` injection in `src/model_backend.py` when profile context exceeds native GGUF metadata length (e.g. Qwen 3.8 27B native 262K extended to 512K). This completely resolves the `400 request exceeds available context size` error in Qwen Code Desktop when sending prompts above 262K tokens.
+- **Robust Per-User & System OTA In-Place Updates**: Overhauled detached installer invocation in `src/app_updates.py`: explicitly passes `/CURRENTUSER` (for `%LOCALAPPDATA%\Programs\...` installs) or `/ALLUSERS` along with `/DIR="{target_dir}"` and `/SP-`. This prevents elevation mismatch failures during silent updates and guarantees that in-place updates properly replace files and automatically relaunch Station.
+
+### Русский
+
+- **Поддержка расширенного контекста (512K/1M) через `--override-kv`**: В `src/model_backend.py` добавлена автоматическая передача параметра `--override-kv {arch}.context_length=int:{context}` в llama-server, если заданный в профиле контекст превышает базовый из метаданных GGUF (например, для Qwen 3.8 27B с базовыми 262K при расширении до 512K). Это устраняет ошибку `400 request exceeds available context size` в Qwen Code Desktop при запросах свыше 262K токенов.
+- **Надёжная бесшовная установка OTA-обновлений**: Доработан запуск установщика в `src/app_updates.py`: явно передаются флаги `/CURRENTUSER` (для пользовательских установок в `%LOCALAPPDATA%\Programs\...`) или `/ALLUSERS`, целевая папка `/DIR="{target_dir}"` и `/SP-`. Это устраняет сбои прав UAC при тихом обновлении и гарантирует перезапись файлов в текущей папке с последующим автоматическим перезапуском Station.
+
+### Українська
+
+- **Підтримка розширеного контексту (512K/1M) через `--override-kv`**: У `src/model_backend.py` додано автоматичну передачу параметра `--override-kv {arch}.context_length=int:{context}` у llama-server, якщо вказаний у профілі контекст перевищує базовий із метаданих GGUF (наприклад, для Qwen 3.8 27B з базовими 262K при розширенні до 512K). Це усуває помилку `400 request exceeds available context size` у Qwen Code Desktop при запитах понад 262K токенів.
+- **Надійне безшовне встановлення OTA-оновлень**: Доопрацьовано запуск інсталятора в `src/app_updates.py`: явно передаються прапорці `/CURRENTUSER` (для користувацьких інсталяцій у `%LOCALAPPDATA%\Programs\...`) або `/ALLUSERS`, цільова тека `/DIR="{target_dir}"` та `/SP-`. Це усуває збої прав UAC при тихому оновленні та гарантує оновлення файлів у поточній теці з подальшим автоматичним перезапуском Station.
+
 ## 0.2.0-beta.12
 
 ### English

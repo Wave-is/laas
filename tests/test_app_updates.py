@@ -92,7 +92,9 @@ def test_update_manager_apply_update_script(tmp_path, monkeypatch):
     script = tmp_path / 'apply_update.ps1'
     assert script.is_file()
     content = script.read_text(encoding='utf-8')
-    assert '/SILENT /CLOSEAPPLICATIONS' in content
+    assert '/SILENT' in content
+    assert '/CLOSEAPPLICATIONS' in content
+    assert '/CURRENTUSER' in content
     assert str(installer) in content
     assert len(executed_cmds) == 1
     assert 'powershell.exe' in executed_cmds[0][0]

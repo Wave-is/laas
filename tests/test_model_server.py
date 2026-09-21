@@ -69,3 +69,28 @@ def test_existing_setup_fills_engine_and_models_folders_once(tmp_path, monkeypat
     changes = ms.fill_missing_folders([ModelProfile('q', 'Q', str(weights))])
     assert cfg.get('runtime_dir') == str(tmp_path / 'stack') and cfg.get('models_dir') == str(weights.parent)
     assert ms.fill_missing_folders([ModelProfile('q', 'Q', str(weights))]) == {} and changes
+
+
+def test_build_model_entry_adds_override_kv_for_extended_context(tmp_path, monkeypatch):
+    from src.model_backend import build_model_entry
+    from src.profiles_schema import ModelProfile
+    from src.gguf import GgufInfo
+
+    exe = tmp_path / ms.LLAMA_SERVER_EXE
+    exe.write_bytes(b'x')
+    weights = tmp_path / 'qwen38.gguf'
+    weights.write_bytes(b'x')
+
+    fake_info = GgufInfo(str(weights), metadata={'general.architecture': 'qwen35', 'qwen35.context_length': 262144})
+    monkeypatch.setattr('src.model_backend.read_gguf_cached', lambda path: fake_info)
+
+    # Context 512K exceeds 262K -> adds override-kv
+    model_512k = ModelProfile('qwen-long', 'Qwen Long', str(weights), context=524288)
+    entry = build_model_entry(model_512k, [], str(exe))
+    assert '--override-kv qwen35.context_length=int:524288' in entry['cmd']
+
+    # Context 256K <= 262K -> does not add override-kv
+    model_256k = ModelProfile('qwen-prod', 'Qwen Prod', str(weights), context=262144)
+    entry_256k = build_model_entry(model_256k, [], str(exe))
+    assert '--override-kv' not in entry_256k['cmd']
+

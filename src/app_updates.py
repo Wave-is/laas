@@ -312,6 +312,20 @@ class UpdateManager:
             return False, tr('Файл обновления не найден. Скачайте его заново.')
 
         target_exe = str(Path(sys.executable).resolve()) if getattr(sys, 'frozen', False) else ''
+        target_dir = str(Path(sys.executable).resolve().parent) if getattr(sys, 'frozen', False) else ''
+        is_user_install = True
+        if target_dir:
+            prog_files = os.environ.get('ProgramFiles', 'C:\\Program Files').lower()
+            prog_files_x86 = os.environ.get('ProgramFiles(x86)', 'C:\\Program Files (x86)').lower()
+            td_lower = target_dir.lower()
+            if td_lower.startswith(prog_files) or td_lower.startswith(prog_files_x86):
+                is_user_install = False
+
+        scope_flag = '/CURRENTUSER' if is_user_install else '/ALLUSERS'
+        dir_flag = f'/DIR="{target_dir}"' if target_dir else ''
+        silent_flags = '/SILENT /SP- /CLOSEAPPLICATIONS /NORESTART' if silent else '/SP- /CLOSEAPPLICATIONS'
+        installer_args = f'{scope_flag} {dir_flag} {silent_flags}'.strip()
+
         script = self.installer_path.parent / 'apply_update.ps1'
         current_pid = os.getpid()
 
@@ -330,25 +344,29 @@ Start-Sleep -Seconds 1
 
 $installer = '{str(self.installer_path)}'
 $targetExe = '{target_exe}'
-$fallbackExe = Join-Path $env:LOCALAPPDATA 'Programs\\LocalAgentAIStation\\LocalAgentAIStation.exe'
-$silentFlag = '{('/SILENT /CLOSEAPPLICATIONS /NORESTART' if silent else '/CLOSEAPPLICATIONS')}'
+$installerArgs = '{installer_args}'
 
-Add-Content -Path $logFile -Value ("[{{0}}] Running installer: {{1}} {{2}}" -f (Get-Date -Format 's'), $installer, $silentFlag)
-$p = Start-Process -FilePath $installer -ArgumentList $silentFlag -Wait -PassThru
+Add-Content -Path $logFile -Value ("[{{0}}] Running installer: {{1}} {{2}}" -f (Get-Date -Format 's'), $installer, $installerArgs)
+$p = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru
 $exitCode = if ($p) {{ $p.ExitCode }} else {{ -1 }}
 Add-Content -Path $logFile -Value ("[{{0}}] Installer finished with exit code {{1}}" -f (Get-Date -Format 's'), $exitCode)
 
 $launched = $false
 if ($exitCode -in 0, 6) {{
     Start-Sleep -Seconds 1
-    if ($targetExe -and (Test-Path $targetExe)) {{
-        Add-Content -Path $logFile -Value ("[{{0}}] Launching target: {{1}}" -f (Get-Date -Format 's'), $targetExe)
-        Start-Process -FilePath $targetExe
-        $launched = $true
-    }} elseif (Test-Path $fallbackExe) {{
-        Add-Content -Path $logFile -Value ("[{{0}}] Launching fallback: {{1}}" -f (Get-Date -Format 's'), $fallbackExe)
-        Start-Process -FilePath $fallbackExe
-        $launched = $true
+    $candidates = @(
+        $targetExe,
+        (Join-Path $env:LOCALAPPDATA 'Programs\\Local Agent AI Station\\LocalAgentAIStation.exe'),
+        (Join-Path $env:ProgramFiles 'Local Agent AI Station\\LocalAgentAIStation.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Programs\\LocalAgentAIStation\\LocalAgentAIStation.exe')
+    )
+    foreach ($cand in $candidates) {{
+        if ($cand -and (Test-Path $cand)) {{
+            Add-Content -Path $logFile -Value ("[{{0}}] Launching: {{1}}" -f (Get-Date -Format 's'), $cand)
+            Start-Process -FilePath $cand
+            $launched = $true
+            break
+        }}
     }}
 }}
 Start-Sleep -Seconds 3

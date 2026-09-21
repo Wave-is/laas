@@ -7,6 +7,7 @@ from .storage import atomic_write, read_document
 from .paths import data_dir
 from .compatibility import compatibility_evaluator
 from .model_server import resolve_model_file
+from .gguf import read_gguf_cached
 from .i18n import tr
 
 def launch_signature(model, hardware_profile, executable, topology):
@@ -59,6 +60,9 @@ def build_model_entry(model, devices, executable):
         args += ['--spec-type', 'draft-mtp', '--spec-draft-n-max', str(model.mtp_depth)]
     if model.kv_type:
         args += ['-ctk', model.kv_type, '-ctv', model.kv_type]
+    info = read_gguf_cached(weights)
+    if info and info.architecture and model.context and (not info.context_length or model.context > info.context_length):
+        args += ['--override-kv', f'{info.architecture}.context_length=int:{model.context}']
     # llama-swap parses argv, never invokes a shell. CUDA UUIDs avoid driver index reordering.
     command = subprocess.list2cmdline(args) if os.name == 'nt' else shlex.join(args)
     entry = {'cmd': command, 'proxy': 'http://127.0.0.1:${PORT}', 'name': model.name}
