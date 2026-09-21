@@ -172,6 +172,13 @@ class StationController:
             workspace = str(Path.home())
         model = gpu_mode_manager.get_active_model_profile()
         model = model if model and model.id != 'none' else None
+        try:
+            preview = self.preview_sync(frontend['runtime_id'], model)
+            if preview.status != 'IN SYNC':
+                from .agent_sync import apply_preview
+                apply_preview(preview, accept_custom=True)
+        except Exception:
+            pass
         if frontend['type'] == 'terminal':
             result = adapter.start(workspace, model)
             if result.message:
@@ -256,4 +263,25 @@ class StationController:
                             return background
                 finally:
                     config.set('preferred_frontend', preset.preferred_frontend)
+        else:
+            self.sync_all_agents_silently()
         return result
+
+    def sync_all_agents_silently(self):
+        """Silently synchronize model profiles and active model binding for all installed agents."""
+        model = gpu_mode_manager.get_active_model_profile()
+        model = model if model and model.id != 'none' else None
+        synced = []
+        for runtime_id, adapter in self.adapters.items():
+            if not adapter.manifest.get('provider_sync', True):
+                continue
+            try:
+                preview = self.preview_sync(runtime_id, model)
+                if preview.status != 'IN SYNC':
+                    from .agent_sync import apply_preview
+                    apply_preview(preview, accept_custom=True)
+                    synced.append(runtime_id)
+            except Exception:
+                pass
+        return synced
+

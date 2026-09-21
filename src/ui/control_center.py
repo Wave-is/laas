@@ -635,6 +635,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         if not all(id in self.controller.adapters for id in result):
             self.status_label.configure(text=result.get('Message', tr('Не удалось обнаружить агенты.')), text_color='#f8ad88')
             return
+        threading.Thread(target=self.controller.sync_all_agents_silently, daemon=True).start()
         for child in self.agent_cards.winfo_children():
             child.destroy()
         self.controls = [control for control in self.controls if control.winfo_exists()]
