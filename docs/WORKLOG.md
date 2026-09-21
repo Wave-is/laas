@@ -1,5 +1,30 @@
 # Work log
 
+## 2026-09-21 — Compact Icon Agent Controls (▶/⏹/🔧), Direct Launch, Default OTA Auto-Download & Release v0.2.0-beta.11
+
+1. Compact Symbol Controls & Dedicated Settings (`src/ui/agent_controls.py`, `src/ui/control_center.py`):
+   - Replaced bulky localized text buttons (`[ Запустить агента ]`, `[ Остановить агента ]`) with compact, clean 44px symbol buttons: Play (`▶`), Stop (`⏹`), and Settings (`🔧`).
+   - Standardized layout across both the Dashboard agent control row and the Agents page individual agent cards.
+   - Preserved icon text during dynamic state refreshes (`_refresh_agent_launch_states`, `_refresh_dashboard_buttons`).
+
+2. Direct Agent Launch (`src/ui/control_center.py`):
+   - Streamlined `_launch_frontend`: pressing `▶` now directly starts the agent executable (`self.controller.launch_frontend()`) without popping up configuration review modals, diff popups, or smoke checks.
+   - Dedicated Settings action (`_configure_agent`): pressing `🔧` explicitly opens the configuration review dialog to preview and synchronize model endpoints with external agent settings (e.g. `~/.qwen/settings.json`).
+
+3. Telegram-Style OTA Auto-Download Default & Seamless Update (`src/config.py`, `src/app_updates.py`, `src/ui/control_center.py`):
+   - Enabled `app_update_auto_download: True` by default so updates are automatically downloaded in the background when discovered.
+   - In `src/ui/control_center.py`, clicking the sidebar badge when update is `READY` immediately triggers `apply_update(silent=True)` and exits Station after 300ms for seamless 1-click update without opening the full dialog.
+   - Added filter in `src/app_updates.py` to ignore legacy pre-release tags (`3.0.0-alpha.1`), ensuring SemVer comparison always targets `0.2.0-beta.*` releases.
+
+4. Version Bump & GitHub Publication:
+   - Bumped `VERSION` to `0.2.0-beta.11` (`WINDOWS_VERSION = (0, 2, 0, 11)`).
+   - Built Inno Setup installer `LocalAgentAIStation-0.2.0-beta.11-Setup-x64.exe` (182.7 MB) bundled with the full LLM engine from `D:\AI\QWEN_LOCAL_STACK_2026`.
+   - Published GitHub Release `v0.2.0-beta.11` on `Wave-is/laas` with installer, source archive, `BUILD.json`, and `SHA256SUMS.txt`.
+
+5. Testing & Verification:
+   - Added `test_check_ignores_legacy_3_0_0_alpha` to `tests/test_app_updates.py`.
+   - All 286 automated tests pass with 0 failures.
+
 ## 2026-09-20 — Telegram-style Over-The-Air (OTA) Updates Engine & UI Integration
 
 1. OTA Update Engine (`src/app_updates.py`):

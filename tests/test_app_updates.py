@@ -243,3 +243,31 @@ def test_ui_sidebar_and_maintenance_state_transitions():
     assert not cc.packed
 
 
+def test_check_ignores_legacy_3_0_0_alpha():
+    releases = [
+        {
+            'tag_name': 'v3.0.0-alpha.1',
+            'name': 'Release 3.0.0-alpha.1',
+            'html_url': 'https://github.com/Wave-is/laas/releases/tag/v3.0.0-alpha.1',
+            'draft': False,
+            'assets': [
+                {'name': 'LocalAgentAIStation-3.0.0-alpha.1-Setup-x64.exe', 'browser_download_url': 'http://example.com'},
+            ],
+        },
+        {
+            'tag_name': 'v0.2.0-beta.11',
+            'name': 'Release 0.2.0-beta.11',
+            'html_url': 'https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.11',
+            'draft': False,
+            'assets': [
+                {'name': 'LocalAgentAIStation-0.2.0-beta.11-Setup-x64.exe', 'browser_download_url': 'http://example.com'},
+            ],
+        }
+    ]
+    res = check(current='0.2.0-beta.10', fetch=lambda url: releases)
+    assert res['Success']
+    assert res['Release'] is not None
+    assert res['Release']['version'] == '0.2.0-beta.11'
+
+
+

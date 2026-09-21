@@ -83,6 +83,8 @@ def check(current=VERSION, fetch=None):
         parsed = parse_semver(version)
         if row.get('draft') or not parsed or (parsed[1] and not allow_pre):
             continue
+        if version.startswith('3.0.0-alpha'):
+            continue
         if best is None or compare(version, best['version']) > 0:
             installer = None
             checksums = None
