@@ -347,7 +347,12 @@ $targetExe = '{target_exe}'
 $installerArgs = '{installer_args}'
 
 Add-Content -Path $logFile -Value ("[{{0}}] Running installer: {{1}} {{2}}" -f (Get-Date -Format 's'), $installer, $installerArgs)
-$p = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru
+$isAllUsers = $installerArgs -match '/ALLUSERS' -or $targetExe -like "$env:ProgramFiles*"
+if ($isAllUsers) {{
+    $p = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru -Verb RunAs
+}} else {{
+    $p = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru
+}}
 $exitCode = if ($p) {{ $p.ExitCode }} else {{ -1 }}
 Add-Content -Path $logFile -Value ("[{{0}}] Installer finished with exit code {{1}}" -f (Get-Date -Format 's'), $exitCode)
 
@@ -381,7 +386,8 @@ Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyConti
                 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
                 '-WindowStyle', 'Hidden', '-File', str(script),
                 '-WaitPid', str(current_pid)
-            ], creationflags=DETACHED_FLAGS, close_fds=True)
+            ], cwd=str(tempfile.gettempdir()), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+               creationflags=DETACHED_FLAGS, close_fds=True)
             self.state = self.STATE_INSTALLING
             self._notify()
             return True, tr('Обновление запущено. Приложение перезапускается…')

@@ -1,19 +1,20 @@
 # Development handoff
 
-Updated: 2026-09-21. **Release v0.2.0-beta.14: VM (WaveVM) & RDP rendering optimizations (lazy page building), non-GPU instant probe bypass, normalized single-instance mutex, and vision backend flags (--no-mmproj-offload, --image-min/max-tokens).**
+Updated: 2026-09-21. **Release v0.2.0-beta.15: Fix StartupRunner background services import, elevated Program Files updater, VM (WaveVM) lazy loading optimizations, non-GPU instant probe bypass, and vision backend flags.**
 
 ## Текущая работа
-- **Цель**: Релиз v0.2.0-beta.14: оптимизация производительности интерфейса на виртуалках (WaveVM), устранение подвисаний отрисовки, канонизация единого экземпляра и поддержка vision-флагов.
-- **Этап**: Завершено тестирование (291 тест), сборка и публикация релиза v0.2.0-beta.14.
-- **Следующий конкретный шаг**: Проверка запуска на WaveVM и публикация на GitHub.
-- **Критерий завершения**: все 291 тест проходят, инсталлятор v0.2.0-beta.14 собран и опубликован на GitHub, GUI открывается мгновенно без зависаний на виртуальных машинах.
+- **Цель**: Релиз v0.2.0-beta.15: устранение StartupRunner NameError, поддержка UAC elevation для апдейтера в Program Files, ленивая отрисовка для WaveVM.
+- **Этап**: Завершено тестирование (291 тест), сборка и публикация релиза v0.2.0-beta.15.
+- **Следующий конкретный шаг**: Проверка чистого запуска на ПК пользователя и WaveVM.
+- **Критерий завершения**: все 291 тест проходят, инсталлятор v0.2.0-beta.15 опубликован на GitHub, GUI открывается без ошибок и зависаний.
 
 Current progress:
-- **VM Performance & UI Responsiveness (Lazy Loading)**: Implemented on-demand lazy page creation in `ControlCenter`. Only the initial `station` page is built at startup, deferring all other 11 heavy pages (~400+ canvas widgets) until requested by the user. Completely eliminates startup lag and rendering freezes on virtual machines (WaveVM) and software GDI environments.
-- **Non-GPU Hardware Probe Bypass**: Instant return in `GpuDetailsCache.refresh()` when `nvidia-smi` is absent, preventing repeated subprocess calls and timeouts on CPU-only/VM systems.
-- **Single-Instance Mutex Canonicalization**: Normalized directory paths and Win32 named mutex hashing to prevent duplicate executions and reliably bring active window to front.
-- **Vision Model Backend CLI Parameters**: Added configuration and command generator support for `--no-mmproj-offload`, `--image-min-tokens <N>`, and `--image-max-tokens <N>` in `model_backend.py`, `profiles_schema.py`, and `validation.py`.
-- **Published Release v0.2.0-beta.13**: published at [Wave-is/laas/releases/tag/v0.2.0-beta.13](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.13).
+- **Fixed StartupRunner Import**: Resolved `NameError: name 'StartupRunner' is not defined` during background services initialization on startup in `ControlCenter`.
+- **Elevated Updater for Program Files**: `src/app_updates.py` automatically passes `-Verb RunAs` and decouples working directory from temporary folders when updating installations in `C:\Program Files`.
+- **VM Performance & UI Responsiveness (Lazy Loading)**: Implemented on-demand lazy page creation in `ControlCenter`. Only the initial `station` page is built at startup, deferring all other 11 heavy pages (~400+ canvas widgets) until requested by the user.
+- **Non-GPU Hardware Probe Bypass**: Instant return in `GpuDetailsCache.refresh()` when `nvidia-smi` is absent.
+- **Single-Instance Mutex Canonicalization**: Normalized directory paths and Win32 named mutex hashing to prevent duplicate executions.
+- **Vision Model Backend CLI Parameters**: Added `--no-mmproj-offload`, `--image-min-tokens <N>`, and `--image-max-tokens <N>`.
 - **CUDA 13 Runtime DLLs Bundled**: `cublas64_13.dll` (50MB), `cublasLt64_13.dll` (477MB), and `nvcudart_hybrid64.dll` (1.1MB) placed into `D:\AI\QWEN_LOCAL_STACK_2026\llama.cpp` and packaged into `{app}\engine\llama.cpp` by `build_installer.ps1`. Full GPU compute out of the box on remote PCs.
 - **Model Qualification Import Fixed**: corrected relative import in `src/ui/pages/models.py` (`from ...qualification import qualify_model`), eliminating `No module named 'src.ui.qualification'` error.
 - **Purged Legacy 3.0.0-alpha.1 & Hardened OTA**: deleted obsolete release and tag `v3.0.0-alpha.1` from GitHub; added major version guard in SemVer comparisons; enhanced `apply_update.ps1` with `%TEMP%\laas_update.log`, codes 0/6, and fallback launcher.

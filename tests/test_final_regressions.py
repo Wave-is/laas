@@ -114,6 +114,22 @@ def test_control_center_lazy_page_building():
     assert hasattr(ControlCenter, '_ensure_page_built')
     assert hasattr(ControlCenter, '_init_background_services')
 
+    class FakeCC:
+        controller = None
+        poll_hooks = []
+        _build_startup_banner = lambda self: None
+        _monitoring_alert = lambda self: None
+        _execute_schedule_action = lambda self, *a: None
+        _schedules_poll = lambda self, *a: None
+        call_in_ui = lambda self, f: None
+        notify = lambda self, m, t: None
+
+    cc = FakeCC()
+    ControlCenter._init_background_services(cc)
+    assert hasattr(cc, 'startup_runner')
+    assert hasattr(cc, 'metrics_store')
+    assert hasattr(cc, 'schedule_manager')
+
 
 def test_instance_path_normalization(tmp_path):
     from src.instance import StationInstance

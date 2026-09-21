@@ -1,5 +1,18 @@
 # Work log
 
+## 2026-09-21 — Fix StartupRunner Import in UI Init & Elevated Program Files Updater (Release v0.2.0-beta.15)
+
+1. StartupRunner Import Fix (`src/ui/control_center.py`):
+   - Fixed `NameError: name 'StartupRunner' is not defined` in `_init_background_services()` by adding the missing import `from ..startup import StartupRunner`.
+   - Added automated regression test `test_control_center_lazy_page_building` in `tests/test_final_regressions.py` that executes `_init_background_services()` on a mock instance to verify that all dependencies and managers are cleanly constructed.
+
+2. Elevated Updater for Program Files (`src/app_updates.py`):
+   - In `apply_update.ps1`, added `-Verb RunAs` when target executable is located in `Program Files` (`/ALLUSERS`), ensuring Windows UAC elevation is properly triggered to write files without silent access denial.
+   - Decoupled working directory and standard stream descriptors from PyInstaller temporary directory `%TEMP%\_MEI...` during updater process spawning.
+
+3. Testing & Verification:
+   - Full test suite: 291 passed in 12.2s.
+
 ## 2026-09-21 — Virtual Machine (WaveVM) & RDP UI Lazy Loading Optimization, Non-GPU Fast Return, Mutex Path Normalization & Vision Backend Parameters (Release v0.2.0-beta.14)
 
 1. UI Performance & Freezing Fix for Virtual Machines (WaveVM) & Software Rendering:

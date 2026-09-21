@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0-beta.15
+
+### English
+
+- **Fixed StartupRunner Import**: Resolved `NameError: name 'StartupRunner' is not defined` during background services initialization on startup.
+- **Elevated Updater for Program Files**: `src/app_updates.py` automatically passes `-Verb RunAs` and decouples working directory from temporary folders when updating installations in `C:\Program Files`.
+
+### Русский
+
+- **Исправление импорта StartupRunner**: Устранена ошибка `name 'StartupRunner' is not defined` при инициализации фоновых служб на старте приложения.
+- **Повышение прав при обновлении в Program Files**: `src/app_updates.py` автоматически передаёт флаг `-Verb RunAs` и отвязывает рабочий каталог от временных папок при установках в `C:\Program Files`.
+
+### Українська
+
+- **Виправлення імпорту StartupRunner**: Усунено помилку `name 'StartupRunner' is not defined` під час ініціалізації фонових служб під час старту програми.
+- **Підвищення прав під час оновлення у Program Files**: `src/app_updates.py` автоматично передає прапорець `-Verb RunAs` та відв'язує робочий каталог від тимчасових тек під час інсталяцій у `C:\Program Files`.
+
 ## 0.2.0-beta.14
 
 ### English

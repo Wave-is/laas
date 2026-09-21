@@ -290,6 +290,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         return page
 
     def _init_background_services(self):
+        from ..startup import StartupRunner
         self.startup_cancel = threading.Event()
         self.startup_scheduled = False
         self.startup_pending = False
