@@ -22,8 +22,10 @@ try {
     if (-not $ISCC) {
         $candidate = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
         $userCandidate = Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'
+        $archiveCandidate = Join-Path $PSScriptRoot '_archive\2026-09-17\repo-leftovers\runtime\tools\inno-6.7.3\ISCC.exe'
         if (Test-Path -LiteralPath $candidate) { $ISCC = $candidate }
         elseif (Test-Path -LiteralPath $userCandidate) { $ISCC = $userCandidate }
+        elseif (Test-Path -LiteralPath $archiveCandidate) { $ISCC = $archiveCandidate }
         else { $ISCC = (Get-Command ISCC.exe -ErrorAction Stop).Source }
     }
     $version = & $Python -c 'from src.version import VERSION; print(VERSION)'

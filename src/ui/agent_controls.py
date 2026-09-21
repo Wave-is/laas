@@ -36,11 +36,12 @@ class AgentControls:
         row = self.row(card)
         combo = self.combo(row, choices, selected, width=375)
         combo.configure(command=lambda value: self._refresh_agent_launch_states())
-        start = self.button(row, tr('Запустить агента'), lambda: self._launch_frontend(combo.get()), True, width=160)
-        stop = self.button(row, tr('Остановить агента'), lambda: self._stop_agent_frontend(combo.get()), width=160)
+        start = self.button(row, '▶', lambda: self._launch_frontend(combo.get()), True, width=44)
+        stop = self.button(row, '⏹', lambda: self._stop_agent_frontend(combo.get()), width=44)
+        config_btn = self.button(row, '🔧', lambda: self._configure_agent(combo.get()), width=44)
         label = ctk.CTkLabel(card, text='', anchor='w', justify='left', text_color='#91a2b4', wraplength=770)
         label.pack(fill='x', padx=20, pady=(0, 14))
-        self.agent_launch_widgets[runtime] = (combo, start, stop, label)
+        self.agent_launch_widgets[runtime] = (combo, start, stop, config_btn, label)
 
     def _refresh_dashboard_buttons(self):
         """Start buttons on the overview are inactive while the thing is already running."""
@@ -58,21 +59,28 @@ class AgentControls:
         state = self.frontend_states.get(fid, {})
         frontend = self.controller.frontends.get(fid, {})
         actions = frontend_action_state(frontend, state.get('running', False), self.busy, state.get('owned', False))
-        self.dashboard_agent_start.configure(state='normal' if actions['start'] else 'disabled',
-            text=tr('Агент уже запущен') if state.get('running') else tr('Запустить агента'))
+        self.dashboard_agent_start.configure(state='normal' if actions['start'] else 'disabled')
         self.dashboard_agent_stop.configure(state='normal' if actions['stop'] else 'disabled')
+        if hasattr(self, 'dashboard_agent_config'):
+            self.dashboard_agent_config.configure(state='normal' if not self.busy else 'disabled')
 
     def _refresh_agent_launch_states(self):
         self._refresh_dashboard_buttons()
-        for combo, start, stop, label in getattr(self, 'agent_launch_widgets', {}).values():
+        for widgets in getattr(self, 'agent_launch_widgets', {}).values():
+            if len(widgets) == 5:
+                combo, start, stop, config_btn, label = widgets
+            else:
+                combo, start, stop, label = widgets
+                config_btn = None
             id = combo.get()
             frontend = self.controller.frontends.get(id, {})
             state = self.frontend_states.get(id, {})
             running = state.get('running', False)
             actions = frontend_action_state(frontend, running, self.busy, state.get('owned', False))
-            start.configure(state='normal' if actions['start'] else 'disabled',
-                text=tr('Уже запущен') if running else tr('Запустить агента'))
+            start.configure(state='normal' if actions['start'] else 'disabled')
             stop.configure(state='normal' if actions['stop'] else 'disabled')
+            if config_btn:
+                config_btn.configure(state='normal' if not self.busy else 'disabled')
             combo.configure(state='disabled' if self.busy else 'readonly')
             if running:
                 hint = (tr('Перед остановкой завершите текущую задачу агента.') if state.get('owned')

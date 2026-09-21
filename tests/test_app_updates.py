@@ -29,15 +29,15 @@ def test_update_manager_check_updates(monkeypatch):
 
     fake_releases = [
         {
-            'tag_name': 'v0.2.0-beta.11',
-            'name': 'Release 0.2.0-beta.11',
-            'html_url': 'https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.11',
+            'tag_name': 'v0.2.0-beta.99',
+            'name': 'Release 0.2.0-beta.99',
+            'html_url': 'https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.99',
             'draft': False,
             'published_at': '2026-09-20T12:00:00Z',
-            'body': 'Notes for beta 11',
+            'body': 'Notes for beta 99',
             'assets': [
                 {
-                    'name': 'LocalAgentAIStation-0.2.0-beta.11-Setup-x64.exe',
+                    'name': 'LocalAgentAIStation-0.2.0-beta.99-Setup-x64.exe',
                     'size': 1024,
                     'browser_download_url': 'https://example.com/setup.exe',
                 },
@@ -52,12 +52,22 @@ def test_update_manager_check_updates(monkeypatch):
 
     monkeypatch.setattr('src.app_updates.fetch_json', lambda url, timeout=15: fake_releases)
 
+    from src.config import config
+    monkeypatch.setattr(config, 'get', lambda key, default=None: False if key == 'app_update_auto_download' else config._data.get(key, default))
+
     mgr.check_updates(background=False)
     assert mgr.state == UpdateManager.STATE_AVAILABLE
     assert mgr.release_info is not None
-    assert mgr.release_info['version'] == '0.2.0-beta.11'
+    assert mgr.release_info['version'] == '0.2.0-beta.99'
     assert mgr.release_info['installer_url'] == 'https://example.com/setup.exe'
     assert len(events) >= 2
+
+    # Now test auto_download=True
+    monkeypatch.setattr(config, 'get', lambda key, default=None: True if key == 'app_update_auto_download' else config._data.get(key, default))
+    mgr2 = UpdateManager()
+    monkeypatch.setattr(mgr2, 'start_download', lambda: setattr(mgr2, 'state', UpdateManager.STATE_DOWNLOADING))
+    mgr2.check_updates(background=False)
+    assert mgr2.state == UpdateManager.STATE_DOWNLOADING
 
 
 def test_update_manager_apply_update_script(tmp_path, monkeypatch):

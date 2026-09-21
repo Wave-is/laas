@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0-beta.11
+
+### English
+
+- **Telegram-style Over-The-Air (OTA) Updates**: Implemented seamless auto-update engine querying GitHub Releases, streaming chunked installer downloads with SHA256 integrity verification, enabled auto-download by default, real-time sidebar pill badge, modal update dialog with changelog, and 1-click silent update & restart via detached PowerShell runner.
+- **Direct 1-Click Agent Launch**: Streamlined agent launch so clicking Launch directly starts the agent process without blocking review modals or configuration smoke checks.
+- **Compact Icon Agent Controls**: Replaced massive buttons with sleek, compact symbol buttons on the dashboard and agent cards: `▶` (Launch), `⏹` (Stop), `🔧` (Configure & sync model profile).
+- **Maintenance Page OTA Dashboard**: Modernized Station update card with real-time download progress bar, action buttons, and auto-check/auto-download toggles.
+
+### Русский
+
+- **OTA-самообновление в стиле Telegram**: Внедрён бесшовный механизм фоновой проверки релизов GitHub, потоковая загрузка инсталлятора с проверкой SHA256, автоскачивание обновлений по умолчанию, ненавязчивый бейдж-пилл в сайдбаре, модальное окно с описанием релиза (Changelog) и бесшовный перезапуск с установкой обновления в 1 клик через изолированный PowerShell-скрипт.
+- **Прямой запуск агента в 1 клик**: Упрощён запуск агента — нажатие кнопки запуска сразу запускает процесс агента без всплывающих окон подтверждения diff и без блокирующих проверок smoke-тестов.
+- **Компактные значки управления агентами**: Массивные текстовые кнопки на панели управления и в карточках агентов заменены на компактные значки: `▶` (Запуск), `⏹` (Остановка), `🔧` (Настройка и синхронизация профиля).
+- **Панель обновлений на странице «Обслуживание»**: Добавлена современная карточка обновлений с прогресс-баром скачивания, кнопками ручного управления и переключателями автопроверки и автоскачивания.
+
+### Українська
+
+- **OTA-самооновлення у стилі Telegram**: Впроваджено безшовний механізм фонової перевірки релізів GitHub, потокове завантаження інсталятора з перевіркою SHA256, автозавантаження оновлень за замовчуванням, ненав'язливий бейдж-пілл у сайдбарі, модальне вікно з описом релізу (Changelog) та безшовний перезапуск із встановленням оновлення в 1 клік через ізольований PowerShell-скрипт.
+- **Прямий запуск агента в 1 клік**: Спрощено запуск агента — натискання кнопки запуску одразу запускає процес агента без спливаючих вікон підтвердження diff та без блокуючих перевірок smoke-тестів.
+- **Компактні піктограми керування агентами**: Масивні текстові кнопки на панелі керування та в картках агентів замінено на компактні значки: `▶` (Запуск), `⏹` (Зупинка), `🔧` (Налаштування та синхронізація профілю).
+- **Панель оновлень на сторінці «Обслуговування»**: Додано сучасну картку оновлень із прогрес-баром завантаження, кнопками ручного керування та перемикачами автоперевірки й автозавантаження.
+
 ## 0.2.0-beta.10
 
 ### English

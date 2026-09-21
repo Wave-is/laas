@@ -249,6 +249,13 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             self.sidebar_update_btn.pack_forget()
 
     def _on_sidebar_update_clicked(self):
+        if update_manager.state == UpdateState.READY:
+            success, msg = update_manager.apply_update(silent=True)
+            if success:
+                self.after(300, self.quit_app)
+            else:
+                self.status_label.configure(text=msg, text_color=WARNING)
+            return
         UpdateDialog(self)
 
     def _initial_update_check(self):
@@ -375,8 +382,9 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.runtime_combo.configure(command=lambda value: self._select_runtime(self.runtime_combo.get()))
         self.frontend_combo = self.combo(row, [], width=208)
         self.frontend_combo.configure(command=lambda value: self._refresh_dashboard_buttons())
-        self.dashboard_agent_start = self.button(row, tr('Запустить агента'), self._launch_frontend, True, width=150)
-        self.dashboard_agent_stop = self.button(row, tr('Остановить агента'), lambda: self._run_selection(self.frontend_combo, self.controller.stop_frontend, tr('Остановка агента')), width=150)
+        self.dashboard_agent_start = self.button(row, '▶', self._launch_frontend, True, width=44)
+        self.dashboard_agent_stop = self.button(row, '⏹', lambda: self._run_selection(self.frontend_combo, self.controller.stop_frontend, tr('Остановка агента')), width=44)
+        self.dashboard_agent_config = self.button(row, '🔧', self._configure_agent, width=44)
         row = self.row(card)
         # Same field look as the selectors above: a read-only status box, then primary/secondary buttons.
         box = ctk.CTkFrame(row, width=395, height=36, fg_color='#111b25', border_color=EDGE, border_width=2, corner_radius=6)
@@ -709,7 +717,6 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
     def _launch_frontend(self, frontend_id=None):
         frontend_id = frontend_id or self.frontend_combo.get()
         frontend = self.controller.frontends.get(frontend_id)
-        model = gpu_mode_manager.get_active_model_profile()
         if not frontend:
             return
         current = self.controller.frontend_status(frontend_id)
@@ -717,7 +724,6 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             self._agent_frontend_done({'Success': True, 'Message': (tr('{name} уже запущен из Station', name=frontend['name']) if current['owned'] else
                 tr('{name} уже открыт (запущен не из Station)', name=frontend['name'])) + (f', PID {current["pid"]}' if current['pid'] else '') + '.'})
             return
-        adapter = self.controller.adapters.get(frontend['runtime_id'])
         folder = None
         if frontend.get('type') in ('terminal', 'vscode'):
             # Ask which project the agent should work on; remember it for the next launch.
@@ -726,35 +732,35 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             if not folder:
                 return
             config.set('last_agent_folder', str(Path(folder)))
-        if model and model.id != 'none' and adapter and adapter.manifest.get('provider_sync', True):
-            state = self.controller.model_binding_state(adapter.id, model)
-            if state == 'READY_STALE':
-                self.worker(lambda: self.controller.launch_frontend(frontend_id, folder=folder), lambda result: self._agent_frontend_done(dict(result,
-                    Message=result_message(result) + '. ' + tr('Список моделей в настройках агента устарел — обновите его: Модели → Синхронизировать с агентами.'))),
-                    label=tr('Запуск: {name}', name=frontend['name']))
-                return
-            try:
-                preview = self.controller.preview_sync(adapter.id, model)
-            except Exception as exc:
-                messagebox.showerror(APP_NAME, str(exc), parent=self)
-                return
-            if preview.status != 'IN SYNC':
-                self.deiconify(); self.lift()
-                def apply():
-                    workspace = data_dir() / 'qualification-workspace'
-                    workspace.mkdir(parents=True, exist_ok=True)
-                    def smoke():
-                        result = adapter.smoke(model, str(workspace), configuration_path=preview.path)
-                        if not result.ok:
-                            raise RuntimeError(result.message + ': ' + str(result.data))
-                        return True
-                    apply_preview(preview, accept_custom=True, smoke=smoke)
-                    return self.controller.launch_frontend(frontend_id, folder=folder)
-                self.review(tr('Подключить модель «{model}» к {agent}', model=model.name, agent=frontend['name']),
-                    tr('Файл настроек агента: {path}', path=preview.path) + '\n'
-                    + tr('Будут изменены только блоки, которыми управляет Station. Перед записью создаётся резервная копия.') + '\n\n' + preview.diff, apply, self._agent_frontend_done)
-                return
         self.worker(lambda: self.controller.launch_frontend(frontend_id, folder=folder), self._agent_frontend_done, label=tr('Запуск: {name}', name=frontend['name']))
+
+    def _configure_agent(self, frontend_id=None):
+        frontend_id = frontend_id or self.frontend_combo.get()
+        frontend = self.controller.frontends.get(frontend_id)
+        if not frontend:
+            return
+        adapter = self.controller.adapters.get(frontend['runtime_id'])
+        if not adapter:
+            return
+        model = gpu_mode_manager.get_active_model_profile()
+        if not model or model.id == 'none':
+            self.status_label.configure(text=tr('Сначала загрузите модель: после синхронизации агент проверяется тестовым запросом к ней.'), text_color=WARNING)
+            return
+        try:
+            preview = self.controller.preview_sync(adapter.id, model)
+        except Exception as exc:
+            messagebox.showerror(APP_NAME, str(exc), parent=self)
+            return
+        if preview.status == 'IN SYNC':
+            self.status_label.configure(text=tr('{agent}: уже синхронизирован', agent=frontend['name']), text_color=ACCENT)
+            return
+        self.deiconify(); self.lift()
+        def apply():
+            apply_preview(preview, accept_custom=True)
+            return {'Success': True, 'Message': tr('{agent}: модели синхронизированы', agent=frontend['name'])}
+        self.review(tr('Подключить модель «{model}» к {agent}', model=model.name, agent=frontend['name']),
+            tr('Файл настроек агента: {path}', path=preview.path) + '\n'
+            + tr('Будут изменены только блоки, которыми управляет Station. Перед записью создаётся резервная копия.') + '\n\n' + preview.diff, apply, self._agent_frontend_done)
 
     def edit_document(self, filename):
         path = data_dir() / 'config' / filename

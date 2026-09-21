@@ -35,7 +35,7 @@ DEFAULT_SETTINGS = {
     'cluster_nodes': None, 'cluster_poll_interval_sec': 30.0,
     'cluster_refresh_mode': '30s',
     'app_update_check': True,
-    'app_update_auto_download': False,
+    'app_update_auto_download': True,
     'app_update_interval_hours': 4,
 }
 
