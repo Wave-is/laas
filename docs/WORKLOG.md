@@ -1,5 +1,29 @@
 # Work log
 
+## 2026-09-21 — Bundle CUDA 13 Runtime DLLs, Fix Qualification Import, Purge Legacy 3.0.0-alpha.1 & Release v0.2.0-beta.12
+
+1. Missing CUDA 13 DLL Bundling for Remote/Worker PCs:
+   - Root cause: `ggml-cuda.dll` dynamically links to `cublas64_13.dll`, which in turn links to `cublasLt64_13.dll` and uses `nvcudart_hybrid64.dll`. On remote PCs without CUDA 13 Toolkit installed in PATH, `ggml-cuda.dll` failed `LoadLibrary` (WinError 126), causing llama-server to fall back to CPU inference.
+   - Copied `cublas64_13.dll` (50MB), `cublasLt64_13.dll` (477MB), and `nvcudart_hybrid64.dll` (1.1MB) from `C:\Users\iswav\Desktop\CUDA13_DLL` into `D:\AI\QWEN_LOCAL_STACK_2026\llama.cpp`.
+   - Included all three libraries in the Inno Setup installer payload (`dist/engine/llama.cpp`). Remote PCs now get full NVIDIA GPU acceleration immediately upon installation without requiring CUDA Toolkit setup.
+
+2. Model Qualification Import Fix (`src/ui/pages/models.py`):
+   - Fixed erroneous relative import `from ..qualification import qualify_model` to `from ...qualification import qualify_model` on line 100.
+   - "Загрузить и проверить модель" on the Models page now operates without raising `No module named 'src.ui.qualification'`.
+
+3. Termination of Legacy 3.0.0-alpha.1 Update Loop & Updater Relaunch Hardening:
+   - Root cause: GitHub repository contained an obsolete pre-release `v3.0.0-alpha.1` (ID 387889436) from Sep 13. SemVer comparison evaluated 3.0.0 > 0.2.0, causing Station to download the obsolete alpha. When applied, the legacy installer did not install into the modern `LocalAgentAIStation` directory, causing the relaunch check to fail. After manual start, the cycle repeated.
+   - Deleted release `387889436` and remote tag `v3.0.0-alpha.1` permanently from GitHub via REST API.
+   - Hardened `src/app_updates.py`: SemVer comparison now strictly skips any releases with major version >= 3 while on the 0.x line.
+   - Overhauled `apply_update.ps1`: added detailed log `%TEMP%\laas_update.log`, accepted exit codes 0 and 6, added fallback to `%LOCALAPPDATA%\Programs\LocalAgentAIStation\LocalAgentAIStation.exe`, and verified process relaunch.
+
+4. Version Bump & Publication:
+   - Bumped `VERSION` to `0.2.0-beta.12` (`WINDOWS_VERSION = (0, 2, 0, 12)`).
+   - Localized release notes added to `CHANGELOG.md` in English, Russian, and Ukrainian.
+   - Built standalone installer `LocalAgentAIStation-0.2.0-beta.12-Setup-x64.exe` (565.1 MB) bundled with full CUDA 13 engine.
+   - Published release `v0.2.0-beta.12` to GitHub with installer, source zip, `BUILD.json`, and `SHA256SUMS.txt`.
+   - Verified live `app_updates.check()` reports "У вас актуальная версия Station (0.2.0-beta.12)".
+
 ## 2026-09-21 — Fix Qwen Code Context Limit Truncation, Silent Agent Sync & Test Environment Sandboxing
 
 1. Root Cause Analysis of Context Compression Error:

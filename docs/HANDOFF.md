@@ -1,20 +1,20 @@
 # Development handoff
 
-Updated: 2026-09-21. **Release v0.2.0-beta.12 in progress: bundle CUDA 13 DLLs (cublas, cublasLt, nvcudart_hybrid), fix models qualification import, purge legacy 3.0.0-alpha.1 release, harden detached update relaunch.**
+Updated: 2026-09-21. **Release v0.2.0-beta.12 published: bundle CUDA 13 DLLs (cublas, cublasLt, nvcudart_hybrid), fix models qualification import, purge legacy 3.0.0-alpha.1 release, harden detached update relaunch.**
 
 ## Текущая работа
-- **Цель**: 1) встроить недостающие библиотеки CUDA 13 (`cublas64_13.dll`, `cublasLt64_13.dll`, `nvcudart_hybrid64.dll`) в бандл llama.cpp, чтобы на других ПК видеокарта сразу определялась; 2) исправить относительный импорт `qualify_model` в `src/ui/pages/models.py`; 3) удалить с GitHub релиз и тег `v3.0.0-alpha.1`, чтобы прекратить циклическое скачивание старой версии; 4) доработать скрипт `apply_update.ps1` (логирование, коды 0 и 6, fallback пути) для надёжного перезапуска; 5) выпустить `v0.2.0-beta.12`.
-- **Этап**: Сборка инсталлятора 0.2.0-beta.12 с полным набором CUDA DLL.
-- **Следующий конкретный шаг**: Дождаться завершения сборки, закоммитить правки, запушить тег `v0.2.0-beta.12` и опубликовать релиз со всеми ассетами через `tools/publish_release.py`.
-- **Критерий завершения**: все 286 тестов проходят, инсталлятор собран с библиотеками CUDA 13, релиз v0.2.0-beta.12 опубликован на GitHub, проверка моделей работает без ошибки импорта.
+- **Цель**: Релиз v0.2.0-beta.12 опубликован и подтверждён.
+- **Этап**: Завершено.
+- **Следующий конкретный шаг**: Обратная связь от пользователя по проверке работы на втором ПК и приёмочное тестирование обновления.
+- **Критерий завершения**: все 286 тестов проходят, инсталлятор с CUDA 13 DLL опубликован на GitHub, автообновление не зацикливается, проверка моделей работает штатно.
 
 Current progress:
+- **Published Release v0.2.0-beta.12**: published at [Wave-is/laas/releases/tag/v0.2.0-beta.12](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.12)
+  with all 4 assets (Setup installer x64 with bundled engine & CUDA 13 DLLs, source archive, BUILD.json, SHA256SUMS.txt).
 - **CUDA 13 Runtime DLLs Bundled**: `cublas64_13.dll` (50MB), `cublasLt64_13.dll` (477MB), and `nvcudart_hybrid64.dll` (1.1MB) placed into `D:\AI\QWEN_LOCAL_STACK_2026\llama.cpp` and packaged into `{app}\engine\llama.cpp` by `build_installer.ps1`. Full GPU compute out of the box on remote PCs.
 - **Model Qualification Import Fixed**: corrected relative import in `src/ui/pages/models.py` (`from ...qualification import qualify_model`), eliminating `No module named 'src.ui.qualification'` error.
 - **Purged Legacy 3.0.0-alpha.1 & Hardened OTA**: deleted obsolete release and tag `v3.0.0-alpha.1` from GitHub; added major version guard in SemVer comparisons; enhanced `apply_update.ps1` with `%TEMP%\laas_update.log`, codes 0/6, and fallback launcher.
 - **Agent Settings Sync & Test Sandboxing**: `tests/conftest.py` now sandboxes `QWEN_HOME`, `HERMES_HOME`, `PI_CODING_AGENT_DIR`, `OPENCLAW_HOME`, and `LOCALAPPDATA` so tests never overwrite user agent settings. Station silently keeps agent configurations in sync before launch and on boot.
-- **Latest Release**: `v0.2.0-beta.11` published at [Wave-is/laas/releases/tag/v0.2.0-beta.11](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.11)
-  with all 4 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt).
 - **Compact Icon Agent Controls**: replaced massive text buttons with clean 44px symbol buttons: Play (`▶`), Stop (`⏹`), and Settings (`🔧`) on Dashboard and Agents page.
 - **Direct Agent Launch**: `▶` launches agent directly without blocking diff or review modals. Dedicated `🔧` button opens configuration review dialog to preview and synchronize model endpoints with agent configs.
 - **OTA Auto-Download by Default**: `app_update_auto_download: True` in config; 1-click restart immediately applies update and relaunches Station.
@@ -30,11 +30,11 @@ Current progress:
 ## Current state
 
 The official release is published at
-[Wave-is/laas](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.11).
+[Wave-is/laas](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.12).
 Repository visibility is public. Setup, release notes, README, quick-start,
 and application UI are fully localized in English, Russian and Ukrainian.
 
-Release source: `ba850335d4b4bf34effccf641a05293edd51c083`.
+Release source: `be0fe4d26508af00608f73345e2c6e21989ae05c`.
 Later documentation-only commits do not change the built installer or executable.
 BUILD.json, TESTING.json and SHA256SUMS.txt accompany the installer and source archive.
 All five uploaded assets were downloaded and verified by SHA256.
