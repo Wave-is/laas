@@ -1,5 +1,30 @@
 # Work log
 
+## 2026-09-21 — Fix Qwen Code Context Limit Truncation, Silent Agent Sync & Test Environment Sandboxing
+
+1. Root Cause Analysis of Context Compression Error:
+   - User encountered `Context is too large to send safely after automatic compression. Estimated prompt tokens: 108066; hard limit: 42536; compression status: COMPRESSION_FAILED_OUTPUT_TRUNCATED` when launching Qwen Code Desktop from desktop shortcut.
+   - Identified root cause: `tests/conftest.py` sandboxed `LOCAL_AGENT_STATION_HOME` but omitted `QWEN_HOME`, `HERMES_HOME`, `PI_CODING_AGENT_DIR`, `OPENCLAW_HOME`, and `LOCALAPPDATA`. Every test run in `pytest` triggered agent sync with empty local models and cluster defaults, overwriting `~/.qwen/settings.json` with generic model names (`... @ Primary LLM Node`) and a fallback `contextWindowSize: 65536`.
+   - With `contextWindowSize: 65536`, Qwen Code calculates a hard safety limit of `42536` tokens. When the user resumed an existing project session with `108066` tokens, compression failed and prevented continuation.
+
+2. Test Environment Hardening (`tests/conftest.py`):
+   - Explicitly sandboxed `QWEN_HOME`, `HERMES_HOME`, `PI_CODING_AGENT_DIR`, `OPENCLAW_HOME`, and `LOCALAPPDATA` inside the temporary test sandbox.
+   - Running the test suite now leaves user settings completely untouched.
+
+3. Silent Agent Synchronization (`src/controller.py`, `src/ui/control_center.py`):
+   - Added silent synchronization before launching any frontend in `StationController.launch_frontend()` so external agents always get the latest model catalog and active model before start.
+   - Added `sync_all_agents_silently()` method to `StationController` and invoked it during application initialization in `_agents_discovered`.
+   - Immediately synchronized `~/.qwen/settings.json` with all correct model profiles:
+     - `[48GB] Qwen 3.8 27B Q6_K_L [256K] (Production)`: `contextWindowSize: 262144`
+     - `[48GB] Qwen 3.8 27B Q6_K_L [512K] (Long Context)`: `contextWindowSize: 524288`
+     - `[24GB] Qwen 3.8 27B IQ3_M [256K] (1x GPU TCC)`: `contextWindowSize: 262144`
+     - `[48GB] Qwen 3.6 35B-A3B MoE [128K] (Fast, 2x GPU)`: `contextWindowSize: 131072`
+     - `[24GB] Qwen 3.6 35B-A3B MoE [64K] (Fast, 1x GPU)`: `contextWindowSize: 65536`
+
+4. Verification:
+   - Full test run (`286 passed`) confirmed zero modifications to `~/.qwen/settings.json`.
+   - Qwen Code Desktop hard limit with 256K context is >200K tokens, safely supporting 108K resumed prompt histories.
+
 ## 2026-09-21 — Compact Icon Agent Controls (▶/⏹/🔧), Direct Launch, Default OTA Auto-Download & Release v0.2.0-beta.11
 
 1. Compact Symbol Controls & Dedicated Settings (`src/ui/agent_controls.py`, `src/ui/control_center.py`):

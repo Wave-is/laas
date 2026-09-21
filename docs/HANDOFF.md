@@ -8,7 +8,7 @@ Updated: 2026-09-21. **Release v0.2.0-beta.11 published: direct agent launch, co
 - **Следующий конкретный шаг**: Провести приёмочное тестирование установленного релиза пользователем, подтвердить работу OTA и прямого запуска агента.
 - **Критерий завершения**: все 286 тестов проходят, инсталлятор собран с бандлом движка (182.7 МБ), релиз v0.2.0-beta.11 опубликован на GitHub со всеми 4 ассетами, запуск агента происходит напрямую без всплывающих окон.
 
-Current progress:
+- **Agent Settings Sync & Test Sandboxing**: `tests/conftest.py` now sandboxes `QWEN_HOME`, `HERMES_HOME`, `PI_CODING_AGENT_DIR`, `OPENCLAW_HOME`, and `LOCALAPPDATA` so tests never overwrite user agent settings. Station silently keeps agent configurations in sync before launch and on boot.
 - **Latest Release**: `v0.2.0-beta.11` published at [Wave-is/laas/releases/tag/v0.2.0-beta.11](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.11)
   with all 4 assets (Setup installer x64 with bundled engine, source archive, BUILD.json, SHA256SUMS.txt).
 - **Compact Icon Agent Controls**: replaced massive text buttons with clean 44px symbol buttons: Play (`▶`), Stop (`⏹`), and Settings (`🔧`) on Dashboard and Agents page.
