@@ -97,7 +97,7 @@ class ModelsPage:
             messagebox.showinfo(APP_NAME, tr('Выберите установленную модель.'), parent=self)
             return
         def run():
-            from ..qualification import qualify_model
+            from ...qualification import qualify_model
             started = gpu_mode_manager.apply_model_profile_only(model.id)
             if not started.get('Success'):
                 return started

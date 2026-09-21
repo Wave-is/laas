@@ -83,7 +83,8 @@ def check(current=VERSION, fetch=None):
         parsed = parse_semver(version)
         if row.get('draft') or not parsed or (parsed[1] and not allow_pre):
             continue
-        if version.startswith('3.0.0-alpha'):
+        cur_parsed = parse_semver(current)
+        if (cur_parsed and cur_parsed[0][0] == 0 and parsed[0][0] >= 3) or version.startswith('3.0.0-alpha'):
             continue
         if best is None or compare(version, best['version']) > 0:
             installer = None
@@ -317,6 +318,8 @@ class UpdateManager:
         script_content = f"""# Local Agent AI Station detached updater
 param([int]$WaitPid = {current_pid})
 $ErrorActionPreference = 'SilentlyContinue'
+$logFile = Join-Path $env:TEMP 'laas_update.log'
+Add-Content -Path $logFile -Value ("[{{0}}] Updater started. Waiting for PID {{1}}" -f (Get-Date -Format 's'), $WaitPid)
 
 if ($WaitPid -gt 0) {{
     try {{
@@ -327,11 +330,26 @@ Start-Sleep -Seconds 1
 
 $installer = '{str(self.installer_path)}'
 $targetExe = '{target_exe}'
+$fallbackExe = Join-Path $env:LOCALAPPDATA 'Programs\\LocalAgentAIStation\\LocalAgentAIStation.exe'
 $silentFlag = '{('/SILENT /CLOSEAPPLICATIONS /NORESTART' if silent else '/CLOSEAPPLICATIONS')}'
 
+Add-Content -Path $logFile -Value ("[{{0}}] Running installer: {{1}} {{2}}" -f (Get-Date -Format 's'), $installer, $silentFlag)
 $p = Start-Process -FilePath $installer -ArgumentList $silentFlag -Wait -PassThru
-if ($p.ExitCode -eq 0 -and $targetExe -and (Test-Path $targetExe)) {{
-    Start-Process -FilePath $targetExe
+$exitCode = if ($p) {{ $p.ExitCode }} else {{ -1 }}
+Add-Content -Path $logFile -Value ("[{{0}}] Installer finished with exit code {{1}}" -f (Get-Date -Format 's'), $exitCode)
+
+$launched = $false
+if ($exitCode -in 0, 6) {{
+    Start-Sleep -Seconds 1
+    if ($targetExe -and (Test-Path $targetExe)) {{
+        Add-Content -Path $logFile -Value ("[{{0}}] Launching target: {{1}}" -f (Get-Date -Format 's'), $targetExe)
+        Start-Process -FilePath $targetExe
+        $launched = $true
+    }} elseif (Test-Path $fallbackExe) {{
+        Add-Content -Path $logFile -Value ("[{{0}}] Launching fallback: {{1}}" -f (Get-Date -Format 's'), $fallbackExe)
+        Start-Process -FilePath $fallbackExe
+        $launched = $true
+    }}
 }}
 Start-Sleep -Seconds 3
 Remove-Item -Path $installer -Force -ErrorAction SilentlyContinue

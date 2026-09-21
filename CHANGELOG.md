@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.2.0-beta.12
+
+### English
+
+- **Bundled CUDA 13 Runtime Libraries**: Packaged `cublas64_13.dll`, `cublasLt64_13.dll`, and `nvcudart_hybrid64.dll` directly into the bundled llama.cpp engine distribution, enabling full GPU acceleration out of the box on remote/secondary PCs without requiring manual CUDA Toolkit installations.
+- **Fixed Model Qualification Module Import**: Fixed `No module named 'src.ui.qualification'` error on the Models page when clicking "Загрузить и проверить модель" by correcting the package-relative import in `src/ui/pages/models.py`.
+- **Hardened OTA Update Pipeline & Legacy Release Purge**: Permanently purged the legacy `v3.0.0-alpha.1` release and tag from GitHub, preventing loop downloads. Added major version guard in SemVer checks to ignore legacy 3.x prototypes when on 0.x releases.
+- **Reliable Detached Updater & Relaunch**: Enhanced `apply_update.ps1` with `%TEMP%\laas_update.log` logging, support for Inno Setup success exit codes (0 and 6), and fallback executable path resolution to guarantee automatic relaunch after updating.
+- **Agent Config Protection & Silent Sync**: Fully isolated agent home directories in `tests/conftest.py` so automated testing never overwrites user configurations. Added silent background synchronization on startup and before frontend launch so Qwen Code Desktop always has accurate context lengths (up to 512K) and model IDs.
+
+### Русский
+
+- **Бандл библиотек CUDA 13 для llama.cpp**: В дистрибутив встроенного движка включены необходимые библиотеки CUDA 13 (`cublas64_13.dll`, `cublasLt64_13.dll` и `nvcudart_hybrid64.dll`), благодаря чему аппаратное ускорение GPU работает на любых других ПК из коробки без необходимости отдельно ставить CUDA Toolkit.
+- **Исправление импорта проверки модели**: Устранена ошибка `No module named 'src.ui.qualification'` на странице «Модели» при нажатии «Загрузить и проверить модель» путём исправления относительного импорта в `src/ui/pages/models.py`.
+- **Удаление устаревшего релиза 3.0.0-alpha.1 и защита OTA**: Устаревший релиз и тег `v3.0.0-alpha.1` удалены с GitHub, что устранило циклическое скачивание старой версии. В алгоритм проверки версий добавлен защитный фильтр против прототипов 3.x при работе на ветке 0.x.
+- **Надёжный перезапуск после обновления**: Скрипт `apply_update.ps1` дополнен ведением журнала `%TEMP%\laas_update.log`, поддержкой кодов завершения Inno Setup (0 и 6) и резервным поиском пути к `LocalAgentAIStation.exe` для гарантированного автоматического перезапуска.
+- **Защита настроек агентов и тихий синк**: В тестовом окружении `tests/conftest.py` изолированы каталоги внешних агентов, что полностью исключает перезапись настроек пользователя тестами. Добавлена фоновая синхронизация перед запуском агента и на старте Station, сохраняющая актуальные размеры контекста (до 512K).
+
+### Українська
+
+- **Бандл бібліотек CUDA 13 для llama.cpp**: У дистрибутив вбудованого рушія включено необхідні бібліотеки CUDA 13 (`cublas64_13.dll`, `cublasLt64_13.dll` та `nvcudart_hybrid64.dll`), завдяки чому апаратне прискорення GPU працює на будь-яких інших ПК з коробки без необхідності окремо встановлювати CUDA Toolkit.
+- **Виправлення імпорту перевірки моделі**: Усунуто помилку `No module named 'src.ui.qualification'` на сторінці «Моделі» при натисканні «Завантажити та перевірити модель» шляхом виправлення відносного імпорту в `src/ui/pages/models.py`.
+- **Видалення застарілого релізу 3.0.0-alpha.1 та захист OTA**: Застарілий реліз та тег `v3.0.0-alpha.1` видалено з GitHub, що усунуло циклічне завантаження старої версії. В алгоритм перевірки версій додано захисний фільтр проти прототипів 3.x при роботі на гілці 0.x.
+- **Надійний перезапуск після оновлення**: Скрипт `apply_update.ps1` доповнено веденням журналу `%TEMP%\laas_update.log`, підтримкою кодів завершення Inno Setup (0 та 6) і резервним пошуком шляху до `LocalAgentAIStation.exe` для гарантованого автоматичного перезапуску.
+- **Захист налаштувань агентів та тихий синк**: У тестовому середовищі `tests/conftest.py` ізольовано каталоги зовнішніх агентів, що повністю виключає перезапис налаштувань користувача тестами. Додано фонову синхронізацію перед запуском агента та на старті Station, що зберігає актуальні розміри контексту (до 512K).
+
 ## 0.2.0-beta.11
 
 ### English

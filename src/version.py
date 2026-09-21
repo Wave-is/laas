@@ -1,4 +1,4 @@
 """Release version: the application, Windows metadata and installer share this file."""
-VERSION = '0.2.0-beta.11'
-WINDOWS_VERSION = (0, 2, 0, 11)
+VERSION = '0.2.0-beta.12'
+WINDOWS_VERSION = (0, 2, 0, 12)
 
