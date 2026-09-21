@@ -131,9 +131,10 @@ class LineChart:
 class MonitoringPage:
     def _build_monitoring(self):
         page = self.page('monitoring')
-        self.metrics_store = MetricsStore()
-        self.metrics_sampler = MetricsSampler(self.metrics_store, on_alert=self._monitoring_alert, alert_settings=alert_settings)
-        self.poll_hooks.append(self.metrics_sampler.on_poll)
+        if not hasattr(self, 'metrics_store'):
+            self.metrics_store = MetricsStore()
+            self.metrics_sampler = MetricsSampler(self.metrics_store, on_alert=self._monitoring_alert, alert_settings=alert_settings)
+            self.poll_hooks.append(self.metrics_sampler.on_poll)
         self.page_show_hooks['monitoring'] = self._refresh_monitoring
         self.monitoring_range = '1h'
         self.monitoring_loading = False

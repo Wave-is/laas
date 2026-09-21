@@ -4,6 +4,8 @@ import logging
 import socket
 import sys
 import threading
+import os
+from pathlib import Path
 from .paths import data_dir
 from .i18n import tr
 
@@ -14,8 +16,8 @@ ERROR_ALREADY_EXISTS = 183
 
 class StationInstance:
     def __init__(self, directory=None):
-        self.directory = directory or data_dir()
-        key = str(self.directory).casefold().encode('utf-8')
+        self.directory = Path(directory or data_dir()).resolve()
+        key = os.path.normcase(str(self.directory)).encode('utf-8')
         digest = hashlib.sha256(key).hexdigest()
         self.port = 47000 + int(digest[:8], 16) % 1500
         self.mutex_name = f'Local\\LocalAgentAIStation_{digest[:16]}'

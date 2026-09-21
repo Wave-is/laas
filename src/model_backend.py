@@ -15,8 +15,9 @@ def launch_signature(model, hardware_profile, executable, topology):
     import json
     fields = ('id', 'weights_path', 'mmproj_path', 'context', 'mtp_depth', 'batch', 'ubatch',
         'kv_type', 'split_mode', 'tensor_split_policy', 'gpu_selection_policy', 'explicit_gpu_uuids',
-        'backend', 'gpu_layers', 'vision', 'cpu_offload', 'endpoint', 'provider_type')
-    values = {key: getattr(model, key) for key in fields}
+        'backend', 'gpu_layers', 'vision', 'no_mmproj_offload', 'image_min_tokens', 'image_max_tokens',
+        'cpu_offload', 'endpoint', 'provider_type')
+    values = {key: getattr(model, key, None) for key in fields}
     values['hardware'] = hardware_profile.to_dict() if hardware_profile else None
     values['devices'] = [(d.uuid, d.driver_mode) for d in topology.devices]
     for key, value in [('weights', resolve_model_file(model.weights_path)), ('projector', resolve_model_file(model.mmproj_path)), ('server', executable)]:
@@ -54,6 +55,12 @@ def build_model_entry(model, devices, executable):
         if not mmproj or not Path(mmproj).is_file():
             raise ValueError(tr('Файл mmproj модели «{name}» не найден: {path}', name=model.name, path=mmproj))
         args += ['--mmproj', mmproj]
+        if getattr(model, 'no_mmproj_offload', False) and '--no-mmproj-offload' not in args:
+            args += ['--no-mmproj-offload']
+        if getattr(model, 'image_min_tokens', None):
+            args += ['--image-min-tokens', str(model.image_min_tokens)]
+        if getattr(model, 'image_max_tokens', None):
+            args += ['--image-max-tokens', str(model.image_max_tokens)]
     if len(devices) > 1:
         args += ['--split-mode', model.split_mode, '--tensor-split', tensor_split(model, devices)]
     if model.mtp_depth:

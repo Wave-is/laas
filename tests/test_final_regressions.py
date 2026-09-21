@@ -107,3 +107,21 @@ def test_watchdog_stops_after_three_failed_restarts(monkeypatch):
     assert restart.call_count == 0
     for _ in range(6): services.poll()
     assert restart.call_count == 3 and services.failures['worker'] == 3
+
+
+def test_control_center_lazy_page_building():
+    from src.ui.control_center import ControlCenter, PAGE_IDS
+    assert hasattr(ControlCenter, '_ensure_page_built')
+    assert hasattr(ControlCenter, '_init_background_services')
+
+
+def test_instance_path_normalization(tmp_path):
+    from src.instance import StationInstance
+    p1 = str(tmp_path)
+    p2 = str(tmp_path).upper()
+    inst1 = StationInstance(p1)
+    inst2 = StationInstance(p2)
+    assert inst1.directory == inst2.directory
+    assert inst1.mutex_name == inst2.mutex_name
+    assert inst1.port == inst2.port
+

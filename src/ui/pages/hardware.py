@@ -32,6 +32,8 @@ class HardwarePage:
         self.topology_label.pack(fill='x', pady=8)
 
     def _update_hardware(self, top):
+        if not hasattr(self, 'gpu_area') or not self.gpu_area.winfo_exists():
+            return
         from ...gpu_details import gpu_details
         ids = tuple(d.uuid for d in top.devices)
         if tuple(self.gpu_widgets) != ids:

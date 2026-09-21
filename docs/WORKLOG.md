@@ -1,6 +1,26 @@
 # Work log
 
-## 2026-09-21 — Extended Context Override (--override-kv) for 512K/1M Windows & Robust In-Place OTA Installer Flags (Release v0.2.0-beta.13)
+## 2026-09-21 — Virtual Machine (WaveVM) & RDP UI Lazy Loading Optimization, Non-GPU Fast Return, Mutex Path Normalization & Vision Backend Parameters (Release v0.2.0-beta.14)
+
+1. UI Performance & Freezing Fix for Virtual Machines (WaveVM) & Software Rendering:
+   - Root cause: `ControlCenter` synchronously constructed all 12 page views with ~400+ Tkinter Canvas widgets during `__init__`. In virtual machines (WaveVM) and RDP sessions without hardware GDI acceleration, rendering 400+ canvas elements synchronously caused huge startup delays, window freezing, and sluggish tab navigation.
+   - Solution: Implemented lazy page construction (`self._built_pages = set()`, `_ensure_page_built(name)`). On startup, only the active Station overview page is built. Background managers (`MetricsStore`, `MetricsSampler`, `ScheduleManager`, `StartupRunner`) are initialized cleanly during startup, while UI widget trees for pages (Cluster, Hardware, Logs, Models, Monitoring, Schedules, etc.) are built only when first navigated to.
+   - Guarded telemetry and periodic refresh hooks so non-active/unbuilt pages never trigger canvas redraws in the background.
+
+2. Instant Non-GPU Hardware Probe Bypass (`src/gpu_details.py`):
+   - Fast-return in `GpuDetailsCache.refresh()` when `find_nvidia_smi()` is `None`. Eliminates blocking subprocess executions on CPU-only machines and virtual machines.
+
+3. Single-Instance Mutex Normalization (`src/instance.py`):
+   - Canonicalized directory paths with `Path(directory).resolve()` and `os.path.normcase()` for Win32 named mutex and port hashing, guaranteeing robust single-instance enforcement and reliable window restoration.
+
+4. Vision Model Backend CLI Parameters (`src/model_backend.py`, `src/profiles_schema.py`, `src/validation.py`):
+   - Added schema fields `no_mmproj_offload` (bool), `image_min_tokens` (optional int), `image_max_tokens` (optional int) to `ModelProfile`.
+   - Updated `model_backend.py` command builder to generate `--no-mmproj-offload`, `--image-min-tokens <N>`, and `--image-max-tokens <N>`.
+
+5. Testing & Verification:
+   - Added 4 new regression tests covering vision flags generation, fast-return on non-GPU systems, lazy page creation, and instance path normalization.
+   - Full test suite: 291 passed in 11.8s.
+
 
 1. Extended Context Override for Large Context Windows (512K / 1M):
    - Root cause: GGUF models such as `Qwen3.8-27B-Q6_K_L.gguf` define `qwen35.context_length = 262144` in their header metadata. When llama-server was started with `-c 524288`, llama.cpp silently clamped the context buffer to the GGUF metadata default (`262144`). When Qwen Code Desktop sent requests larger than 256K (e.g. 262,490 tokens), llama-server rejected the request with `400 request (262490 tokens) exceeds the available context size (262144 tokens), try increasing it`.

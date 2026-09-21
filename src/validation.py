@@ -40,9 +40,13 @@ def validate_registry(filename, rows, *, strict=True, unknown_fields=None):
             maximum = row.get('max_gpu_count')
             if maximum is not None and (type(maximum) is not int or maximum < row.get('min_gpu_count', 1)):
                 raise ValueError(tr('max_gpu_count должен быть не меньше min_gpu_count'))
-            for key in ('qualified', 'vision', 'tool_calling', 'reasoning', 'cpu_offload', 'prefer_p2p', 'require_p2p'):
+            for key in ('qualified', 'vision', 'tool_calling', 'reasoning', 'cpu_offload', 'prefer_p2p', 'require_p2p', 'no_mmproj_offload'):
                 if key in row and type(row[key]) is not bool:
                     raise ValueError(tr('{key}: нужно логическое значение (true/false)', key=key))
+            for key in ('image_min_tokens', 'image_max_tokens'):
+                if key in row and row[key] is not None:
+                    if type(row[key]) is not int or row[key] < 0:
+                        raise ValueError(tr('{key}: нужно неотрицательное целое число', key=key))
         if filename == 'hardware_profiles.yaml':
             if row.get('general_policy', 'all_gpus') not in ('all_gpus', 'all_wddm', 'all_tcc', 'all_compute', 'one_graphics_rest_compute', 'first_wddm_rest_tcc', 'custom', 'unchanged', 'largest_vram', 'best_p2p_clique'):
                 raise ValueError(tr('Недопустимая аппаратная политика'))

@@ -141,6 +141,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.busy = False
         self.busy_label = ''
         self.pages = {}
+        self._built_pages = set()
         # Extension points for page modules: UI-thread telemetry callbacks, background poll callbacks
         # (called on the polling thread with the same snapshot) and extra Settings sections.
         self.telemetry_hooks = []
@@ -164,8 +165,8 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.status_label = ctk.CTkLabel(self.body, text=tr('Обнаружение оборудования и агентов…'), text_color=MUTED, anchor='w',
             justify='left', wraplength=900, height=0)
         self.status_label.grid(row=1, column=0, sticky='ew', pady=(2, 8))
-        for page_id in PAGE_IDS:
-            getattr(self, '_build_' + page_id)()
+        self._init_background_services()
+        self._ensure_page_built('station')
         self.show_page('station')
         self.protocol('WM_DELETE_WINDOW', self.hide_to_tray)
         self.after(250, self._set_window_icon)
@@ -288,8 +289,38 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.pages[name] = page
         return page
 
+    def _init_background_services(self):
+        self.startup_cancel = threading.Event()
+        self.startup_scheduled = False
+        self.startup_pending = False
+        self.startup_runner = StartupRunner(self.controller, shared_services, gpu_mode_manager, profile_storage)
+        self._build_startup_banner()
+
+        from .pages.monitoring import MetricsStore, MetricsSampler, alert_settings
+        self.metrics_store = MetricsStore()
+        self.metrics_sampler = MetricsSampler(self.metrics_store, on_alert=self._monitoring_alert, alert_settings=alert_settings)
+        self.poll_hooks.append(self.metrics_sampler.on_poll)
+
+        from ..schedules import ScheduleManager
+        self.schedule_manager = ScheduleManager(
+            action_runner=self._execute_schedule_action,
+            notify=lambda msg: self.call_in_ui(lambda: self.notify(msg, tr('LAAS: расписание')))
+        )
+        self.poll_hooks.append(self._schedules_poll)
+
+    def _ensure_page_built(self, name):
+        if name in self._built_pages:
+            return
+        self._built_pages.add(name)
+        build_method = getattr(self, '_build_' + name, None)
+        if build_method:
+            build_method()
+
     def show_page(self, name):
         """Show a page by its ASCII id: station, hardware, models, agents, services or settings."""
+        if name not in PAGE_IDS:
+            return
+        self._ensure_page_built(name)
         if name not in self.pages:
             return
         self.current_page_name = name
@@ -636,6 +667,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             self.status_label.configure(text=result.get('Message', tr('Не удалось обнаружить агенты.')), text_color='#f8ad88')
             return
         threading.Thread(target=self.controller.sync_all_agents_silently, daemon=True).start()
+        self._ensure_page_built('agents')
         for child in self.agent_cards.winfo_children():
             child.destroy()
         self.controls = [control for control in self.controls if control.winfo_exists()]
@@ -790,14 +822,17 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
                             row['qualified'] = False
                 atomic_write(path, value, expected_digest=expected)
                 profile_storage.load_all()
-                if filename == 'services.yaml':
+                if 'services' in self._built_pages:
                     self._refresh_service_cards()
                 if filename in ('agent_frontends.yaml', 'agent_runtimes.yaml'):
                     self.worker(self.controller.discover_agents, self._agents_discovered)
                 self.model_combo.configure(values=list(profile_storage.model_profiles))
-                self.test_model_combo.configure(values=list(profile_storage.model_profiles))
-                self.gpu_combo.configure(values=list(profile_storage.gpu_profiles))
-                self._refresh_models_text()
+                if hasattr(self, 'test_model_combo'):
+                    self.test_model_combo.configure(values=list(profile_storage.model_profiles))
+                if hasattr(self, 'gpu_combo'):
+                    self.gpu_combo.configure(values=list(profile_storage.gpu_profiles))
+                if hasattr(self, 'models_text'):
+                    self._refresh_models_text()
                 self._refresh_tray(rebuild=True)
                 window.destroy()
             except Exception as exc:

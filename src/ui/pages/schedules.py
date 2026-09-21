@@ -26,11 +26,12 @@ TIMEOUT_OPTIONS = {
 class SchedulesPage:
     def _build_schedules(self):
         page = self.page('schedules')
-        self.schedule_manager = ScheduleManager(
-            action_runner=self._execute_schedule_action,
-            notify=lambda msg: self.call_in_ui(lambda: self.notify(msg, tr('LAAS: расписание')))
-        )
-        self.poll_hooks.append(self._schedules_poll)
+        if not hasattr(self, 'schedule_manager'):
+            self.schedule_manager = ScheduleManager(
+                action_runner=self._execute_schedule_action,
+                notify=lambda msg: self.call_in_ui(lambda: self.notify(msg, tr('LAAS: расписание')))
+            )
+            self.poll_hooks.append(self._schedules_poll)
         self.page_show_hooks['schedules'] = self._refresh_schedules_ui
 
         # ── Idle auto-unload card ──

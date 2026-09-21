@@ -94,3 +94,34 @@ def test_build_model_entry_adds_override_kv_for_extended_context(tmp_path, monke
     entry_256k = build_model_entry(model_256k, [], str(exe))
     assert '--override-kv' not in entry_256k['cmd']
 
+
+def test_build_model_entry_adds_vision_flags(tmp_path, monkeypatch):
+    from src.model_backend import build_model_entry
+    from src.profiles_schema import ModelProfile
+    from src.gguf import GgufInfo
+
+    exe = tmp_path / ms.LLAMA_SERVER_EXE
+    exe.write_bytes(b'x')
+    weights = tmp_path / 'qwen_vision.gguf'
+    weights.write_bytes(b'x')
+    mmproj = tmp_path / 'mmproj.gguf'
+    mmproj.write_bytes(b'x')
+
+    fake_info = GgufInfo(str(weights), metadata={})
+    monkeypatch.setattr('src.model_backend.read_gguf_cached', lambda path: fake_info)
+
+    model = ModelProfile(
+        'qwen-vl', 'Qwen VL', str(weights),
+        vision=True,
+        mmproj_path=str(mmproj),
+        no_mmproj_offload=True,
+        image_min_tokens=1024,
+        image_max_tokens=2240,
+    )
+    entry = build_model_entry(model, [], str(exe))
+    assert '--no-mmproj-offload' in entry['cmd']
+    assert '--image-min-tokens 1024' in entry['cmd']
+    assert '--image-max-tokens 2240' in entry['cmd']
+
+
+

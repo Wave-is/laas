@@ -78,3 +78,15 @@ def test_cache_refresh_and_get():
     assert data["power.draw"] == 60.0
     assert data["throttle"] == ["sw_power_cap"]
     assert len(data["nvlink"]) == 1
+
+
+def test_gpu_details_fast_return_when_no_smi(monkeypatch):
+    calls = []
+    def mock_runner(args):
+        calls.append(args)
+        return ""
+    monkeypatch.setattr(gd, "find_nvidia_smi", lambda: None)
+    cache = gd.GpuDetailsCache(runner=mock_runner)
+    assert cache.refresh() is False
+    assert len(calls) == 0
+

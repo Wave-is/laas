@@ -8,6 +8,7 @@ import re
 import subprocess
 import threading
 import time
+from .hardware import find_nvidia_smi
 
 FIELDS = ('index', 'uuid', 'name', 'driver_version', 'vbios_version', 'pstate', 'temperature.gpu', 'utilization.gpu',
           'memory.used', 'memory.total', 'power.draw', 'power.limit', 'fan.speed',
@@ -116,6 +117,12 @@ class GpuDetailsCache:
         if not force and self._queried is not None and now - self._queried < self.interval:
             return False
         self._queried = now
+        if not find_nvidia_smi():
+            with self._lock:
+                self._details = {}
+                self._nvlink = {}
+                self.error = None
+            return False
         try:
             details = self._query()
             error = None

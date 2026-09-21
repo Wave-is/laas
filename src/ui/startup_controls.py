@@ -18,12 +18,23 @@ MUTED, ACCENT, EDGE = '#91a2b4', '#56d6b1', '#28394a'
 
 
 class StartupControls:
+    def _build_startup_banner(self):
+        self.startup_banner = ctk.CTkFrame(self.body, fg_color=EDGE)
+        self.startup_banner_label = ctk.CTkLabel(self.startup_banner, text='', wraplength=680, anchor='w', justify='left')
+        self.startup_banner_label.pack(side='left', fill='x', expand=True, padx=12, pady=8)
+        self.startup_cancel_button = ctk.CTkButton(self.startup_banner, text=tr('Отменить запуск'), width=145,
+            command=self._cancel_startup)
+        self.startup_cancel_button.pack(side='right', padx=12, pady=8)
+
     def _build_startup_settings(self, page):
         settings = startup_settings(config.get('startup'))
-        self.startup_cancel = threading.Event()
-        self.startup_scheduled = False
-        self.startup_pending = False
-        self.startup_runner = StartupRunner(self.controller, shared_services, gpu_mode_manager, profile_storage)
+        if not hasattr(self, 'startup_cancel'):
+            self.startup_cancel = threading.Event()
+            self.startup_scheduled = False
+            self.startup_pending = False
+            self.startup_runner = StartupRunner(self.controller, shared_services, gpu_mode_manager, profile_storage)
+        if not hasattr(self, 'startup_banner'):
+            self._build_startup_banner()
         card = self.card(page, tr('Запуск Station и компонентов'),
             tr('Windows запускает Station при входе в вашу учётную запись. Выбранные ниже компоненты запускаются при каждом запуске Station.'))
         self.windows_startup = WindowsStartup()
@@ -186,7 +197,8 @@ class StartupControls:
 
     def _startup_done(self, result):
         self.startup_banner.grid_remove()
-        self.startup_summary.configure(text=result['Message'])
+        if hasattr(self, 'startup_summary'):
+            self.startup_summary.configure(text=result['Message'])
         self.status_label.configure(text=result['Message'][:400], text_color=ACCENT if result['Success'] else '#f8ad88')
         try:
             atomic_write(data_dir() / 'logs/startup-last.json', result, backup=False)

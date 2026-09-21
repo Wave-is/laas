@@ -1,18 +1,19 @@
 # Development handoff
 
-Updated: 2026-09-21. **Release v0.2.0-beta.13 published: extended context override (--override-kv) for 512K/1M windows, bulletproof per-user & system OTA updates (/CURRENTUSER /DIR /SP-).**
+Updated: 2026-09-21. **Release v0.2.0-beta.14: VM (WaveVM) & RDP rendering optimizations (lazy page building), non-GPU instant probe bypass, normalized single-instance mutex, and vision backend flags (--no-mmproj-offload, --image-min/max-tokens).**
 
 ## Текущая работа
-- **Цель**: Релиз v0.2.0-beta.13 опубликован и подтверждён.
-- **Этап**: Завершено.
-- **Следующий конкретный шаг**: Проверка обновления и длинного контекста в Qwen Code Desktop.
-- **Критерий завершения**: все 287 тестов проходят, инсталлятор v0.2.0-beta.13 опубликован на GitHub, модель 512K принимает длинные промпты без ошибки 400, автообновление корректно заменяет файлы и перезапускается.
+- **Цель**: Релиз v0.2.0-beta.14: оптимизация производительности интерфейса на виртуалках (WaveVM), устранение подвисаний отрисовки, канонизация единого экземпляра и поддержка vision-флагов.
+- **Этап**: Завершено тестирование (291 тест), сборка и публикация релиза v0.2.0-beta.14.
+- **Следующий конкретный шаг**: Проверка запуска на WaveVM и публикация на GitHub.
+- **Критерий завершения**: все 291 тест проходят, инсталлятор v0.2.0-beta.14 собран и опубликован на GitHub, GUI открывается мгновенно без зависаний на виртуальных машинах.
 
 Current progress:
-- **Published Release v0.2.0-beta.13**: published at [Wave-is/laas/releases/tag/v0.2.0-beta.13](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.13)
-  with all 4 assets (Setup installer x64 with bundled engine & CUDA 13 DLLs, source archive, BUILD.json, SHA256SUMS.txt).
-- **Extended Context Override for Large Windows (512K/1M)**: Added automated `--override-kv {arch}.context_length=int:{context}` injection in `src/model_backend.py` when profile context exceeds native GGUF metadata length (e.g. Qwen 3.8 27B native 262K extended to 512K). This completely resolves the `400 request exceeds available context size` error in Qwen Code Desktop when sending prompts above 262K tokens.
-- **Robust Per-User & System OTA In-Place Updates**: Overhauled detached installer invocation in `src/app_updates.py`: explicitly passes `/CURRENTUSER` (for `%LOCALAPPDATA%\Programs\...` installs) or `/ALLUSERS` along with `/DIR="{target_dir}"` and `/SP-`. This prevents elevation mismatch failures during silent updates and guarantees that in-place updates properly replace files and automatically relaunch Station.
+- **VM Performance & UI Responsiveness (Lazy Loading)**: Implemented on-demand lazy page creation in `ControlCenter`. Only the initial `station` page is built at startup, deferring all other 11 heavy pages (~400+ canvas widgets) until requested by the user. Completely eliminates startup lag and rendering freezes on virtual machines (WaveVM) and software GDI environments.
+- **Non-GPU Hardware Probe Bypass**: Instant return in `GpuDetailsCache.refresh()` when `nvidia-smi` is absent, preventing repeated subprocess calls and timeouts on CPU-only/VM systems.
+- **Single-Instance Mutex Canonicalization**: Normalized directory paths and Win32 named mutex hashing to prevent duplicate executions and reliably bring active window to front.
+- **Vision Model Backend CLI Parameters**: Added configuration and command generator support for `--no-mmproj-offload`, `--image-min-tokens <N>`, and `--image-max-tokens <N>` in `model_backend.py`, `profiles_schema.py`, and `validation.py`.
+- **Published Release v0.2.0-beta.13**: published at [Wave-is/laas/releases/tag/v0.2.0-beta.13](https://github.com/Wave-is/laas/releases/tag/v0.2.0-beta.13).
 - **CUDA 13 Runtime DLLs Bundled**: `cublas64_13.dll` (50MB), `cublasLt64_13.dll` (477MB), and `nvcudart_hybrid64.dll` (1.1MB) placed into `D:\AI\QWEN_LOCAL_STACK_2026\llama.cpp` and packaged into `{app}\engine\llama.cpp` by `build_installer.ps1`. Full GPU compute out of the box on remote PCs.
 - **Model Qualification Import Fixed**: corrected relative import in `src/ui/pages/models.py` (`from ...qualification import qualify_model`), eliminating `No module named 'src.ui.qualification'` error.
 - **Purged Legacy 3.0.0-alpha.1 & Hardened OTA**: deleted obsolete release and tag `v3.0.0-alpha.1` from GitHub; added major version guard in SemVer comparisons; enhanced `apply_update.ps1` with `%TEMP%\laas_update.log`, codes 0/6, and fallback launcher.

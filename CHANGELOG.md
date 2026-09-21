@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0-beta.14
+
+### English
+
+- **Virtual Machine & Software GDI Performance Boost**: Implemented on-demand lazy page creation in `ControlCenter`. Instead of synchronously constructing all 12 tab pages (~400+ canvas widgets) at startup, only the active Station overview page is built initially, drastically eliminating UI lag and startup freezing on virtual machines (WaveVM) and software rendering/RDP environments.
+- **Instant Non-GPU Hardware Probe Bypass**: Added fast-return in `GpuDetailsCache` when `nvidia-smi` is absent, preventing repetitive blocking subprocess probes and timeouts on non-GPU systems and VMs.
+- **Normalized Single-Instance Protection**: Canonicalized instance lock directory resolution and Win32 named mutex hashing to prevent duplicate process instances and reliably restore the running window.
+- **Vision Model Backend CLI Parameters**: Added configuration schema and command generator support for vision parameters: `--no-mmproj-offload`, `--image-min-tokens <N>`, `--image-max-tokens <N>` in `src/model_backend.py`, `src/profiles_schema.py`, and `src/validation.py`.
+
+### Русский
+
+- **Оптимизация производительности для виртуальных машин (WaveVM) и RDP**: В `ControlCenter` реализована ленивая загрузка страниц по требованию. Вместо синхронного создания всех 12 вкладок (~400+ canvas-виджетов) при запуске создаётся только главная страница «Станция», что полностью устраняет подвисания и задержки отрисовки интерфейса в виртуальных машинах и программном GDI.
+- **Мгновенный пропуск опроса GPU при его отсутствии**: В `GpuDetailsCache` добавлен мгновенный выход при отсутствии `nvidia-smi`, что устраняет лишние вызовы подпроцессов и задержки на ПК без дискретного GPU и на виртуалках.
+- **Канонизация блокировки единого экземпляра**: Нормализованы пути каталогов и Win32 Named Mutex для предотвращения одновременного запуска двух копий Station и надёжного вывода активного окна на передний план.
+- **Поддержка параметров Vision моделей в генераторе команд**: В `src/model_backend.py`, `src/profiles_schema.py` и `src/validation.py` добавлена поддержка флагов `--no-mmproj-offload`, `--image-min-tokens <N>`, `--image-max-tokens <N>`.
+
+### Українська
+
+- **Оптимізація продуктивності для віртуальних машин (WaveVM) та RDP**: У `ControlCenter` реалізовано ліниве завантаження сторінок за вимогою. Замість синхронного створення всіх 12 вкладок (~400+ canvas-віджетів) під час запуску будується лише головна сторінка «Станція», що повністю усуває підвисання та затримки відмальовування інтерфейсу у віртуальних машинах.
+- **Миттєвий пропуск опитування GPU за його відсутності**: У `GpuDetailsCache` додано швидкий вихід за відсутності `nvidia-smi`, що усуває зайві виклики підпроцесів і затримки на ПК без дискретного GPU та у віртуалках.
+- **Канонізація блокування єдиного екземпляра**: Нормалізовано шляхи тек та Win32 Named Mutex для запобігання одночасному запуску двох копій Station та надійного відкриття активного вікна.
+- **Підтримка параметрів Vision моделей у генераторі команд**: У `src/model_backend.py`, `src/profiles_schema.py` та `src/validation.py` додано підтримку прапорців `--no-mmproj-offload`, `--image-min-tokens <N>`, `--image-max-tokens <N>`.
+
 ## 0.2.0-beta.13
 
 ### English

@@ -188,6 +188,8 @@ class ServiceControls:
         self.service_editor = ServiceEditor(self, original, saved, removed if original else None)
 
     def _refresh_service_cards(self, states=None):
+        if not hasattr(self, 'service_cards') or not self.service_cards.winfo_exists():
+            return
         import json
         profiles = shared_services.profiles()
         signature = json.dumps(profiles, sort_keys=True, ensure_ascii=False)

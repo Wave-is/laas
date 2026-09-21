@@ -102,6 +102,9 @@ class ModelProfile:
     cpu_offload: bool = False
     gpu_layers: int = 99
     vision: bool = False
+    no_mmproj_offload: bool = False
+    image_min_tokens: Optional[int] = None
+    image_max_tokens: Optional[int] = None
     min_gpu_count: int = 1
     min_total_vram_mib: int = 16384
     min_free_vram_per_gpu_mib: int = 8192
