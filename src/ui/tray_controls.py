@@ -246,12 +246,14 @@ class TrayControls:
         self._preview_tray_preferences()
 
     def _pending_tray_preferences(self):
+        if not hasattr(self, 'tray_channel_controls') or not hasattr(self, 'tray_style_choice') or not hasattr(self, 'tray_theme_choice'):
+            return self._tray_preferences()
         channels = [{key: widget.get() for key, widget in row.items()} for row in self.tray_channel_controls]
         return {'tray_style': self.tray_style_choice.get(), 'tray_theme': self.tray_theme_choice.get(),
-                'tray_display_mode': channels[0]['text_metric'], 'tray_channels': channels}
+                'tray_display_mode': channels[0]['text_metric'] if channels else 'vram', 'tray_channels': channels}
 
     def _preview_tray_preferences(self):
-        if not hasattr(self, 'tray_preview_label'):
+        if not hasattr(self, 'tray_preview_label') or not hasattr(self, 'tray_channel_controls') or not hasattr(self, 'tray_style_choice') or not hasattr(self, 'tray_theme_choice'):
             return
         from PIL import Image
         prefs = self._pending_tray_preferences()
@@ -268,6 +270,10 @@ class TrayControls:
             for i, r in enumerate(readings)))
 
     def _update_tray_sources(self):
+        if not hasattr(self, 'tray_sources') or not hasattr(self, 'tray_channel_controls'):
+            return
+        if not self.topology:
+            return
         for d in self.topology.devices:
             self.tray_sources[d.uuid] = f'{d.index}: {d.name}'
         for row in self.tray_channel_controls:

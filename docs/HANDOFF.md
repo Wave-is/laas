@@ -1,14 +1,17 @@
 # Development handoff
 
-Updated: 2026-09-21. **Release v0.2.0-beta.15: Fix StartupRunner background services import, elevated Program Files updater, VM (WaveVM) lazy loading optimizations, non-GPU instant probe bypass, and vision backend flags.**
+Updated: 2026-09-22. **Release v0.2.0-beta.16: Unified dashboard icon buttons, non-disruptive OTA updates preserving llama-swap, lazy tray initialization guard.**
 
 ## Текущая работа
-- **Цель**: Релиз v0.2.0-beta.15: устранение StartupRunner NameError, поддержка UAC elevation для апдейтера в Program Files, ленивая отрисовка для WaveVM.
-- **Этап**: Завершено тестирование (291 тест), сборка и публикация релиза v0.2.0-beta.15.
-- **Следующий конкретный шаг**: Проверка чистого запуска на ПК пользователя и WaveVM.
-- **Критерий завершения**: все 291 тест проходят, инсталлятор v0.2.0-beta.15 опубликован на GitHub, GUI открывается без ошибок и зависаний.
+- **Цель**: Релиз v0.2.0-beta.16: устранение ошибки tray_sources, единый стиль символьных кнопок на дашборде, бесшовное OTA обновление без прерывания llama-swap.
+- **Этап**: Сборка инсталлятора, прогон тестов (292 теста), публикация на GitHub.
+- **Следующий конкретный шаг**: Проверка OTA обновления на ПК с A4000.
+- **Критерий завершения**: все 292 теста проходят, инсталлятор v0.2.0-beta.16 опубликован на GitHub, обновление накатывается без сбоев и не прерывает сервер моделей.
 
 Current progress:
+- **Unified Dashboard Controls**: Converted Model and llama-swap dashboard rows to 44px icon buttons (`▶`, `⏹`, `🔧`) matching the Agent row.
+- **Non-Disruptive OTA In-Place Updates**: Switched silent updater flags to `/NOCLOSEAPPLICATIONS` and configured `CloseApplications=no` in Inno Setup.
+- **Tray Controls Lazy Initialization Guard**: Added safety checks in `src/ui/tray_controls.py` preventing `AttributeError: '_tkinter.tkapp' object has no attribute 'tray_sources'` when telemetry polls before the settings page is rendered.
 - **Fixed StartupRunner Import**: Resolved `NameError: name 'StartupRunner' is not defined` during background services initialization on startup in `ControlCenter`.
 - **Elevated Updater for Program Files**: `src/app_updates.py` automatically passes `-Verb RunAs` and decouples working directory from temporary folders when updating installations in `C:\Program Files`.
 - **VM Performance & UI Responsiveness (Lazy Loading)**: Implemented on-demand lazy page creation in `ControlCenter`. Only the initial `station` page is built at startup, deferring all other 11 heavy pages (~400+ canvas widgets) until requested by the user.

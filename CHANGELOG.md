@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.0-beta.16
+
+### English
+
+- **Unified Dashboard Controls**: Streamlined Model, Agent, and llama-swap rows on the Station dashboard with unified 44px symbol buttons (`▶` Start/Load, `⏹` Stop/Unload, and `🔧` Configure/Navigate) for a clean, consistent interface.
+- **Non-Disruptive OTA In-Place Updates**: Switched silent update flags to `/NOCLOSEAPPLICATIONS` and configured installer `CloseApplications=no`, ensuring background model servers (`llama-swap.exe`) and active agent sessions are not interrupted during GUI updates.
+- **Lazy Tray Initialization Guard**: Resolved `AttributeError: '_tkinter.tkapp' object has no attribute 'tray_sources'` on systems with delayed settings rendering.
+
+### Русский
+
+- **Единый стиль кнопок на дашборде**: Строки Модели, Агента и сервера llama-swap на главной панели переведены на единый компактный формат символьных кнопок шириной 44px (`▶` Запуск/Загрузка, `⏹` Остановка/Выгрузка, `🔧` Настройки/Переход).
+- **Бесшовное обновление без остановки сервера моделей**: В тихих флагах обновления используется `/NOCLOSEAPPLICATIONS`, а в инсталляторе `CloseApplications=no`, что позволяет обновлять интерфейс Station без сброса работающего сервера `llama-swap.exe` и активных сессий AI-агентов.
+- **Защита инициализации трея**: Исправлена ошибка `_tkinter.tkapp object has no attribute 'tray_sources'` при отложенном построении страницы настроек трея.
+
+### Українська
+
+- **Єдиний стиль кнопок на дашборді**: Рядки Моделі, Агента та сервера llama-swap на головній панелі переведені на єдиний компактний формат символьних кнопок шириною 44px (`▶` Запуск/Завантаження, `⏹` Зупинка/Вивантаження, `🔧` Налаштування/Перехід).
+- **Безшовне оновлення без зупинки сервера моделей**: У тихих прапорцях оновлення використовується `/NOCLOSEAPPLICATIONS`, а в інсталяторі `CloseApplications=no`, що дозволяє оновлювати інтерфейс Station без зупинки працюючого сервера `llama-swap.exe` та активних сесій AI-агентів.
+- **Захист ініціалізації трею**: Виправлено помилку `_tkinter.tkapp object has no attribute 'tray_sources'` під час відкладеної побудови сторінки налаштувань трею.
+
 ## 0.2.0-beta.15
 
 ### English

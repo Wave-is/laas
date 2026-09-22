@@ -50,11 +50,14 @@ class AgentControls:
         info = getattr(self, 'backend_info', None) or {}
         online = bool(info.get('online'))
         loaded = self.model_combo.get() in self.ready_model_ids
-        self.dashboard_model_start.configure(state='disabled' if self.busy or loaded else 'normal',
-            text=tr('Модель загружена') if loaded else tr('Загрузить модель'))
+        self.dashboard_model_start.configure(state='disabled' if self.busy or loaded else 'normal')
         self.dashboard_model_stop.configure(state='disabled' if self.busy or not self.ready_model_ids else 'normal')
+        if hasattr(self, 'dashboard_model_config'):
+            self.dashboard_model_config.configure(state='normal' if not self.busy else 'disabled')
         self.dashboard_server_start.configure(state='disabled' if self.busy or online else 'normal')
         self.dashboard_server_stop.configure(state='disabled' if self.busy or not (online and info.get('owned')) else 'normal')
+        if hasattr(self, 'dashboard_server_config'):
+            self.dashboard_server_config.configure(state='normal' if not self.busy else 'disabled')
         fid = self.frontend_combo.get()
         state = self.frontend_states.get(fid, {})
         frontend = self.controller.frontends.get(fid, {})

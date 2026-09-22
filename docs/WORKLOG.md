@@ -1,5 +1,13 @@
 # Work log
 
+## 2026-09-21 — Guard Tray Preferences & Sources for Lazy UI Page Initialization
+
+1. Lazy Tray Settings Page Guard (`src/ui/tray_controls.py`):
+   - Fixed `AttributeError: '_tkinter.tkapp' object has no attribute 'tray_sources'` triggered by periodic telemetry events `_update_tray_sources` and `_preview_tray_preferences` when the settings page has not yet been opened/built due to lazy UI page initialization.
+   - Added guards `if not hasattr(self, 'tray_sources') or not hasattr(self, 'tray_channel_controls'): return` to safely bypass tray UI updates until the settings page is explicitly rendered.
+   - Added regression test `test_tray_controls_lazy_guards` in `tests/test_final_regressions.py`.
+   - Full test suite: 292 passed in 11.5s.
+
 ## 2026-09-21 — Fix StartupRunner Import in UI Init & Elevated Program Files Updater (Release v0.2.0-beta.15)
 
 1. StartupRunner Import Fix (`src/ui/control_center.py`):

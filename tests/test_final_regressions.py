@@ -141,3 +141,20 @@ def test_instance_path_normalization(tmp_path):
     assert inst1.mutex_name == inst2.mutex_name
     assert inst1.port == inst2.port
 
+
+def test_tray_controls_lazy_guards():
+    from src.ui.tray_controls import TrayControls
+    from src.hardware_topology import HardwareTopology, GpuDeviceInfo
+
+    tc = TrayControls()
+    tc.topology = HardwareTopology([GpuDeviceInfo(index=0, uuid='uuid-1', name='GPU0')])
+    # None of tray_sources or tray_channel_controls or tray_preview_label exist yet before settings page build
+    assert not hasattr(tc, 'tray_sources')
+    # These must execute safely without throwing AttributeError
+    tc._update_tray_sources()
+    tc._preview_tray_preferences()
+    prefs = tc._pending_tray_preferences()
+    assert isinstance(prefs, dict)
+
+
+
