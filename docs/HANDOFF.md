@@ -1,19 +1,18 @@
 # Development handoff
 
-Updated: 2026-09-22. **Release v0.2.0-beta.20: Standardized on %LOCALAPPDATA%\Programs (No UAC / Admin Required), Graceful Engine Stop/Restart during OTA, and Standalone TCC GPU Helper Management.**
+Updated: 2026-09-22. **Release v0.2.0-beta.22: Compare-Timestamp File Preservation, Full Process & VRAM Cleanup on Update, Shortened Model Status, and Dashboard Grid Alignment.**
 
 ## Текущая работа
-- **Цель**: Стандартизация установки в `%LOCALAPPDATA%\Programs\Local Agent AI Station` (без прав администратора и UAC при установке/обновлении), надёжная обработка запущенных процессов `llama-swap`/`llama-server` при обновлении (остановка перед заменой файлов и автоматический перезапуск), явное управление TCC-службой через настройки Station.
-- **Этап**: Исправления внедрены в `app_updates.py`, `Station.iss`, `gpu_mode_client.py` и каталоги переводов; все 293 теста пройдены; сборка релиза v0.2.0-beta.20.
-- **Следующий конкретный шаг**: Сборка инсталлятора v0.2.0-beta.20, публикация релиза на GitHub, проверка OTA.
-- **Критерий завершения**: все 293 теста проходят, инсталлятор v0.2.0-beta.20 собран и опубликован, установка и OTA происходят без прав администратора и без ошибок блокировки файлов, движок модели перезапускается автоматически.
+- **Цель**: Релиз v0.2.0-beta.22: переход на `comparetimestamp` в Inno Setup для исключения попыток перезаписи неизменённых системных DLL (`MSVCP140.dll` и др.), гарантированное принудительное завершение деревьев процессов перед установкой для полного освобождения VRAM, исправление выравнивания карточек дашборда и сокращение текста статуса модели до «Модель запущена: {url}, id: {ids}» с переносом строк.
+- **Этап**: Исправления внедрены, релиз v0.2.0-beta.22 собран и опубликован на GitHub.
+- **Следующий конкретный шаг**: Проверка пользователем в интерфейсе.
+- **Критерий завершения**: все 293 теста проходят, релиз опубликован, OTA происходит гладко без ошибок `DeleteFile: сбой; код 5`, VRAM не захламляется сиротскими процессами, сетка дашборда ровно выровнена.
 
 Current progress:
-- **Standardized Per-User Installation (`%LOCALAPPDATA%\Programs\`)**: Installer set to `PrivilegesRequired=lowest` and default dir `{localappdata}\Programs\Local Agent AI Station`. Eliminates UAC dialogs during install and OTA updates.
-- **Graceful Engine Stop and Restart during OTA**: The updater script detects any running `llama-swap.exe` or `llama-server.exe` from the install folder, saves their full command line arguments, cleanly stops them before installer execution (preventing `DeleteFile: Access Denied code 5` errors), and automatically restarts them after successful installation.
-- **TCC GPU Helper Service Standalone Management**: `LocalAgentGpuModeHelper.exe` and scripts packaged into `{app}\tools` without auto-installing during setup. Users can install or uninstall the service with a single UAC prompt from Station Settings when TCC mode switching is needed.
-- **Releases v0.2.0-beta.17 & v0.2.0-beta.18 Live on GitHub**: Both releases built with `--onedir` and bundled engine (llama.cpp + CUDA 13 + llama-swap) and published with full assets.
-- **Live Physical OTA Update Verified End-to-End**: Installed `v0.2.0-beta.17` locally, queried GitHub API, downloaded `v0.2.0-beta.18` (531.2 MB), applied update via detached script, completed with exit code 0 and verified `BUILD.json` updated to `0.2.0-beta.18` without interrupting background processes.
+- **Compare-Timestamp File Preservation (`Station.iss`)**: Replaced `ignoreversion` with `comparetimestamp` on `_internal` DLLs, dependencies, and engine files. Inno Setup skips identical DLLs, completely preventing `DeleteFile: Access Denied code 5` errors on shared libraries like `MSVCP140.dll`.
+- **Force Process Tree & VRAM Cleanup (`Station.iss`, `app_updates.py`)**: `PrepareToInstall` and `apply_update.ps1` execute `taskkill /F /T` across `LocalAgentAIStation`, `llama-swap`, and `llama-server`. Completely frees all GPU VRAM before installation and eliminates orphan processes.
+- **Station Self-Management of Engine**: Removed external powershell restart of `llama-swap` during update. Station starts cleanly on relaunch, starts its own model server via `supervisor.py` with proper tracking in `processes.json`, preventing "Работает (не Station)" and out-of-VRAM startup crashes.
+- **Dashboard Grid & Text Polish (`control_center.py`, `locales/`)**: Unified column configuration (`uniform='dash_grid'`), shortened model status text to «Модель запущена: {url}, id: {ids}», and added `wraplength=520` so the text wraps neatly and never expands the card width.
 
 - **PyInstaller `_MEI...` Cleanup Error Fixed**: Eliminated `Failed to remove temporary directory: %TEMP%\_MEI...` by setting `cwd=child_cwd` and `close_fds=True` in `supervisor.py` and `tempfile.gettempdir()` in `control_center.py` restart calls.
 - **Unified Dashboard Controls**: Converted Model and llama-swap dashboard rows to 44px icon buttons (`▶`, `⏹`, `🔧`) matching the Agent row.
