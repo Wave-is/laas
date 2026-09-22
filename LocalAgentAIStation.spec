@@ -26,10 +26,14 @@ datas += [(str(root/'docs/examples'),'docs/examples')]
 datas += [(str(root/'docs/TESTING_GUIDE_RU.md'),'docs')]
 datas += [(str(root/'docs'/name),'docs') for name in ('SERVICES_GUIDE_RU.md','SERVICES_GUIDE_EN.md','SERVICES_GUIDE_UK.md')]
 datas += [(str(root/'assets/brand'),'assets/brand')]
-datas += [(str(p), str(p.parent.relative_to(root))) for p in (root/'locales').glob('*/*.json')]
-a=Analysis(['main.pyw'],pathex=[str(root)],datas=datas,
-    hiddenimports=collect_submodules('src.agents') + ['src.agents.'+p.parent.name+'.adapter' for p in (root/'src/agents').glob('*/manifest.yaml')],
-    excludes=['torch','tensorflow','matplotlib','pandas','numpy','scipy','IPython','pytest'],
+a = Analysis(
+    ['main.pyw'],
+    pathex=[str(root)],
+    datas=datas,
+    hiddenimports=collect_submodules('src.agents') + ['src.agents.' + p.parent.name + '.adapter' for p in (root / 'src/agents').glob('*/manifest.yaml')],
+    excludes=['torch', 'tensorflow', 'matplotlib', 'pandas', 'numpy', 'scipy', 'IPython', 'pytest'],
+    noarchive=False
+)
 pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
