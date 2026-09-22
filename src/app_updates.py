@@ -322,8 +322,8 @@ class UpdateManager:
 
         # Always install per-user (/CURRENTUSER) — installer default is LOCALAPPDATA, no UAC needed.
         silent_flags_list = ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/SP-', '/NOCLOSEAPPLICATIONS', '/NORESTART'] if silent else ['/SP-', '/NOCLOSEAPPLICATIONS']
-        all_args = ['/CURRENTUSER'] + ([f'/DIR={target_dir}'] if target_dir else []) + silent_flags_list
-        # Build PowerShell array literal: @('/CURRENTUSER', '/DIR=...', ...)
+        all_args = ['/CURRENTUSER'] + ([f'/DIR="{target_dir}"'] if target_dir else []) + silent_flags_list
+        # Build PowerShell array literal: @('/CURRENTUSER', '/DIR="..."', ...)
         ps_arg_elems = ', '.join(f"'{a}'" for a in all_args)
 
         # Engine directory — same as install dir / engine
