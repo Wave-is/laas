@@ -28,8 +28,8 @@ try {
         elseif (Test-Path -LiteralPath $archiveCandidate) { $ISCC = $archiveCandidate }
         else { $ISCC = (Get-Command ISCC.exe -ErrorAction Stop).Source }
     }
-    $version = & $Python -c 'from src.version import VERSION; print(VERSION)'
-    $numeric = & $Python -c 'from src.version import WINDOWS_VERSION; print(".".join(map(str, WINDOWS_VERSION)))'
+    $version = & $Python -c "from src.version import VERSION; print(VERSION)"
+    $numeric = & $Python -c "from src.version import WINDOWS_VERSION; print(*WINDOWS_VERSION, sep='.')"
     & $ISCC "/DAppVersion=$version" "/DWindowsVersion=$numeric" installer/Station.iss
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
     & $Python tools/prepare_release.py --finalize
