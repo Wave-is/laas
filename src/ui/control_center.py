@@ -383,13 +383,18 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
 
     def _build_station(self):
         page = self.page('station')
-        stats = ctk.CTkFrame(page, fg_color='transparent')
-        stats.pack(fill='x', pady=(0, 10))
-        stats.grid_columnconfigure((0, 1, 2), weight=1, uniform='dash_grid')
+
+        # Single master grid frame to lock column 0, 1, 2 boundaries across all rows
+        dash = ctk.CTkFrame(page, fg_color='transparent')
+        dash.pack(fill='x', pady=(0, 10))
+        dash.grid_columnconfigure(0, weight=1, uniform='dash_col')
+        dash.grid_columnconfigure(1, weight=1, uniform='dash_col')
+        dash.grid_columnconfigure(2, weight=1, uniform='dash_col')
+
         self.dashboard_stats = {}
         for column, (key, label) in enumerate((('backend', tr('СЕРВЕР МОДЕЛЕЙ · LLAMA-SWAP')), ('model', tr('ЗАГРУЖЕННАЯ МОДЕЛЬ')), ('agent', tr('АГЕНТ')))):
-            tile = ctk.CTkFrame(stats, fg_color=PANEL, border_color=EDGE, border_width=1, corner_radius=12)
-            tile.grid(row=0, column=column, sticky='nsew', padx=(0, 10 if column < 2 else 0))
+            tile = ctk.CTkFrame(dash, fg_color=PANEL, border_color=EDGE, border_width=1, corner_radius=12)
+            tile.grid(row=0, column=column, sticky='nsew', padx=(0 if column == 0 else 5, 0 if column == 2 else 5), pady=(0, 10))
             ctk.CTkLabel(tile, text=label, font=('Segoe UI', 10, 'bold'), text_color=MUTED, anchor='w', height=0).pack(fill='x', padx=15, pady=(8, 0))
             value = ctk.CTkLabel(tile, text=tr('Проверка…'), font=('Segoe UI', 17, 'bold'), anchor='w', wraplength=230, justify='left', height=0)
             value.pack(fill='x', padx=15, pady=(3, 1))
@@ -397,19 +402,21 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
                 justify='left', wraplength=300, height=0)
             detail.pack(fill='x', padx=15, pady=(0, 8))
             self.dashboard_stats[key] = (value, detail)
-        ctk.CTkLabel(page, text=tr('Оборудование сейчас'), anchor='w', font=('Segoe UI', 16, 'bold'), height=0).pack(fill='x', pady=(0, 6))
-        self.dashboard_gpu_area = ctk.CTkFrame(page, fg_color='transparent')
-        self.dashboard_gpu_area.pack(fill='x', pady=(0, 10))
-        self.dashboard_gpu_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='dash_grid')
+
+        ctk.CTkLabel(dash, text=tr('Оборудование сейчас'), anchor='w', font=('Segoe UI', 16, 'bold'), height=0).grid(
+            row=1, column=0, columnspan=3, sticky='w', pady=(2, 6))
+
+        self.dashboard_gpu_area = ctk.CTkFrame(dash, fg_color='transparent')
+        self.dashboard_gpu_area.grid(row=2, column=0, columnspan=3, sticky='nsew', pady=(0, 10))
+        self.dashboard_gpu_area.grid_columnconfigure(0, weight=1, uniform='dash_col')
+        self.dashboard_gpu_area.grid_columnconfigure(1, weight=1, uniform='dash_col')
+        self.dashboard_gpu_area.grid_columnconfigure(2, weight=1, uniform='dash_col')
         self.dashboard_empty = ctk.CTkLabel(self.dashboard_gpu_area, text=tr('Обнаружение GPU…'), text_color=MUTED, height=0)
         self.dashboard_empty.grid(row=0, column=0, columnspan=3)
-        self.dashboard_bottom_area = ctk.CTkFrame(page, fg_color='transparent')
-        self.dashboard_bottom_area.pack(fill='x', pady=(0, 10))
-        self.dashboard_bottom_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='dash_grid')
 
-        # Left 2/3: Model and Agent card
-        card = ctk.CTkFrame(self.dashboard_bottom_area, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
-        card.grid(row=0, column=0, columnspan=2, sticky='nsew', padx=(0, 10))
+        # Row 3 Left 2/3: Model and Agent card
+        card = ctk.CTkFrame(dash, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
+        card.grid(row=3, column=0, columnspan=2, sticky='nsew', padx=(0, 5))
 
         ctk.CTkLabel(card, text=tr('Модель и агент'), font=('Segoe UI', 16, 'bold'), anchor='w', height=0).pack(fill='x', padx=18, pady=(10, 2))
         ctk.CTkLabel(card, text=tr('Загрузка модели при необходимости сама запускает сервер моделей llama-swap.'), text_color=MUTED, wraplength=520, justify='left', anchor='w', height=0).pack(fill='x', padx=18, pady=(0, 6))
@@ -446,10 +453,10 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.combination_label = ctk.CTkLabel(card, text=tr('Выберите модель и нажмите «Загрузить модель».'), anchor='w', justify='left', text_color=MUTED, wraplength=520, height=0)
         self.combination_label.pack(fill='x', padx=18, pady=(2, 8))
 
+        # Row 3 Right 1/3: System Resources card
+        sys_card = ctk.CTkFrame(dash, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
+        sys_card.grid(row=3, column=2, sticky='nsew', padx=(5, 0))
 
-        # Right 1/3: System Resources card
-        sys_card = ctk.CTkFrame(self.dashboard_bottom_area, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
-        sys_card.grid(row=0, column=2, sticky='nsew')
 
         ctk.CTkLabel(sys_card, text=tr('Ресурсы системы'), font=('Segoe UI', 14, 'bold'), anchor='w', height=0).pack(fill='x', padx=14, pady=(10, 1))
         ctk.CTkLabel(sys_card, text=tr('Нагрузка ПК в реальном времени'), text_color=MUTED, font=('Segoe UI', 11), anchor='w', height=0).pack(fill='x', padx=14, pady=(0, 4))
@@ -1122,8 +1129,9 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
                 child.destroy()
             self.dashboard_gpus = {}
             for index, d in enumerate(top.devices):
+                col = index % 3
                 tile = ctk.CTkFrame(self.dashboard_gpu_area, fg_color=PANEL, border_width=1, border_color=EDGE, corner_radius=12)
-                tile.grid(row=index//3, column=index%3, sticky='nsew', padx=(0, 8), pady=(0, 4))
+                tile.grid(row=index // 3, column=col, sticky='nsew', padx=(0 if col == 0 else 5, 0 if col == 2 else 5), pady=(0, 6))
                 name = d.name.replace('NVIDIA ', '').replace('Intel(R) ', '')
                 ctk.CTkLabel(tile, text=f'{d.index} · {name}', anchor='w', font=('Segoe UI', 12, 'bold'), wraplength=240, height=0).pack(fill='x', padx=14, pady=(8, 0))
                 mode = ctk.CTkLabel(tile, text='', anchor='w', text_color=MUTED, font=('Segoe UI', 11), height=0)

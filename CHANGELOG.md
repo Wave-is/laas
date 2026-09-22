@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0-beta.23
+
+### English
+
+- **Pixel-Perfect Dashboard Grid Alignment**: Unified top stats, GPU cards, and bottom cards under a single master grid frame with shared `uniform='dash_col'` column weights and matching symmetric margins (`padx=(0,5)`, `(5,5)`, `(5,0)`). The vertical boundary between the left 2/3 cards and right 1/3 cards now aligns to the exact pixel.
+
+### Русский
+
+- **Пиксельное выравнивание колонок Дашборда**: Все секции (верхние показатели, карточки GPU и нижние блоки «Модель и агент» + «Ресурсы системы») объединены в единый мастер-фрейм сетки с общим правилом `uniform='dash_col'` и симметричными отступами (`padx=(0,5)`, `(5,5)`, `(5,0)`). Вертикальная граница между левой частью 2/3 и правой 1/3 теперь выровнена строго пиксель в пиксель.
+
+### Українська
+
+- **Точне вирівнювання колонок Дашборду**: Усі секції об'єднано в єдиний мастер-фрейм із синхронним правилом ширини колонок.
+
 ## 0.2.0-beta.22
 
 ### English
