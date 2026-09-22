@@ -323,7 +323,7 @@ class UpdateManager:
 
         scope_flag = '/CURRENTUSER' if is_user_install else '/ALLUSERS'
         dir_flag = f'/DIR="{target_dir}"' if target_dir else ''
-        silent_flags = '/SILENT /SP- /NOCLOSEAPPLICATIONS /NORESTART' if silent else '/SP- /NOCLOSEAPPLICATIONS'
+        silent_flags = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NOCLOSEAPPLICATIONS /NORESTART' if silent else '/SP- /NOCLOSEAPPLICATIONS'
         installer_args = f'{scope_flag} {dir_flag} {silent_flags}'.strip()
 
         script = self.installer_path.parent / 'apply_update.ps1'
