@@ -125,7 +125,7 @@
   "Открыт установщик службы переключения GPU. Подтвердите запрос прав администратора.": "The GPU switching service installer is open. Confirm the administrator prompt.",
   "Дождитесь завершения: {action}.": "Wait for this to finish: {action}.",
   "Выполняется…": "Working…",
-  "Модель готова. Адрес для агентов: {url}, id модели: {ids}": "Model ready. Address for agents: {url}, model id: {ids}",
+  "Модель запущена: {url}, id: {ids}": "Model running: {url}, id: {ids}",
   "не Station": "not Station",
   "Доступ из сети выключен (включается в «Настройки → Папки и сервер моделей»).": "Network access is off (turn it on in “Settings → Folders and model server”).",
   "Остановлен": "Stopped",

@@ -385,7 +385,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         page = self.page('station')
         stats = ctk.CTkFrame(page, fg_color='transparent')
         stats.pack(fill='x', pady=(0, 10))
-        stats.grid_columnconfigure((0, 1, 2), weight=1, uniform='stats')
+        stats.grid_columnconfigure((0, 1, 2), weight=1, uniform='dash_grid')
         self.dashboard_stats = {}
         for column, (key, label) in enumerate((('backend', tr('СЕРВЕР МОДЕЛЕЙ · LLAMA-SWAP')), ('model', tr('ЗАГРУЖЕННАЯ МОДЕЛЬ')), ('agent', tr('АГЕНТ')))):
             tile = ctk.CTkFrame(stats, fg_color=PANEL, border_color=EDGE, border_width=1, corner_radius=12)
@@ -400,12 +400,12 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         ctk.CTkLabel(page, text=tr('Оборудование сейчас'), anchor='w', font=('Segoe UI', 16, 'bold'), height=0).pack(fill='x', pady=(0, 6))
         self.dashboard_gpu_area = ctk.CTkFrame(page, fg_color='transparent')
         self.dashboard_gpu_area.pack(fill='x', pady=(0, 10))
-        self.dashboard_gpu_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='gpu')
+        self.dashboard_gpu_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='dash_grid')
         self.dashboard_empty = ctk.CTkLabel(self.dashboard_gpu_area, text=tr('Обнаружение GPU…'), text_color=MUTED, height=0)
         self.dashboard_empty.grid(row=0, column=0, columnspan=3)
         self.dashboard_bottom_area = ctk.CTkFrame(page, fg_color='transparent')
         self.dashboard_bottom_area.pack(fill='x', pady=(0, 10))
-        self.dashboard_bottom_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='bottom_grid')
+        self.dashboard_bottom_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='dash_grid')
 
         # Left 2/3: Model and Agent card
         card = ctk.CTkFrame(self.dashboard_bottom_area, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
@@ -443,8 +443,9 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.dashboard_server_stop = self.button(row, '⏹', lambda: (self._notify_watchdog_stop(), self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей'))), width=44)
         self.dashboard_server_config = self.button(row, '🔧', lambda: self.show_page('services'), width=44)
 
-        self.combination_label = ctk.CTkLabel(card, text=tr('Выберите модель и нажмите «Загрузить модель».'), anchor='w', justify='left', text_color=MUTED, height=0)
+        self.combination_label = ctk.CTkLabel(card, text=tr('Выберите модель и нажмите «Загрузить модель».'), anchor='w', justify='left', text_color=MUTED, wraplength=520, height=0)
         self.combination_label.pack(fill='x', padx=18, pady=(2, 8))
+
 
         # Right 1/3: System Resources card
         sys_card = ctk.CTkFrame(self.dashboard_bottom_area, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
@@ -1047,7 +1048,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
                 hook(top, backend_info or {}, running)
             except Exception:
                 logging.getLogger(__name__).exception('Telemetry hook failed')
-        self.combination_label.configure(text=(tr('Модель готова. Адрес для агентов: {url}, id модели: {ids}', url=model_server.api_url(), ids=', '.join(running)) if running else
+        self.combination_label.configure(text=(tr('Модель запущена: {url}, id: {ids}', url=model_server.api_url(), ids=', '.join(running)) if running else
             tr('Сервер моделей работает ({url}), модель не загружена. Выберите модель и нажмите «Загрузить модель».', url=model_server.api_url()) if backend else
             tr('Выберите модель и нажмите «Загрузить модель».')))
         self._update_server_card(backend_info)

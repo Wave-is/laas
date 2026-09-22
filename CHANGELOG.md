@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.0-beta.22
+
+### English
+
+- **Non-Disruptive File Updates & Timestamp Comparison**: Inno Setup now uses `comparetimestamp` for `_internal` DLLs and libraries so unchanged files (such as `MSVCP140.dll`, Python runtimes, GGML backend DLLs) are not rewritten or deleted during updates, eliminating file lock and access denied errors.
+- **Process Tree Cleanup & GPU VRAM Release on Update**: Both `Station.iss` and `apply_update.ps1` force-terminate all Station, `llama-swap`, and `llama-server` process trees before updating, releasing locked DLLs and freeing GPU VRAM completely.
+- **Dashboard Layout & Text Polish**: Shortened model status text to "Model running: {url}, id: {ids}" (Russian: "Модель запущена: {url}, id: {ids}"), added text wrapping (`wraplength=520`) to prevent card expansion, and unified 3-column grid alignment across all dashboard sections.
+
+### Русский
+
+- **Обновление только изменённых файлов (`comparetimestamp`)**: В Inno Setup для библиотек `_internal` и зависимостей включён режим сравнения по времени изменения. Неизменённые DLL (`MSVCP140.dll`, рантайм Python, библиотеки GGML) больше не перезаписываются при обновлении, что исключает ошибки блокировки файлов и отказа в доступе.
+- **Полная выгрузка процессов и освобождение VRAM при обновлении**: `Station.iss` и `apply_update.ps1` гарантированно завершают все процессы Station, `llama-swap` и `llama-server` перед установкой, освобождая дескрипторы DLL и всю память GPU VRAM.
+- **Выравнивание сетки и компактный текст на Дашборде**: Текст статуса модели сокращён до «Модель запущена: {url}, id: {ids}», добавлен перенос строк (`wraplength=520`) для предотвращения растягивания карточки, выровнены колонки всех трёх блоков обзора.
+
+### Українська
+
+- **Оновлення лише змінених файлів (`comparetimestamp`)**: Незмінені DLL більше не перезаписуються під час оновлення.
+- **Повне вивантаження процесів та звільнення VRAM під час оновлення**: Гарантоване завершення дерев процесів перед інсталяцією.
+- **Вирівнювання сітки та компактний текст на Дашборді**: Текст статусу моделі скорочено до «Модель запущена: {url}, id: {ids}», додано перенесення рядків.
+
 ## 0.2.0-beta.21
 
 ### English

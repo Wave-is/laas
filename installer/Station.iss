@@ -61,22 +61,23 @@ uk.ServicesGroup=Служби:
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "..\dist\LocalAgentAIStation\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace
+Source: "..\dist\LocalAgentAIStation\*"; DestDir: "{app}"; Flags: comparetimestamp recursesubdirs createallsubdirs restartreplace
+Source: "..\dist\LocalAgentAIStation\LocalAgentAIStation.exe"; DestDir: "{app}"; Flags: ignoreversion restartreplace
 Source: "..\LICENSE"; DestDir: "{app}"
 Source: "..\README*.md"; DestDir: "{app}\docs"
 Source: "..\docs\GETTING_STARTED*.md"; DestDir: "{app}\docs"
 Source: "..\docs\THIRD_PARTY.md"; DestDir: "{app}\docs"
-Source: "..\dist\licenses\*"; DestDir: "{app}\licenses"; Flags: recursesubdirs createallsubdirs
-Source: "..\dist\third-party-source\*"; DestDir: "{app}\third-party-source"; Flags: recursesubdirs createallsubdirs
+Source: "..\dist\licenses\*"; DestDir: "{app}\licenses"; Flags: comparetimestamp recursesubdirs createallsubdirs
+Source: "..\dist\third-party-source\*"; DestDir: "{app}\third-party-source"; Flags: comparetimestamp recursesubdirs createallsubdirs
 Source: "..\dist\dependency-versions.json"; DestDir: "{app}"
 Source: "..\dist\build-requirements.lock.txt"; DestDir: "{app}"
-Source: "..\dist\BUILD.json"; DestDir: "{app}"
+Source: "..\dist\BUILD.json"; DestDir: "{app}"; Flags: ignoreversion
 ; Bundled model engine (llama.cpp + llama-swap), staged by build_installer.ps1 -EngineDir.
-Source: "..\dist\engine\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist restartreplace
+Source: "..\dist\engine\*"; DestDir: "{app}\engine"; Flags: comparetimestamp recursesubdirs createallsubdirs skipifsourcedoesntexist restartreplace
 ; GPU mode helper service files — copied to {app}\tools\ but NOT auto-installed.
 ; User installs the service via Station Settings (one-time UAC prompt).
 ; restartreplace lets Windows update the EXE while service is stopped/restarted.
-Source: "..\src\services\LocalAgentGpuModeHelper.exe"; DestDir: "{app}\tools"; Flags: ignoreversion restartreplace
+Source: "..\src\services\LocalAgentGpuModeHelper.exe"; DestDir: "{app}\tools"; Flags: comparetimestamp restartreplace
 Source: "..\src\services\install_helper.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
 Source: "..\src\services\uninstall_helper.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
 
@@ -102,10 +103,11 @@ var
 begin
   Result := '';
   StartupLinkExisted := FileExists(StartupLinkPath());
-  // Terminate running Station UI so its files are unlocked for upgrade.
-  // We do NOT stop llama-swap.exe or running model servers — the OTA updater handles that.
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM LocalAgentAIStation.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  Sleep(300);
+  // Force-terminate running Station and engine instances so files are fully unlocked and VRAM is freed.
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /T /IM LocalAgentAIStation.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /T /IM llama-server.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /T /IM llama-swap.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Sleep(500);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

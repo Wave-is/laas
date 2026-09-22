@@ -352,52 +352,24 @@ Log 'Engine dir  : {engine_dir}'
 Log 'Installer   : {str(self.installer_path)}'
 Log 'Mode        : CURRENTUSER (no UAC required)'
 
-# ---- 1. Collect engine processes running from the install dir ----
-$engineDir = '{engine_dir}'
-$engineProcs = @()
-if ($engineDir) {{
-    $candidates = Get-Process -Name 'llama-swap','llama-server' -ErrorAction SilentlyContinue |
-        Where-Object {{ $_.Path -and $_.Path.ToLower().StartsWith($engineDir.ToLower()) }}
-    foreach ($proc in $candidates) {{
-        try {{
-            $wmi = Get-CimInstance Win32_Process -Filter "ProcessId=$($proc.Id)" -ErrorAction SilentlyContinue
-            $cmdLine = if ($wmi) {{ $wmi.CommandLine }} else {{ '' }}
-            $engineProcs += [PSCustomObject]@{{ Pid=$proc.Id; Exe=$proc.Path; CmdLine=$cmdLine; WorkDir=(Split-Path $proc.Path -Parent) }}
-            Log "Engine process found: PID=$($proc.Id) path=$($proc.Path)"
-            Log "  CmdLine: $cmdLine"
-        }} catch {{ Log "  Could not query CmdLine for PID=$($proc.Id): $($_.Exception.Message)" }}
-    }}
-}}
-if ($engineProcs.Count -eq 0) {{ Log 'No engine processes found in install dir - no stop needed.' }}
-
-# ---- 2. Wait for Station UI to exit ----
+# ---- 1. Wait for Station UI process to exit ----
 if ($WaitPid -gt 0) {{
-    Log "Waiting for Station UI (PID=$WaitPid) to exit (timeout 30s)..."
-    try {{ Wait-Process -Id $WaitPid -Timeout 30 -ErrorAction Stop; Log 'Station UI exited.' }}
-    catch {{ Log "Wait-Process timeout or error: $($_.Exception.Message). Continuing anyway." }}
+    Log "Waiting for Station UI (PID=$WaitPid) to exit (timeout 15s)..."
+    try {{ Wait-Process -Id $WaitPid -Timeout 15 -ErrorAction Stop; Log 'Station UI exited.' }}
+    catch {{ Log "Wait-Process timeout or error: $($_.Exception.Message). Force terminating." }}
+}}
+
+# ---- 2. Force-terminate any lingering Station or engine processes to unlock DLLs and free GPU VRAM ----
+Log "Ensuring all Station and engine processes are stopped..."
+Get-Process -Name 'LocalAgentAIStation','llama-swap','llama-server' -ErrorAction SilentlyContinue | ForEach-Object {{
+    Log "Stopping PID=$($_.Id) ($($_.Name))..."
+    try {{
+        Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+    }} catch {{}}
 }}
 Start-Sleep -Milliseconds 800
 
-# ---- 3. Stop engine processes ----
-foreach ($ep in $engineProcs) {{
-    Log "Stopping engine process PID=$($ep.Pid) ($($ep.Exe))..."
-    try {{
-        $p = Get-Process -Id $ep.Pid -ErrorAction SilentlyContinue
-        if ($p) {{
-            $p.CloseMainWindow() | Out-Null
-            Start-Sleep -Milliseconds 800
-            $p = Get-Process -Id $ep.Pid -ErrorAction SilentlyContinue
-            if ($p) {{
-                $p.Kill()
-                $p.WaitForExit(5000) | Out-Null
-                Log "  Force-killed PID=$($ep.Pid)"
-            }} else {{ Log "  Exited gracefully PID=$($ep.Pid)" }}
-        }} else {{ Log "  Already gone PID=$($ep.Pid)" }}
-    }} catch {{ Log "  Error stopping PID=$($ep.Pid): $($_.Exception.Message)" }}
-}}
-Start-Sleep -Milliseconds 500
-
-# ---- 4. Run installer (no UAC/RunAs needed — per-user LOCALAPPDATA install) ----
+# ---- 3. Run installer (no UAC/RunAs needed — per-user LOCALAPPDATA install) ----
 $installer = '{str(self.installer_path)}'
 $installerArgList = @({ps_arg_elems})
 Log "Running installer: $installer $($installerArgList -join ' ')"
@@ -410,32 +382,9 @@ try {{
 }}
 Log "Installer finished with exit code $exitCode"
 
-# ---- 5. Restart engine processes if installer succeeded ----
+# ---- 4. Launch updated Station (Station will start llama-swap via its own supervisor) ----
 if ($exitCode -in 0, 6) {{
-    foreach ($ep in $engineProcs) {{
-        if (-not $ep.CmdLine) {{
-            Log "No cmdline for $($ep.Exe), skipping engine restart."
-            continue
-        }}
-        # Prefer the newly-installed exe at the same relative path
-        $newExe = if (Test-Path $ep.Exe) {{ $ep.Exe }} else {{ $ep.Exe }}
-        Log "Restarting engine: $($ep.CmdLine)"
-        try {{
-            # Parse: first token is executable, rest are args
-            $tokens = $ep.CmdLine -split ' (?=(?:[^"]*"[^"]*")*[^"]*$)' | Where-Object {{ $_ -ne '' }}
-            $exeToken = $tokens[0].Trim('"')
-            $argTokens = if ($tokens.Count -gt 1) {{ $tokens[1..($tokens.Count-1)] -join ' ' }} else {{ '' }}
-            if ($argTokens) {{
-                Start-Process -FilePath $exeToken -ArgumentList $argTokens -WorkingDirectory $ep.WorkDir -WindowStyle Hidden
-            }} else {{
-                Start-Process -FilePath $exeToken -WorkingDirectory $ep.WorkDir -WindowStyle Hidden
-            }}
-            Log "  Engine restarted: $exeToken"
-        }} catch {{ Log "  Failed to restart engine: $($_.Exception.Message)" }}
-    }}
-    Start-Sleep -Seconds 2
-
-    # ---- 6. Launch updated Station ----
+    Start-Sleep -Milliseconds 500
     $targetExe = '{target_exe}'
     $candidates = @(
         $targetExe,
@@ -451,14 +400,14 @@ if ($exitCode -in 0, 6) {{
         }}
     }}
 }} else {{
-    Log "Installer failed (exit code $exitCode). Engine processes NOT restarted automatically."
-    Log "Please check the installer logs and restart engine manually if needed."
+    Log "Installer failed (exit code $exitCode)."
 }}
 
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 2
 Remove-Item -Path $installer -Force -ErrorAction SilentlyContinue
 Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue
 Log "=== OTA updater finished. ==="
+
 """
         script.write_text(script_content, encoding='utf-8-sig')
         log.info('OTA update script written to: %s', script)
