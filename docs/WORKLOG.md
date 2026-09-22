@@ -1,6 +1,22 @@
 # Work log
 
-## 2026-09-21 — Guard Tray Preferences & Sources for Lazy UI Page Initialization
+## 2026-09-22 — Release v0.2.0-beta.16 (Unified Dashboard, Non-Disruptive OTA, Strict Bundled Engine Priority, and Lazy Tray Guards)
+
+1. Strict Bundled Engine Priority (`src/model_server.py`):
+   - Refactored `find_executable` and `runtime_dir` to strictly prefer `{app}\engine` (`bundled_runtime_dir()`) over legacy explicit configuration paths (`D:\AI\QWEN_LOCAL_STACK_2026\...`).
+   - Cleaned up legacy configuration paths from user config.
+   - Added automated regression test `test_bundled_engine_priority_over_legacy_paths` in `tests/test_final_regressions.py`.
+
+2. Unified Dashboard Buttons (`src/ui/control_center.py`, `src/ui/agent_controls.py`):
+   - Streamlined Model and llama-swap dashboard rows to match the Agent row with 44px icon buttons (`▶`, `⏹`, `🔧`).
+
+3. Non-Disruptive OTA In-Place Updates (`src/app_updates.py`, `installer/Station.iss`):
+   - Changed installer flags to `/NOCLOSEAPPLICATIONS` and set `CloseApplications=no` in Inno Setup. Prevents terminating `llama-swap.exe` or background services when updating the GUI.
+
+4. Lazy Tray Guards (`src/ui/tray_controls.py`):
+   - Guarded `_update_tray_sources`, `_preview_tray_preferences`, and `_pending_tray_preferences` with `hasattr` checks.
+   - Added regression test `test_tray_controls_lazy_guards`.
+   - Full test suite: 293 passed in 13.3s.
 
 1. Lazy Tray Settings Page Guard (`src/ui/tray_controls.py`):
    - Fixed `AttributeError: '_tkinter.tkapp' object has no attribute 'tray_sources'` triggered by periodic telemetry events `_update_tray_sources` and `_preview_tray_preferences` when the settings page has not yet been opened/built due to lazy UI page initialization.

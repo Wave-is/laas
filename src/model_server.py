@@ -98,7 +98,7 @@ def bundled_runtime_dir():
 
 
 def runtime_dir():
-    """Chosen engine folder, else the bundled engine, else the folder of older explicit executables."""
+    """Chosen custom engine folder, else the bundled engine, else the folder of older explicit executables."""
     value = config.get('runtime_dir')
     if value:
         return Path(value)
@@ -152,11 +152,24 @@ def fill_missing_folders(profiles):
 
 
 def find_executable(name):
-    """An explicit path wins when it exists; otherwise search the engine folder."""
+    r"""If a custom engine folder (runtime_dir) is set, search there.
+    Otherwise prefer the bundled engine ({app}\engine).
+    Legacy explicit executable paths are only used if no bundled engine exists."""
+    custom_dir = config.get('runtime_dir')
+    if custom_dir:
+        return _search(custom_dir, name)
+
+    bundled = bundled_runtime_dir()
+    if bundled:
+        found = _search(bundled, name)
+        if found:
+            return found
+
     key = 'llama_swap_executable' if name == SWAP_EXE else 'llama_server_executable'
     explicit = config.get(key)
     if explicit and Path(explicit).is_file():
         return Path(explicit)
+
     return _search(runtime_dir(), name)
 
 

@@ -157,4 +157,27 @@ def test_tray_controls_lazy_guards():
     assert isinstance(prefs, dict)
 
 
+def test_bundled_engine_priority_over_legacy_paths(tmp_path, monkeypatch):
+    from src import model_server
+    from src.config import config
+    from pathlib import Path
+
+    fake_bundled = tmp_path / 'app' / 'engine'
+    swap_dir = fake_bundled / 'llama-swap'
+    swap_dir.mkdir(parents=True)
+    fake_swap = swap_dir / 'llama-swap.exe'
+    fake_swap.write_bytes(b'bundled_swap')
+
+    monkeypatch.setattr(model_server, 'bundled_runtime_dir', lambda: fake_bundled)
+
+    # Even if config has legacy explicit paths pointing to another drive/folder
+    legacy_file = tmp_path / 'legacy_swap.exe'
+    legacy_file.write_bytes(b'legacy_swap')
+    monkeypatch.setattr(config, 'get', lambda key, default=None: '' if key == 'runtime_dir' else str(legacy_file) if key == 'llama_swap_executable' else default)
+
+    found = model_server.find_executable('llama-swap.exe')
+    assert found == fake_swap
+
+
+
 
