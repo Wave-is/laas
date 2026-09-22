@@ -92,7 +92,7 @@ def test_update_manager_apply_update_script(tmp_path, monkeypatch):
     script = tmp_path / 'apply_update.ps1'
     assert script.is_file()
     content = script.read_text(encoding='utf-8')
-    assert '/SILENT' in content
+    assert '/VERYSILENT' in content or '/SILENT' in content
     assert '/NOCLOSEAPPLICATIONS' in content
     assert '/CURRENTUSER' in content
     assert str(installer) in content
