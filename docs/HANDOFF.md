@@ -1,18 +1,19 @@
 # Development handoff
 
-Updated: 2026-09-22. **Release v0.2.0-beta.22: Compare-Timestamp File Preservation, Full Process & VRAM Cleanup on Update, Shortened Model Status, and Dashboard Grid Alignment.**
+Updated: 2026-09-22. **Release v0.2.0-beta.23: Pixel-Perfect Master Dashboard Grid Alignment, Compare-Timestamp File Preservation, and Full Process Tree Cleanup.**
 
 ## Текущая работа
-- **Цель**: Релиз v0.2.0-beta.22: переход на `comparetimestamp` в Inno Setup для исключения попыток перезаписи неизменённых системных DLL (`MSVCP140.dll` и др.), гарантированное принудительное завершение деревьев процессов перед установкой для полного освобождения VRAM, исправление выравнивания карточек дашборда и сокращение текста статуса модели до «Модель запущена: {url}, id: {ids}» с переносом строк.
-- **Этап**: Исправления внедрены, релиз v0.2.0-beta.22 собран и опубликован на GitHub.
-- **Следующий конкретный шаг**: Проверка пользователем в интерфейсе.
-- **Критерий завершения**: все 293 теста проходят, релиз опубликован, OTA происходит гладко без ошибок `DeleteFile: сбой; код 5`, VRAM не захламляется сиротскими процессами, сетка дашборда ровно выровнена.
+- **Цель**: Релиз v0.2.0-beta.23: полный переход дашборда на единый мастер-фрейм сетки с `uniform='dash_col'` и строго симметричными внешними отступами (`padx=(0,5)`, `(5,5)`, `(5,0)`), гарантирующими идеальное выравнивание колонок между верхней строкой (Сервер/Модель/Агент), средней строкой GPU и нижней строкой (Модель и агент 2/3 + Ресурсы системы 1/3).
+- **Этап**: Исправления внедрены, релиз v0.2.0-beta.23 собран и опубликован на GitHub.
+- **Следующий конкретный шаг**: Проверка пользователем в интерфейсе через OTA.
+- **Критерий завершения**: все 293 теста проходят, релиз опубликован, колонки дашборда выровнены пиксель в пиксель.
 
 Current progress:
+- **Pixel-Perfect Master Dashboard Grid (`control_center.py`)**: All dashboard sections (top stats, GPU cards, bottom cards) now share a single master grid with `uniform='dash_col'` and matching symmetric margins. The right boundary of the left 2/3 cards aligns mathematically and visually with the 2nd column boundary of the top tiles and GPU cards.
 - **Compare-Timestamp File Preservation (`Station.iss`)**: Replaced `ignoreversion` with `comparetimestamp` on `_internal` DLLs, dependencies, and engine files. Inno Setup skips identical DLLs, completely preventing `DeleteFile: Access Denied code 5` errors on shared libraries like `MSVCP140.dll`.
 - **Force Process Tree & VRAM Cleanup (`Station.iss`, `app_updates.py`)**: `PrepareToInstall` and `apply_update.ps1` execute `taskkill /F /T` across `LocalAgentAIStation`, `llama-swap`, and `llama-server`. Completely frees all GPU VRAM before installation and eliminates orphan processes.
 - **Station Self-Management of Engine**: Removed external powershell restart of `llama-swap` during update. Station starts cleanly on relaunch, starts its own model server via `supervisor.py` with proper tracking in `processes.json`, preventing "Работает (не Station)" and out-of-VRAM startup crashes.
-- **Dashboard Grid & Text Polish (`control_center.py`, `locales/`)**: Unified column configuration (`uniform='dash_grid'`), shortened model status text to «Модель запущена: {url}, id: {ids}», and added `wraplength=520` so the text wraps neatly and never expands the card width.
+- **Shortened Model Status (`control_center.py`, `locales/`)**: Shortened model status text to «Модель запущена: {url}, id: {ids}», and added `wraplength=520` so the text wraps neatly and never expands the card width.
 
 - **PyInstaller `_MEI...` Cleanup Error Fixed**: Eliminated `Failed to remove temporary directory: %TEMP%\_MEI...` by setting `cwd=child_cwd` and `close_fds=True` in `supervisor.py` and `tempfile.gettempdir()` in `control_center.py` restart calls.
 - **Unified Dashboard Controls**: Converted Model and llama-swap dashboard rows to 44px icon buttons (`▶`, `⏹`, `🔧`) matching the Agent row.
