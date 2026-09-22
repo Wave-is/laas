@@ -311,6 +311,12 @@ class UpdateManager:
         if not self.installer_path or not self.installer_path.is_file():
             return False, tr('Файл обновления не найден. Скачайте его заново.')
 
+        try:
+            from .setup_guard import release_setup_guard
+            release_setup_guard()
+        except Exception:
+            pass
+
         target_exe = str(Path(sys.executable).resolve()) if getattr(sys, 'frozen', False) else ''
         target_dir = str(Path(sys.executable).resolve().parent) if getattr(sys, 'frozen', False) else ''
         is_user_install = True

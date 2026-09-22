@@ -1,4 +1,4 @@
-﻿# -*- mode: python ; coding: utf-8 -*-
+# -*- mode: python ; coding: utf-8 -*-
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 root=Path(SPECPATH)
@@ -31,6 +31,32 @@ a=Analysis(['main.pyw'],pathex=[str(root)],datas=datas,
     hiddenimports=collect_submodules('src.agents') + ['src.agents.'+p.parent.name+'.adapter' for p in (root/'src/agents').glob('*/manifest.yaml')],
     excludes=['torch','tensorflow','matplotlib','pandas','numpy','scipy','IPython','pytest'],
     noarchive=False)
-pyz=PYZ(a.pure)
-exe=EXE(pyz,a.scripts,a.binaries,a.datas,[],name='LocalAgentAIStation',debug=False,
-    strip=False,upx=False,console=False,disable_windowed_traceback=False,icon=str(root/'assets/brand/station.ico'),version=version_info)
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='LocalAgentAIStation',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=str(root / 'assets/brand/station.ico'),
+    version=version_info
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='LocalAgentAIStation'
+)

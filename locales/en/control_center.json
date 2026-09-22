@@ -208,5 +208,17 @@
   "Папка журналов (логов)": "Logs folder",
   "Куда сохраняются журналы работы станции (station.log). Оставьте пустым для папки по умолчанию. Можно указать локальный путь или общую сетевую папку (например \\\\server\\share\\laas-logs).": "Where Station operation logs (station.log) are saved. Leave empty for default folder. You can specify a local path or a shared network folder (e.g. \\\\server\\share\\laas-logs).",
   "Открыть папку логов": "Open logs folder",
-  "Папка не найдена или недоступна: {path}": "Folder not found or inaccessible: {path}"
+  "Папка не найдена или недоступна: {path}": "Folder not found or inaccessible: {path}",
+  "📥 Обновить (v{version})": "📥 Update (v{version})",
+  "🚀 Перезапустить (v{version})": "🚀 Restart (v{version})",
+  "⏳ Обновление…": "⏳ Updating…",
+  "Ресурсы системы": "System resources",
+  "Нагрузка ПК в реальном времени": "Live system load",
+  "ЦПУ": "CPU",
+  "{pct}% ({cores} ядер)": "{pct}% ({cores} cores)",
+  "ОЗУ": "RAM",
+  "{used} / {total} ГБ ({pct}%)": "{used} / {total} GB ({pct}%)",
+  "Диск": "Disk",
+  "{drive} {free} ГБ свободно": "{drive} {free} GB free",
+  "Сеть": "Network"
 }

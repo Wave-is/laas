@@ -194,6 +194,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         sidebar = ctk.CTkFrame(self, width=215, fg_color='#141d27', corner_radius=0)
         sidebar.grid(row=0, column=0, sticky='nsew')
         sidebar.grid_propagate(False)
+        sidebar.pack_propagate(False)
         self.brand_image = ctk.CTkImage(mark_image(128), size=(48, 48))
         brand = ctk.CTkLabel(sidebar, text='', image=self.brand_image)
         brand.pack(anchor='w', padx=20, pady=(16, 0))
@@ -212,7 +213,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.sidebar_version_label.pack(side='bottom', anchor='w', padx=20, pady=12)
         self.sidebar_update_btn = ctk.CTkButton(
             sidebar, text='', fg_color=ACCENT, text_color=BG,
-            hover_color='#71e2c2', font=('Segoe UI', 11, 'bold'), height=30, corner_radius=6,
+            hover_color='#71e2c2', font=('Segoe UI', 10, 'bold'), height=30, corner_radius=6,
             command=self._on_sidebar_update_clicked
         )
 
@@ -227,7 +228,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         ver = rel.get('tag_name', '').lstrip('v') or rel.get('version', '')
         if state == UpdateState.AVAILABLE:
             self.sidebar_update_btn.configure(
-                text=tr('📥 Обновить до v{version}', version=ver),
+                text=tr('📥 Обновить (v{version})', version=ver),
                 fg_color=ACCENT, hover_color='#71e2c2', text_color=BG, state='normal')
             self.sidebar_update_btn.pack(side='bottom', fill='x', padx=14, pady=(0, 8))
         elif state == UpdateState.DOWNLOADING:
@@ -238,12 +239,12 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             self.sidebar_update_btn.pack(side='bottom', fill='x', padx=14, pady=(0, 8))
         elif state == UpdateState.READY:
             self.sidebar_update_btn.configure(
-                text=tr('🚀 Перезапустить: v{version}', version=ver),
+                text=tr('🚀 Перезапустить (v{version})', version=ver),
                 fg_color='#22c55e', hover_color='#16a34a', text_color='#ffffff', state='normal')
             self.sidebar_update_btn.pack(side='bottom', fill='x', padx=14, pady=(0, 8))
         elif state == UpdateState.INSTALLING:
             self.sidebar_update_btn.configure(
-                text=tr('⏳ Установка…'),
+                text=tr('⏳ Обновление…'),
                 fg_color='#eab308', hover_color='#ca8a04', text_color='#000000', state='disabled')
             self.sidebar_update_btn.pack(side='bottom', fill='x', padx=14, pady=(0, 8))
         else:
@@ -402,25 +403,36 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.dashboard_gpu_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='gpu')
         self.dashboard_empty = ctk.CTkLabel(self.dashboard_gpu_area, text=tr('Обнаружение GPU…'), text_color=MUTED, height=0)
         self.dashboard_empty.grid(row=0, column=0, columnspan=3)
-        card = self.card(page, tr('Модель и агент'), tr('Загрузка модели при необходимости сама запускает сервер моделей llama-swap.'))
+        self.dashboard_bottom_area = ctk.CTkFrame(page, fg_color='transparent')
+        self.dashboard_bottom_area.pack(fill='x', pady=(0, 10))
+        self.dashboard_bottom_area.grid_columnconfigure((0, 1, 2), weight=1, uniform='bottom_grid')
+
+        # Left 2/3: Model and Agent card
+        card = ctk.CTkFrame(self.dashboard_bottom_area, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
+        card.grid(row=0, column=0, columnspan=2, sticky='nsew', padx=(0, 10))
+
+        ctk.CTkLabel(card, text=tr('Модель и агент'), font=('Segoe UI', 16, 'bold'), anchor='w', height=0).pack(fill='x', padx=18, pady=(10, 2))
+        ctk.CTkLabel(card, text=tr('Загрузка модели при необходимости сама запускает сервер моделей llama-swap.'), text_color=MUTED, wraplength=520, justify='left', anchor='w', height=0).pack(fill='x', padx=18, pady=(0, 6))
+
         row = self.row(card)
         self.model_combo = self.combo(row, [id for id, m in profile_storage.model_profiles.items() if id != 'none' and m.status != 'disabled'],
-            config.get('selected_model_profile', config.get('active_model_profile')), 395)
+            config.get('selected_model_profile', config.get('active_model_profile')), 365)
         self.dashboard_model_start = self.button(row, '▶', lambda: self._run_selection(self.model_combo, gpu_mode_manager.apply_model_profile_only, tr('Загрузка модели')), True, width=44)
         self.model_combo.configure(command=lambda value: self._refresh_dashboard_buttons())
         self.dashboard_model_stop = self.button(row, '⏹', lambda: (self._notify_watchdog_stop(), self.worker(lambda: gpu_mode_manager.apply_model_profile_only('none'), label=tr('Выгрузка модели'))), width=44)
         self.dashboard_model_config = self.button(row, '🔧', lambda: self.show_page('models'), width=44)
+
         row = self.row(card)
-        self.runtime_combo = self.combo(row, list(self.controller.adapters), config.get('primary_agent_runtime'), 175)
+        self.runtime_combo = self.combo(row, list(self.controller.adapters), config.get('primary_agent_runtime'), 160)
         self.runtime_combo.configure(command=lambda value: self._select_runtime(self.runtime_combo.get()))
-        self.frontend_combo = self.combo(row, [], width=208)
+        self.frontend_combo = self.combo(row, [], width=193)
         self.frontend_combo.configure(command=lambda value: self._refresh_dashboard_buttons())
         self.dashboard_agent_start = self.button(row, '▶', self._launch_frontend, True, width=44)
         self.dashboard_agent_stop = self.button(row, '⏹', lambda: self._run_selection(self.frontend_combo, self.controller.stop_frontend, tr('Остановка агента')), width=44)
         self.dashboard_agent_config = self.button(row, '🔧', self._configure_agent, width=44)
+
         row = self.row(card)
-        # Same field look as the selectors above: a read-only status box, then primary/secondary buttons.
-        box = ctk.CTkFrame(row, width=395, height=36, fg_color='#111b25', border_color=EDGE, border_width=2, corner_radius=6)
+        box = ctk.CTkFrame(row, width=365, height=36, fg_color='#111b25', border_color=EDGE, border_width=2, corner_radius=6)
         box.pack(side='left', padx=(0, 12), pady=(5, 6))
         box.pack_propagate(False)
         self.dashboard_server_dot = ctk.CTkLabel(box, text='●', text_color=MUTED, width=18, height=0)
@@ -430,8 +442,49 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.dashboard_server_start = self.button(row, '▶', lambda: self.worker(gpu_mode_manager.start_backend, label=tr('Запуск сервера моделей')), True, width=44)
         self.dashboard_server_stop = self.button(row, '⏹', lambda: (self._notify_watchdog_stop(), self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей'))), width=44)
         self.dashboard_server_config = self.button(row, '🔧', lambda: self.show_page('services'), width=44)
+
         self.combination_label = ctk.CTkLabel(card, text=tr('Выберите модель и нажмите «Загрузить модель».'), anchor='w', justify='left', text_color=MUTED, height=0)
-        self.combination_label.pack(fill='x', padx=20, pady=(4, 10))
+        self.combination_label.pack(fill='x', padx=18, pady=(2, 8))
+
+        # Right 1/3: System Resources card
+        sys_card = ctk.CTkFrame(self.dashboard_bottom_area, fg_color=PANEL, corner_radius=12, border_color=EDGE, border_width=1)
+        sys_card.grid(row=0, column=2, sticky='nsew')
+
+        ctk.CTkLabel(sys_card, text=tr('Ресурсы системы'), font=('Segoe UI', 14, 'bold'), anchor='w', height=0).pack(fill='x', padx=14, pady=(10, 1))
+        ctk.CTkLabel(sys_card, text=tr('Нагрузка ПК в реальном времени'), text_color=MUTED, font=('Segoe UI', 11), anchor='w', height=0).pack(fill='x', padx=14, pady=(0, 4))
+
+        cpu_frame = ctk.CTkFrame(sys_card, fg_color='transparent')
+        cpu_frame.pack(fill='x', padx=14, pady=(1, 0))
+        ctk.CTkLabel(cpu_frame, text=tr('ЦПУ'), font=('Segoe UI', 11, 'bold'), text_color=MUTED, anchor='w').pack(side='left')
+        self.sys_cpu_val = ctk.CTkLabel(cpu_frame, text='—', font=('Segoe UI', 11, 'bold'), anchor='e')
+        self.sys_cpu_val.pack(side='right')
+        self.sys_cpu_bar = ctk.CTkProgressBar(sys_card, height=4, fg_color=EDGE, progress_color=ACCENT)
+        self.sys_cpu_bar.pack(fill='x', padx=14, pady=(1, 3))
+        self.sys_cpu_bar.set(0)
+
+        ram_frame = ctk.CTkFrame(sys_card, fg_color='transparent')
+        ram_frame.pack(fill='x', padx=14, pady=(1, 0))
+        ctk.CTkLabel(ram_frame, text=tr('ОЗУ'), font=('Segoe UI', 11, 'bold'), text_color=MUTED, anchor='w').pack(side='left')
+        self.sys_ram_val = ctk.CTkLabel(ram_frame, text='—', font=('Segoe UI', 11, 'bold'), anchor='e')
+        self.sys_ram_val.pack(side='right')
+        self.sys_ram_bar = ctk.CTkProgressBar(sys_card, height=4, fg_color=EDGE, progress_color=ACCENT)
+        self.sys_ram_bar.pack(fill='x', padx=14, pady=(1, 3))
+        self.sys_ram_bar.set(0)
+
+        disk_frame = ctk.CTkFrame(sys_card, fg_color='transparent')
+        disk_frame.pack(fill='x', padx=14, pady=(1, 0))
+        ctk.CTkLabel(disk_frame, text=tr('Диск'), font=('Segoe UI', 11, 'bold'), text_color=MUTED, anchor='w').pack(side='left')
+        self.sys_disk_val = ctk.CTkLabel(disk_frame, text='—', font=('Segoe UI', 11, 'bold'), anchor='e')
+        self.sys_disk_val.pack(side='right')
+        self.sys_disk_bar = ctk.CTkProgressBar(sys_card, height=4, fg_color=EDGE, progress_color=ACCENT)
+        self.sys_disk_bar.pack(fill='x', padx=14, pady=(1, 3))
+        self.sys_disk_bar.set(0)
+
+        net_frame = ctk.CTkFrame(sys_card, fg_color='transparent')
+        net_frame.pack(fill='x', padx=14, pady=(1, 6))
+        ctk.CTkLabel(net_frame, text=tr('Сеть'), font=('Segoe UI', 11, 'bold'), text_color=MUTED, anchor='w').pack(side='left')
+        self.sys_net_val = ctk.CTkLabel(net_frame, text='—', font=('Segoe UI', 11), text_color=MUTED, anchor='e')
+        self.sys_net_val.pack(side='right')
 
     def _build_agents(self):
         page = self.page('agents')
@@ -1093,6 +1146,40 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             bar.configure(progress_color=ACCENT if known else EDGE)
             bar.set(max(0, min(1, d.vram_used_mib/d.vram_total_mib)) if known else 0)
 
+        # System resources metrics update
+        if hasattr(self, 'sys_cpu_val'):
+            try:
+                import psutil
+                cpu_pct = psutil.cpu_percent(interval=None)
+                cores = psutil.cpu_count(logical=True) or 0
+                self.sys_cpu_val.configure(text=tr('{pct}% ({cores} ядер)', pct=int(cpu_pct), cores=cores))
+                self.sys_cpu_bar.set(max(0.0, min(1.0, cpu_pct / 100.0)))
+
+                mem = psutil.virtual_memory()
+                used_gb = mem.used / (1024**3)
+                total_gb = mem.total / (1024**3)
+                self.sys_ram_val.configure(text=tr('{used} / {total} ГБ ({pct}%)', used=f'{used_gb:.1f}', total=f'{total_gb:.1f}', pct=int(mem.percent)))
+                self.sys_ram_bar.set(max(0.0, min(1.0, mem.percent / 100.0)))
+
+                drive = str(data_dir().drive or 'C:')
+                if not drive.endswith('\\'):
+                    drive += '\\'
+                disk = psutil.disk_usage(drive)
+                free_gb = disk.free / (1024**3)
+                drive_name = drive.rstrip('\\')
+                self.sys_disk_val.configure(text=tr('{drive} {free} ГБ свободно', drive=drive_name, free=int(free_gb)))
+                self.sys_disk_bar.set(max(0.0, min(1.0, disk.percent / 100.0)))
+
+                info = self.backend_info or {}
+                lan = info.get('lan_urls', [])
+                if lan:
+                    net_str = lan[0].removeprefix('http://').removesuffix('/v1')
+                else:
+                    net_str = info.get('listen') or '127.0.0.1:9292'
+                self.sys_net_val.configure(text=net_str)
+            except Exception:
+                pass
+
     def _dispatch_tray(self, action, value=None):
         if action == 'page':
             self.deiconify(); self.lift(); self.show_page(value)
@@ -1169,6 +1256,11 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self.withdraw() if self.tray else self.quit_app()
 
     def quit_app(self):
+        try:
+            from ..setup_guard import release_setup_guard
+            release_setup_guard()
+        except Exception:
+            pass
         update_manager.unsubscribe(self._on_app_update_event)
         self.startup_cancel.set()
         self.stop_event.set()
@@ -1177,3 +1269,4 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         for icon in self.tray_icons:
             icon.stop()
         self.destroy()
+

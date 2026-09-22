@@ -30,7 +30,8 @@ def main():
     dist = ROOT / 'dist'
     out = dist / 'release'
     out.mkdir(parents=True, exist_ok=True)
-    exe = dist / 'LocalAgentAIStation.exe'
+    onedir_exe = dist / 'LocalAgentAIStation' / 'LocalAgentAIStation.exe'
+    exe = onedir_exe if onedir_exe.exists() else (dist / 'LocalAgentAIStation.exe')
     source = out / f'LocalAgentAIStation-{VERSION}-source.zip'
     installer = out / f'LocalAgentAIStation-{VERSION}-Setup-x64.exe'
     if args.finalize:

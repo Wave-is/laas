@@ -26,3 +26,24 @@ def hold_setup_guard():
         except Exception:
             pass
     # Windows closes the handles at process termination, after Tk/tray shutdown.
+
+
+def release_setup_guard():
+    global _handle, _global_handle
+    if os.name != 'nt':
+        return
+    import ctypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    if _handle:
+        try:
+            kernel.CloseHandle(_handle)
+        except Exception:
+            pass
+        _handle = None
+    if _global_handle:
+        try:
+            kernel.CloseHandle(_global_handle)
+        except Exception:
+            pass
+        _global_handle = None
+

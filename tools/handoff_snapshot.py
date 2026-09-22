@@ -59,7 +59,7 @@ def main():
             'unstaged_summary': git('diff', '--stat'),
             'staged_summary': git('diff', '--cached', '--stat'),
         },
-        'artifacts': [artifact('dist/LocalAgentAIStation.exe')] + [
+        'artifacts': [artifact('dist/LocalAgentAIStation/LocalAgentAIStation.exe' if (ROOT / 'dist/LocalAgentAIStation/LocalAgentAIStation.exe').exists() else 'dist/LocalAgentAIStation.exe')] + [
             artifact(path.relative_to(ROOT).as_posix())
             for path in sorted((ROOT / 'dist').rglob('LocalAgentAIStation-*'))
             if path.is_file()

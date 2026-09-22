@@ -38,7 +38,6 @@ OutputBaseFilename=LocalAgentAIStation-{#AppVersion}-Setup-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-AppMutex=Global\LocalAgentAIStation.SetupGuard,Local\LocalAgentAIStation.SetupGuard
 SetupMutex=Local\LocalAgentAIStation.Installer
 CloseApplications=no
 RestartApplications=no
@@ -63,7 +62,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "gpuhelper"; Description: "{cm:GpuHelperTask}"; GroupDescription: "{cm:ServicesGroup}"; Flags: unchecked; Check: IsAdminInstallMode
 
 [Files]
-Source: "..\dist\LocalAgentAIStation.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\LocalAgentAIStation\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\LICENSE"; DestDir: "{app}"
 Source: "..\README*.md"; DestDir: "{app}\docs"
 Source: "..\docs\GETTING_STARTED*.md"; DestDir: "{app}\docs"
