@@ -129,4 +129,64 @@ class GpuModeServiceClient:
     def cancel_switch(self):
         return self.send_request('CancelSwitch')
 
+    def _tools_dir(self):
+        """Return path to {app}\tools where install_helper.ps1 lives."""
+        import sys
+        from pathlib import Path
+        if getattr(sys, 'frozen', False):
+            # Frozen exe: tools/ is a sibling of the exe (or one level up for _internal layout)
+            app = Path(sys.executable).parent
+            for candidate in (app / 'tools', app.parent / 'tools'):
+                if (candidate / 'install_helper.ps1').is_file():
+                    return candidate
+        # Dev mode: src/services/
+        return Path(__file__).parent
+
+    def install_service(self):
+        """Launch install_helper.ps1 with UAC elevation. Returns (success, message)."""
+        import subprocess
+        tools = self._tools_dir()
+        script = tools / 'install_helper.ps1'
+        helper = tools / 'LocalAgentGpuModeHelper.exe'
+        if not script.is_file():
+            return False, tr('Файл install_helper.ps1 не найден в папке {path}', path=tools)
+        if not helper.is_file():
+            return False, tr('Файл LocalAgentGpuModeHelper.exe не найден в папке {path}', path=tools)
+        try:
+            import ctypes
+            # ShellExecuteW with "runas" verb — shows UAC dialog
+            rc = ctypes.windll.shell32.ShellExecuteW(
+                None, 'runas',
+                'powershell.exe',
+                f'-NoProfile -ExecutionPolicy Bypass -File "{script}" -InstallPath "{tools}"',
+                str(tools), 1  # SW_SHOWNORMAL
+            )
+            # ShellExecuteW returns >32 on success
+            if rc > 32:
+                return True, tr('Служба GPU установлена. Перезапустите Station для применения.')
+            return False, tr('Установка службы GPU отклонена или не удалась (код {rc})', rc=rc)
+        except Exception as exc:
+            return False, tr('Не удалось запустить установку службы GPU: {error}', error=exc)
+
+    def uninstall_service(self):
+        """Launch uninstall_helper.ps1 with UAC elevation. Returns (success, message)."""
+        import ctypes
+        tools = self._tools_dir()
+        script = tools / 'uninstall_helper.ps1'
+        if not script.is_file():
+            return False, tr('Файл uninstall_helper.ps1 не найден в папке {path}', path=tools)
+        try:
+            rc = ctypes.windll.shell32.ShellExecuteW(
+                None, 'runas',
+                'powershell.exe',
+                f'-NoProfile -ExecutionPolicy Bypass -File "{script}"',
+                str(tools), 1
+            )
+            if rc > 32:
+                return True, tr('Служба GPU удалена.')
+            return False, tr('Удаление службы GPU отклонено или не удалось (код {rc})', rc=rc)
+        except Exception as exc:
+            return False, tr('Не удалось запустить удаление службы GPU: {error}', error=exc)
+
+
 gpu_service_client = GpuModeServiceClient()

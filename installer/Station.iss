@@ -73,6 +73,12 @@ Source: "..\dist\build-requirements.lock.txt"; DestDir: "{app}"
 Source: "..\dist\BUILD.json"; DestDir: "{app}"
 ; Bundled model engine (llama.cpp + llama-swap), staged by build_installer.ps1 -EngineDir.
 Source: "..\dist\engine\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist restartreplace
+; GPU mode helper service files — copied to {app}\tools\ but NOT auto-installed.
+; User installs the service via Station Settings (one-time UAC prompt).
+; restartreplace lets Windows update the EXE while service is stopped/restarted.
+Source: "..\src\services\LocalAgentGpuModeHelper.exe"; DestDir: "{app}\tools"; Flags: ignoreversion restartreplace
+Source: "..\src\services\install_helper.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\src\services\uninstall_helper.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
 
 [Icons]
 Name: "{userprograms}\Local Agent AI Station"; Filename: "{app}\LocalAgentAIStation.exe"; WorkingDir: "{app}"

@@ -1,5 +1,24 @@
 # Work log
 
+## 2026-09-22 — Release v0.2.0-beta.20: Per-User LOCALAPPDATA Standardization, Graceful Engine Stop/Restart for OTA, TCC Helper Management
+
+1. Standardized Per-User Installation (`installer/Station.iss`, `src/app_updates.py`):
+   - Configured `PrivilegesRequired=lowest` and default dir `{localappdata}\Programs\Local Agent AI Station`.
+   - Setup and OTA updates now run without administrative elevation (no UAC dialogs).
+   - Removed legacy admin cleanup branches from Inno Setup script.
+
+2. Graceful Engine Stop/Restart during OTA Update (`src/app_updates.py`):
+   - Detached updater script (`apply_update.ps1`) discovers any running `llama-swap` / `llama-server` instances located inside the installation directory.
+   - Saves their exact command-line arguments via WMI/CIM before safely terminating them.
+   - Eliminates Windows file lock errors (`DeleteFile: Access Denied code 5`) during update.
+   - Automatically restarts the engine with identical parameters after successful installation (exit code 0 or 6).
+   - Added comprehensive timestamped logging to `%TEMP%\laas_update.log`.
+
+3. Standalone TCC GPU Helper Management (`installer/Station.iss`, `src/services/gpu_mode_client.py`, `locales/en/backend.json`, `locales/uk/backend.json`):
+   - `LocalAgentGpuModeHelper.exe`, `install_helper.ps1`, and `uninstall_helper.ps1` are staged into `{app}\tools\` with `restartreplace`.
+   - Service is no longer installed during setup. Users can install/uninstall it on-demand from Station Settings with a single UAC prompt when TCC GPU switching is required.
+   - Added `install_service()` and `uninstall_service()` methods with full English, Russian, and Ukrainian localization.
+
 ## 2026-09-22 — Releases v0.2.0-beta.17 & v0.2.0-beta.18: Physical Live OTA Update Verified End-to-End, PyInstaller Onedir Packaging
 
 1. PyInstaller Onedir Packaging (`LocalAgentAIStation.spec`, `installer/Station.iss`):
