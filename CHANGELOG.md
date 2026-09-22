@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0-beta.18
+
+### English
+
+- **OTA Verification Release**: Test release validating seamless onedir in-place updates, persistent model engine sessions, and rock-solid single-instance mutex locks.
+
+### Русский
+
+- **Тестовый релиз верификации OTA**: Проверочный релиз для тестирования бесшовного обновления архитектуры onedir, сохранения сессий сервера моделей и надёжного блокирования повторного запуска.
+
+### Українська
+
+- **Тестовий реліз верифікації OTA**: Перевірочний реліз для тестування безшовного оновлення архітектури onedir, збереження сесій сервера моделей та надійного блокування повторного запуску.
+
 ## 0.2.0-beta.17
 
 ### English
