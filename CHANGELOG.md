@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0-beta.20
+
+### English
+
+- **Fixed OTA update for admin/Program Files installs**: Installer arguments now passed as a proper PowerShell array (no re-quoting issues with paths containing spaces). Admin installs (`/ALLUSERS`) now use `-Verb RunAs` to trigger UAC elevation dialog, allowing the installer to write to `C:\Program Files` correctly.
+
+### Русский
+
+- **Исправлено OTA-обновление для административных установок (Program Files)**: Аргументы инсталлятора теперь передаются как массив PowerShell (исключены проблемы с кавычками в путях с пробелами). При установке `/ALLUSERS` используется `-Verb RunAs` для запроса UAC-привилегий, что позволяет инсталлятору корректно писать в `C:\Program Files`.
+
+### Українська
+
+- **Виправлено OTA-оновлення для адміністративних установок (Program Files)**: Аргументи інсталятора тепер передаються як масив PowerShell. При установці `/ALLUSERS` використовується `-Verb RunAs` для запиту UAC-привілеїв.
+
 ## 0.2.0-beta.19
 
 ### English

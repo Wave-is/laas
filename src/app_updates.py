@@ -319,20 +319,14 @@ class UpdateManager:
 
         target_exe = str(Path(sys.executable).resolve()) if getattr(sys, 'frozen', False) else ''
         target_dir = str(Path(sys.executable).resolve().parent) if getattr(sys, 'frozen', False) else ''
-        is_user_install = True
-        if target_dir:
-            prog_files = os.environ.get('ProgramFiles', 'C:\\Program Files').lower()
-            prog_files_x86 = os.environ.get('ProgramFiles(x86)', 'C:\\Program Files (x86)').lower()
-            td_lower = target_dir.lower()
-            if td_lower.startswith(prog_files) or td_lower.startswith(prog_files_x86):
-                is_user_install = False
 
-        scope_flag = '/CURRENTUSER' if is_user_install else '/ALLUSERS'
-        dir_flag = f'/DIR="{target_dir}"' if target_dir else ''
-        silent_flags = '/VERYSILENT /SUPPRESSMSGBOXES /SP- /NOCLOSEAPPLICATIONS /NORESTART' if silent else '/SP- /NOCLOSEAPPLICATIONS'
-        installer_args = f'{scope_flag} {dir_flag} {silent_flags}'.strip()
+        # Always install per-user (/CURRENTUSER) — installer default is LOCALAPPDATA, no UAC needed.
+        silent_flags_list = ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/SP-', '/NOCLOSEAPPLICATIONS', '/NORESTART'] if silent else ['/SP-', '/NOCLOSEAPPLICATIONS']
+        all_args = ['/CURRENTUSER'] + ([f'/DIR={target_dir}'] if target_dir else []) + silent_flags_list
+        # Build PowerShell array literal: @('/CURRENTUSER', '/DIR=...', ...)
+        ps_arg_elems = ', '.join(f"'{a}'" for a in all_args)
 
-        # Engine directory relative to app install dir
+        # Engine directory — same as install dir / engine
         engine_dir = (Path(target_dir) / 'engine').as_posix().replace('/', '\\') if target_dir else ''
 
         script = self.installer_path.parent / 'apply_update.ps1'
@@ -351,11 +345,12 @@ function Log([string]$msg) {{
     Write-Host $line
 }}
 
-Log "=== Station OTA updater started. Station PID=$WaitPid ==="
-Log "Install dir: {target_dir}"
-Log "Engine dir : {engine_dir}"
-Log "Installer  : {str(self.installer_path)}"
-Log "Installer args: {installer_args}"
+Log '=== Station OTA updater started ==='
+Log 'Station PID : {current_pid}'
+Log 'Install dir : {target_dir}'
+Log 'Engine dir  : {engine_dir}'
+Log 'Installer   : {str(self.installer_path)}'
+Log 'Mode        : CURRENTUSER (no UAC required)'
 
 # ---- 1. Collect engine processes running from the install dir ----
 $engineDir = '{engine_dir}'
@@ -373,12 +368,12 @@ if ($engineDir) {{
         }} catch {{ Log "  Could not query CmdLine for PID=$($proc.Id): $($_.Exception.Message)" }}
     }}
 }}
-if ($engineProcs.Count -eq 0) {{ Log "No engine processes found in install dir - no stop needed." }}
+if ($engineProcs.Count -eq 0) {{ Log 'No engine processes found in install dir - no stop needed.' }}
 
 # ---- 2. Wait for Station UI to exit ----
 if ($WaitPid -gt 0) {{
     Log "Waiting for Station UI (PID=$WaitPid) to exit (timeout 30s)..."
-    try {{ Wait-Process -Id $WaitPid -Timeout 30 -ErrorAction Stop; Log "Station UI exited." }}
+    try {{ Wait-Process -Id $WaitPid -Timeout 30 -ErrorAction Stop; Log 'Station UI exited.' }}
     catch {{ Log "Wait-Process timeout or error: $($_.Exception.Message). Continuing anyway." }}
 }}
 Start-Sleep -Milliseconds 800
@@ -402,12 +397,12 @@ foreach ($ep in $engineProcs) {{
 }}
 Start-Sleep -Milliseconds 500
 
-# ---- 4. Run installer ----
+# ---- 4. Run installer (no UAC/RunAs needed — per-user LOCALAPPDATA install) ----
 $installer = '{str(self.installer_path)}'
-$installerArgs = '{installer_args}'
-Log "Running installer: $installer $installerArgs"
+$installerArgList = @({ps_arg_elems})
+Log "Running installer: $installer $($installerArgList -join ' ')"
 try {{
-    $p = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru -ErrorAction Stop
+    $p = Start-Process -FilePath $installer -ArgumentList $installerArgList -Wait -PassThru -ErrorAction Stop
     $exitCode = if ($p) {{ $p.ExitCode }} else {{ -1 }}
 }} catch {{
     Log "Installer launch exception: $($_.Exception.Message)"
@@ -467,8 +462,8 @@ Log "=== OTA updater finished. ==="
 """
         script.write_text(script_content, encoding='utf-8-sig')
         log.info('OTA update script written to: %s', script)
-        log.info('Installer: %s | args: %s', self.installer_path, installer_args)
-        log.info('is_user_install=%s, engine_dir=%s', is_user_install, engine_dir)
+        log.info('Installer: %s | args: %s', self.installer_path, ps_arg_elems)
+        log.info('engine_dir=%s', engine_dir)
 
         DETACHED_FLAGS = 0x08000000 | 0x00000200
         try:
