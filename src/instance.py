@@ -12,6 +12,7 @@ from .i18n import tr
 log = logging.getLogger(__name__)
 
 ERROR_ALREADY_EXISTS = 183
+ERROR_ACCESS_DENIED = 5
 
 
 class StationInstance:
@@ -36,8 +37,9 @@ class StationInstance:
                 import ctypes
                 handle = ctypes.windll.kernel32.CreateMutexW(None, False, self.mutex_name)
                 last_err = ctypes.windll.kernel32.GetLastError()
-                if last_err == ERROR_ALREADY_EXISTS:
-                    # Another instance is already running! Signal it to show window and exit cleanly.
+                if last_err in (ERROR_ALREADY_EXISTS, ERROR_ACCESS_DENIED) or not handle:
+                    # Another instance is already running (or exists with elevated security descriptor).
+                    # Signal it to show window and exit this duplicate process cleanly.
                     if handle:
                         ctypes.windll.kernel32.CloseHandle(handle)
                     self._signal_existing()
@@ -54,15 +56,13 @@ class StationInstance:
             server.listen(5)
         except OSError:
             server.close()
-            # If socket bind fails, try to notify existing instance and exit
-            signaled = self._signal_existing()
+            # If socket bind fails, try to notify existing instance and exit cleanly
+            self._signal_existing()
             if self.mutex_handle:
                 import ctypes
                 ctypes.windll.kernel32.CloseHandle(self.mutex_handle)
                 self.mutex_handle = None
-            if signaled:
-                return False
-            raise RuntimeError(tr('Канал связи Station занят. Закройте предыдущий экземпляр и повторите попытку.'))
+            return False
 
         self.server = server
         self._start_accept_loop()
