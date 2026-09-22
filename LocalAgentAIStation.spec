@@ -30,7 +30,7 @@ datas += [(str(p), str(p.parent.relative_to(root))) for p in (root/'locales').gl
 a=Analysis(['main.pyw'],pathex=[str(root)],datas=datas,
     hiddenimports=collect_submodules('src.agents') + ['src.agents.'+p.parent.name+'.adapter' for p in (root/'src/agents').glob('*/manifest.yaml')],
     excludes=['torch','tensorflow','matplotlib','pandas','numpy','scipy','IPython','pytest'],
-    noarchive=False)
+pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
