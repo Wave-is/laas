@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0-beta.17
+
+### English
+
+- **PyInstaller Onedir Packaging**: Switched from `--onefile` to `--onedir` distribution. Files and libraries are extracted directly into `{app}\_internal`, completely eliminating temporary directory extraction (`%TEMP%\_MEI...`) and all associated Windows directory lock / cleanup errors (`Failed to remove temporary directory`) on exit and during OTA updates.
+- **Locked Sidebar Width**: Fixed sidebar horizontal stretching when rendering update and restart buttons with version names using `sidebar.pack_propagate(False)` and compact button styling.
+- **Redesigned Dashboard Overview (2/3 + 1/3)**: Resized "Model and Agent" section to 2/3 width (matching upper cards) and added a 1/3 "System Resources" card with real-time CPU %, RAM usage, Disk space, and Network status.
+- **Enhanced Single-Instance Locking**: Improved Win32 mutex handling to account for `ERROR_ACCESS_DENIED` and elevated parent sessions, preventing dual-instance launches.
+
+### Русский
+
+- **Переход на архитектуру PyInstaller Onedir**: Сборка переведена с `--onefile` на `--onedir`. Библиотеки и зависимости устанавливаются в `{app}\_internal`, что полностью исключает распаковку во временную папку `%TEMP%\_MEI...` и навсегда устраняет системные ошибки блокировки `Failed to remove temporary directory` при выходе и обновлении через OTA.
+- **Фиксация ширины бокового меню**: Устранено горизонтальное растягивание меню при отображении кнопок обновления и перезапуска (`pack_propagate(False)` и компактный шрифт).
+- **Новый макет Дашборда (2/3 + 1/3) и карточка «Ресурсы системы»**: Блок «Модель и агент» сжат до 2/3 ширины экрана, а в правой 1/3 добавлена карточка «Ресурсы системы» (загрузка CPU %, память RAM GB/%, свободное место на диске GB/%, статус сети).
+- **Надёжная блокировка единого экземпляра**: В `src/instance.py` добавлена обработка ошибки `ERROR_ACCESS_DENIED` для предотвращения параллельного запуска копий программы при разных уровнях привилегий.
+
+### Українська
+
+- **Перехід на архітектуру PyInstaller Onedir**: Збірку переведено з `--onefile` на `--onedir`. Бібліотеки та залежності встановлюються в `{app}\_internal`, що повністю виключає розпакування у тимчасову теку `%TEMP%\_MEI...` та назавжди усуває системні помилки блокування `Failed to remove temporary directory` під час виходу та OTA-оновлення.
+- **Фіксація ширини бічного меню**: Усунено горизонтальне розтягування меню під час відображення кнопок оновлення та перезапуску (`pack_propagate(False)` та компактний шрифт).
+- **Новий макет Дашборду (2/3 + 1/3) та картка «Ресурси системи»**: Блок «Модель і агент» оптимізовано до 2/3 ширини екрана, а у правій 1/3 додано картку «Ресурси системи» (завантаження CPU %, пам'ять RAM GB/%, вільне місце на диску GB/%, статус мережі).
+- **Надійне блокування єдиного екземпляра**: У `src/instance.py` додано обробку помилки `ERROR_ACCESS_DENIED` для запобігання паралельному запуску копій програми за різних рівнів привілеїв.
+
 ## 0.2.0-beta.16
 
 ### English
