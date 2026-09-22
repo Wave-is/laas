@@ -1,16 +1,17 @@
 # Development handoff
 
-Updated: 2026-09-22. **Release v0.2.0-beta.16: Unified dashboard icon buttons, non-disruptive OTA updates preserving llama-swap, lazy tray initialization guard.**
+Updated: 2026-09-22. **Release v0.2.0-beta.16: Tested Non-disruptive OTA updater, Inno Setup deadlock elimination, PyInstaller MEI lock fixes, unified dashboard icon buttons, and lazy tray guards.**
 
 ## Текущая работа
-- **Цель**: Релиз v0.2.0-beta.16: устранение ошибки tray_sources, единый стиль символьных кнопок на дашборде, бесшовное OTA обновление без прерывания llama-swap.
-- **Этап**: Сборка инсталлятора, прогон тестов (292 теста), публикация на GitHub.
-- **Следующий конкретный шаг**: Проверка OTA обновления на ПК с A4000.
-- **Критерий завершения**: все 292 теста проходят, инсталлятор v0.2.0-beta.16 опубликован на GitHub, обновление накатывается без сбоев и не прерывает сервер моделей.
+- **Цель**: Релиз v0.2.0-beta.16: устранение ошибки tray_sources, единый стиль символьных кнопок на дашборде, устранение взаимной блокировки и PyInstaller `_MEI...` ошибки при OTA обновлении, сохранение работающего llama-swap.
+- **Этап**: Сборка инсталлятора, сквозное тестирование OTA на локальном ПК, публикация на GitHub.
+- **Следующий конкретный шаг**: Готово к проверке пользователем.
+- **Критерий завершения**: все 293 теста проходят, инсталлятор v0.2.0-beta.16 собран и протестирован сквозным OTA скриптом (код 0), обновление накатывается без сбоев и не прерывает сервер моделей.
 
 Current progress:
+- **Non-Disruptive Tested OTA In-Place Updates**: Resolved Inno Setup installer mutual deadlock on `SetupMutex` by removing synchronous uninstaller call inside `PrepareToInstall`; removed `taskkill` calls so `llama-swap.exe` / `llama-server.exe` keep serving requests uninterrupted during UI updates.
+- **PyInstaller `_MEI...` Cleanup Error Fixed**: Eliminated `Failed to remove temporary directory: %TEMP%\_MEI...` by setting `cwd=child_cwd` and `close_fds=True` in `supervisor.py` and `tempfile.gettempdir()` in `control_center.py` restart calls.
 - **Unified Dashboard Controls**: Converted Model and llama-swap dashboard rows to 44px icon buttons (`▶`, `⏹`, `🔧`) matching the Agent row.
-- **Non-Disruptive OTA In-Place Updates**: Switched silent updater flags to `/NOCLOSEAPPLICATIONS` and configured `CloseApplications=no` in Inno Setup.
 - **Tray Controls Lazy Initialization Guard**: Added safety checks in `src/ui/tray_controls.py` preventing `AttributeError: '_tkinter.tkapp' object has no attribute 'tray_sources'` when telemetry polls before the settings page is rendered.
 - **Fixed StartupRunner Import**: Resolved `NameError: name 'StartupRunner' is not defined` during background services initialization on startup in `ControlCenter`.
 - **Elevated Updater for Program Files**: `src/app_updates.py` automatically passes `-Verb RunAs` and decouples working directory from temporary folders when updating installations in `C:\Program Files`.
