@@ -520,7 +520,8 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         environment = dict(os.environ, LOCAL_AGENT_STATION_RESTART_WAIT=str(os.getpid()))
         environment.pop('LOCAL_AGENT_STATION_LANGUAGE', None)
         try:
-            subprocess.Popen(restart_command(), env=environment, close_fds=True, cwd=os.getcwd(),
+            import tempfile
+            subprocess.Popen(restart_command(), env=environment, close_fds=True, cwd=str(tempfile.gettempdir()),
                 creationflags=getattr(subprocess, 'DETACHED_PROCESS', 0) | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0))
         except OSError as exc:
             messagebox.showerror(APP_NAME, tr('Не удалось перезапустить Station: {error}', error=exc), parent=self)

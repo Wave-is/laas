@@ -62,10 +62,12 @@ class ProcessSupervisor:
             child_env = os.environ.copy()
             if env:
                 child_env.update(env)
+            child_cwd = cwd or str(Path(argv[0]).parent)
             with logfile.open('ab') as log:
-                p = subprocess.Popen(argv, cwd=cwd or None, env=child_env,
+                p = subprocess.Popen(argv, cwd=child_cwd, env=child_env,
                     stdin=None if visible else subprocess.DEVNULL,
-                    stdout=None if visible else log, stderr=None if visible else log, **kwargs)
+                    stdout=None if visible else log, stderr=None if visible else log,
+                    close_fds=True, **kwargs)
             try:
                 identity = psutil.Process(p.pid)
                 record = {'pid': p.pid, 'created': identity.create_time(), 'exe': identity.exe(), 'log': str(logfile)}

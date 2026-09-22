@@ -118,17 +118,15 @@ end;
 // remove that copy first (user data in %LOCALAPPDATA%\LocalAgentAIStation is never touched).
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
-  Uninstaller: String;
   Code: Integer;
 begin
   Result := '';
   StartupLinkExisted := FileExists(StartupLinkPath());
 
-  // 1. Terminate running Station processes so files in {app} are unlocked for upgrade
+  // 1. Terminate running Station processes so files in {app} are unlocked for upgrade.
+  // We do NOT stop llama-swap.exe or running model servers so agent workloads are never interrupted.
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM LocalAgentAIStation.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  Sleep(1000);
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM LocalAgentAIStation.exe /IM llama-server.exe /IM llama-swap.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  Sleep(300);
+  Sleep(500);
 
   // 2. If the GPU helper service is already installed, stop it so its EXE in {app} is unlocked.
   // It will be restarted in CurStepChanged after files are updated without deleting the service.
@@ -136,16 +134,15 @@ begin
   if IsAdminInstallMode and IsGpuHelperInstalled() then begin
     GpuServiceExisted := True;
     Exec(ExpandConstant('{sys}\sc.exe'), 'stop LocalAgentGpuModeHelper', '', SW_HIDE, ewWaitUntilTerminated, Code);
-    Sleep(1000);
+    Sleep(500);
   end;
 
-  if IsAdminInstallMode and not RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', Uninstaller) then
-    Uninstaller := ExpandConstant('{localappdata}\Programs\Local Agent AI Station\unins000.exe');
-  if IsAdminInstallMode and FileExists(RemoveQuotes(Uninstaller)) then begin
-    Uninstaller := RemoveQuotes(Uninstaller);
-    Log('Removing previous per-user installation: ' + Uninstaller);
-    if not Exec(Uninstaller, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then
-      Result := 'Could not remove the previous per-user installation (%LOCALAPPDATA%\Programs). Uninstall it in Windows Settings > Apps and retry.';
+  // 3. Clean up legacy per-user shortcuts/registry without calling unins000.exe (which locks SetupMutex).
+  if IsAdminInstallMode then begin
+    RegDeleteKeyIncludingSubkeys(HKCU, UninstallKey);
+    DeleteFile(ExpandConstant('{localappdata}\Programs\Local Agent AI Station\LocalAgentAIStation.exe'));
+    DeleteFile(ExpandConstant('{userdesktop}\Local Agent AI Station.lnk'));
+    DeleteFile(ExpandConstant('{userprograms}\Local Agent AI Station.lnk'));
   end;
 end;
 

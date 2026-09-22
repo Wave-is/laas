@@ -347,13 +347,13 @@ $targetExe = '{target_exe}'
 $installerArgs = '{installer_args}'
 
 Add-Content -Path $logFile -Value ("[{{0}}] Running installer: {{1}} {{2}}" -f (Get-Date -Format 's'), $installer, $installerArgs)
-$isAllUsers = $installerArgs -match '/ALLUSERS' -or $targetExe -like "$env:ProgramFiles*"
-if ($isAllUsers) {{
-    $p = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru -Verb RunAs
-}} else {{
-    $p = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru
+try {{
+    $p = Start-Process -FilePath $installer -ArgumentList $installerArgs -Wait -PassThru -ErrorAction Stop
+    $exitCode = if ($p) {{ $p.ExitCode }} else {{ -1 }}
+}} catch {{
+    Add-Content -Path $logFile -Value ("[{{0}}] Installer launch exception: {{1}}" -f (Get-Date -Format 's'), $_.Exception.Message)
+    $exitCode = -1
 }}
-$exitCode = if ($p) {{ $p.ExitCode }} else {{ -1 }}
 Add-Content -Path $logFile -Value ("[{{0}}] Installer finished with exit code {{1}}" -f (Get-Date -Format 's'), $exitCode)
 
 $launched = $false
@@ -380,7 +380,7 @@ Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyConti
 """
         script.write_text(script_content, encoding='utf-8-sig')
 
-        DETACHED_FLAGS = 0x08000000 | 0x00000008
+        DETACHED_FLAGS = 0x08000000 | 0x00000200
         try:
             subprocess.Popen([
                 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass',
