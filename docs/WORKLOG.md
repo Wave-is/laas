@@ -1,12 +1,12 @@
 # Work log
 
-## 2026-09-22 — Release v0.2.0-beta.17 (PyInstaller Onedir Packaging, Zero Temp MEI Cleanup Errors, Fixed Sidebar Stretching, Dashboard 2/3 + 1/3 System Resources Card)
+## 2026-09-22 — Releases v0.2.0-beta.17 & v0.2.0-beta.18: Physical Live OTA Update Verified End-to-End, PyInstaller Onedir Packaging
 
 1. PyInstaller Onedir Packaging (`LocalAgentAIStation.spec`, `installer/Station.iss`):
    - Switched from `--onefile` to `--onedir` distribution (`exclude_binaries=True` + `COLLECT(...)`).
    - Binaries and dependencies are packaged into `dist\LocalAgentAIStation\` and installed cleanly into `{app}`.
    - Completely eliminated PyInstaller's temporary folder extraction (`%TEMP%\_MEI...`) and all associated Windows directory lock / cleanup errors (`Failed to remove temporary directory`) on exit and during OTA updates.
-   - Startup time significantly accelerated due to pre-extracted runtime files.
+   - Application startup time significantly accelerated due to pre-extracted runtime files.
 
 2. Sidebar Width Fixed (`src/ui/control_center.py`):
    - Enforced strict sidebar width constraint with `sidebar.pack_propagate(False)` and fixed 215px width.
@@ -18,9 +18,12 @@
    - Right 1/3 (column 2): New "Ресурсы системы" (System Resources) card with real-time CPU load %, RAM usage (used / total GB + %), Disk space (free / total GB + %), and Network endpoint status.
    - Added live periodic updates with `psutil` and fully localized English and Ukrainian strings.
 
-4. Testing & Verification:
-   - Full automated test suite: 293 passed in 11.6s.
-   - Inno Setup installer `LocalAgentAIStation-0.2.0-beta.17-Setup-x64.exe` compiled and verified with code 0.
+4. Releases Published to GitHub & Live Physical OTA Update Verification:
+   - **v0.2.0-beta.17** published with installer (`LocalAgentAIStation-0.2.0-beta.17-Setup-x64.exe`, 557 MB), `BUILD.json`, `SHA256SUMS.txt`, and source archive.
+   - **v0.2.0-beta.18** published with installer (`LocalAgentAIStation-0.2.0-beta.18-Setup-x64.exe`, 557 MB), `BUILD.json`, `SHA256SUMS.txt`, and source archive.
+   - Installed `v0.2.0-beta.17` locally into `%LOCALAPPDATA%\Programs\Local Agent AI Station`.
+   - Executed live physical OTA update (`scratch/test_live_ota.py`): query GitHub API -> download v18 installer -> trigger detached `apply_update.ps1` -> silent in-place install -> relaunch.
+   - Result: Installer completed with **exit code 0**, target `BUILD.json` updated to `0.2.0-beta.18`, 0 errors, no `%TEMP%\_MEI...` traces.
 
 
 1. Non-Disruptive Silent OTA Updater & Inno Setup Deadlock Elimination (`installer/Station.iss`, `src/app_updates.py`):

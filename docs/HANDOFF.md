@@ -1,18 +1,19 @@
 # Development handoff
 
-Updated: 2026-09-22. **Release v0.2.0-beta.17: PyInstaller Onedir Distribution (Eliminated %TEMP%\_MEI Cleanup Errors), Locked Sidebar Width, Dashboard 2/3 + 1/3 System Resources Card, and Verified Silent OTA.**
+Updated: 2026-09-22. **Releases v0.2.0-beta.17 & v0.2.0-beta.18: PyInstaller Onedir Distribution, Fixed Sidebar Width, Dashboard 2/3 + 1/3 System Resources Card, and Physical OTA Update Fully Verified (Exit Code 0).**
 
 ## Текущая работа
-- **Цель**: Релиз v0.2.0-beta.17: переход на `--onedir` для полного устранения ошибки `Failed to remove temporary directory: %TEMP%\_MEI...`, фиксация ширины боковой панели при показе кнопок обновления, добавление карточки «Ресурсы системы» (CPU, RAM, Disk, Сеть) на дашборд.
-- **Этап**: Сборка инсталлятора, локальная верификация обновления, обновление документации.
-- **Следующий конкретный шаг**: Проверка пользователем.
-- **Критерий завершения**: все 293 теста проходят, инсталлятор v0.2.0-beta.17 собран и протестирован сквозным OTA (код 0), временные папки `_MEI...` больше не создаются, боковая панель не растягивается, блок «Ресурсы системы» отображает актуальные метрики.
+- **Цель**: Релизы v0.2.0-beta.17 и v0.2.0-beta.18: переход на `--onedir` для полного устранения ошибки `Failed to remove temporary directory: %TEMP%\_MEI...`, фиксация ширины боковой панели при показе кнопок обновления, добавление карточки «Ресурсы системы» (CPU, RAM, Disk, Сеть) на дашборд, сквозная физическая проверка OTA обновления.
+- **Этап**: Релизы v17 и v18 опубликованы на GitHub; OTA обновление с v17 до v18 проверено физически на этом ПК (Exit Code 0, файлы обновлены).
+- **Следующий конкретный шаг**: Проверка пользователем в реальном интерфейсе.
+- **Критерий завершения**: все 293 теста проходят, инсталляторы v0.2.0-beta.17 и v0.2.0-beta.18 собраны и опубликованы, протестировано сквозным OTA (код 0), временные папки `_MEI...` больше не создаются, боковая панель не растягивается, блок «Ресурсы системы» отображает актуальные метрики.
 
 Current progress:
+- **Releases v0.2.0-beta.17 & v0.2.0-beta.18 Live on GitHub**: Both releases built with `--onedir` and bundled engine (llama.cpp + CUDA 13 + llama-swap) and published with full assets.
+- **Live Physical OTA Update Verified End-to-End**: Installed `v0.2.0-beta.17` locally, queried GitHub API, downloaded `v0.2.0-beta.18` (531.2 MB), applied update via detached script, completed with exit code 0 and verified `BUILD.json` updated to `0.2.0-beta.18` without interrupting background processes.
 - **PyInstaller `--onedir` Packaging**: Switched from `--onefile` to `--onedir` distribution. Binaries are installed into `{app}` with `_internal\`. Completely eliminated `%TEMP%\_MEI...` temporary folder extraction on application launch, completely preventing Windows file lock and `Failed to remove temporary directory` cleanup errors during exit and OTA updates.
 - **Sidebar Width Fixed**: Locked sidebar width to 215px (`sidebar.pack_propagate(False)`) and adjusted update/restart button labels to `📥 Обновить (v{version})` and `🚀 Перезапустить (v{version})`, preventing sidebar horizontal stretching.
 - **Dashboard Overview Redesign (2/3 + 1/3)**: Resized "Модель и агент" to 2/3 of dashboard width, and added a 1/3 "Ресурсы системы" (System Resources) card displaying CPU load %, RAM usage, Disk space free, and Network endpoint status.
-- **Non-Disruptive Tested OTA In-Place Updates**: Resolved Inno Setup installer mutual deadlock on `SetupMutex` by removing synchronous uninstaller call inside `PrepareToInstall`; removed `taskkill` calls so `llama-swap.exe` / `llama-server.exe` keep serving requests uninterrupted during UI updates.
 
 - **PyInstaller `_MEI...` Cleanup Error Fixed**: Eliminated `Failed to remove temporary directory: %TEMP%\_MEI...` by setting `cwd=child_cwd` and `close_fds=True` in `supervisor.py` and `tempfile.gettempdir()` in `control_center.py` restart calls.
 - **Unified Dashboard Controls**: Converted Model and llama-swap dashboard rows to 44px icon buttons (`▶`, `⏹`, `🔧`) matching the Agent row.
