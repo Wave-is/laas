@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.0-beta.19
+
+### English
+
+- **Non-Disruptive OTA for Program Files installs**: The update script now gracefully stops any running `llama-swap.exe` / `llama-server.exe` from the install directory before applying the installer, then **automatically restarts** the engine with the same command-line arguments after a successful update. Eliminates `DeleteFile: Access Denied (code 5)` errors for admin/all-users installations where the engine is already running.
+- **Detailed OTA Update Log**: The `apply_update.ps1` updater now logs every step with timestamps to `%TEMP%\laas_update.log` — engine process discovery, stop/kill decisions, installer execution, engine restart, and Station relaunch.
+- **More Logging in update flow**: `app_updates.py` now logs the generated script path, installer arguments, and install scope before spawning the detached updater process.
+
+### Русский
+
+- **Плавное OTA-обновление для установок в Program Files**: Скрипт обновления теперь корректно останавливает работающие `llama-swap.exe` / `llama-server.exe` из директории установки перед запуском инсталлятора и **автоматически перезапускает** движок с теми же аргументами после успешного обновления. Устраняет ошибки `DeleteFile: Отказано в доступе (код 5)` при административной установке.
+- **Подробный лог OTA-обновления**: `apply_update.ps1` теперь фиксирует с временными метками каждый этап — обнаружение процессов движка, их остановку, запуск инсталлятора, перезапуск движка и запуск Station.
+- **Логирование в app_updates.py**: перед запуском фонового обновления логируются путь к скрипту, аргументы инсталлятора и режим установки.
+
+### Українська
+
+- **Плавне OTA-оновлення для установок в Program Files**: Скрипт оновлення тепер коректно зупиняє запущені `llama-swap.exe` / `llama-server.exe` з директорії встановлення перед запуском інсталятора і **автоматично перезапускає** рушій з тими ж аргументами після успішного оновлення. Усуває помилки `DeleteFile: Відмовлено в доступі (код 5)` при адміністративній установці.
+- **Детальний журнал OTA-оновлення**: `apply_update.ps1` тепер фіксує з мітками часу кожен крок — виявлення процесів рушія, їх зупинку, запуск інсталятора, перезапуск рушія і запуск Station.
+- **Логування в app_updates.py**: перед запуском фонового оновлення логуються шлях до скрипту, аргументи інсталятора та режим встановлення.
+
 ## 0.2.0-beta.18
 
 ### English

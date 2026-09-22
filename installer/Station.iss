@@ -41,6 +41,7 @@ WizardStyle=modern
 SetupMutex=Local\LocalAgentAIStation.Installer
 CloseApplications=no
 RestartApplications=no
+RestartIfNeededByRun=no
 UninstallLogging=yes
 LicenseFile=..\LICENSE
 
@@ -62,7 +63,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "gpuhelper"; Description: "{cm:GpuHelperTask}"; GroupDescription: "{cm:ServicesGroup}"; Flags: unchecked; Check: IsAdminInstallMode
 
 [Files]
-Source: "..\dist\LocalAgentAIStation\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\LocalAgentAIStation\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace
 Source: "..\LICENSE"; DestDir: "{app}"
 Source: "..\README*.md"; DestDir: "{app}\docs"
 Source: "..\docs\GETTING_STARTED*.md"; DestDir: "{app}\docs"
@@ -73,10 +74,10 @@ Source: "..\dist\dependency-versions.json"; DestDir: "{app}"
 Source: "..\dist\build-requirements.lock.txt"; DestDir: "{app}"
 Source: "..\dist\BUILD.json"; DestDir: "{app}"
 ; Bundled model engine (llama.cpp + llama-swap), staged by build_installer.ps1 -EngineDir.
-Source: "..\dist\engine\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
-Source: "..\src\services\LocalAgentGpuModeHelper.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\src\services\install_helper.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
-Source: "..\src\services\uninstall_helper.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\dist\engine\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist restartreplace
+Source: "..\src\services\LocalAgentGpuModeHelper.exe"; DestDir: "{app}"; Flags: ignoreversion restartreplace
+Source: "..\src\services\install_helper.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion restartreplace
+Source: "..\src\services\uninstall_helper.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion restartreplace
 
 [Icons]
 Name: "{autoprograms}\Local Agent AI Station"; Filename: "{app}\LocalAgentAIStation.exe"; WorkingDir: "{app}"
