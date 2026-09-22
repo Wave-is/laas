@@ -1,6 +1,27 @@
 # Work log
 
-## 2026-09-22 — Release v0.2.0-beta.16 (Unified Dashboard, Non-Disruptive OTA Updater, PyInstaller MEI Lock Fix, Strict Bundled Engine Priority, and Lazy Tray Guards)
+## 2026-09-22 — Release v0.2.0-beta.17 (PyInstaller Onedir Packaging, Zero Temp MEI Cleanup Errors, Fixed Sidebar Stretching, Dashboard 2/3 + 1/3 System Resources Card)
+
+1. PyInstaller Onedir Packaging (`LocalAgentAIStation.spec`, `installer/Station.iss`):
+   - Switched from `--onefile` to `--onedir` distribution (`exclude_binaries=True` + `COLLECT(...)`).
+   - Binaries and dependencies are packaged into `dist\LocalAgentAIStation\` and installed cleanly into `{app}`.
+   - Completely eliminated PyInstaller's temporary folder extraction (`%TEMP%\_MEI...`) and all associated Windows directory lock / cleanup errors (`Failed to remove temporary directory`) on exit and during OTA updates.
+   - Startup time significantly accelerated due to pre-extracted runtime files.
+
+2. Sidebar Width Fixed (`src/ui/control_center.py`):
+   - Enforced strict sidebar width constraint with `sidebar.pack_propagate(False)` and fixed 215px width.
+   - Shortened update button labels to `📥 Обновить (v{version})` and `🚀 Перезапустить (v{version})` (Segoe UI 10 bold), preventing UI horizontal expansion or text wrapping bugs.
+
+3. Dashboard Overview Redesign: 2/3 Model & Agent + 1/3 System Resources Card (`src/ui/control_center.py`, `locales/en/control_center.json`, `locales/uk/control_center.json`):
+   - Reorganized the bottom section of the Station overview into a 3-column uniform grid (`uniform='bottom_grid'`).
+   - Left 2/3 (columns 0-1): "Модель и агент" with unified 44px symbol buttons (`▶`, `⏹`, `🔧`).
+   - Right 1/3 (column 2): New "Ресурсы системы" (System Resources) card with real-time CPU load %, RAM usage (used / total GB + %), Disk space (free / total GB + %), and Network endpoint status.
+   - Added live periodic updates with `psutil` and fully localized English and Ukrainian strings.
+
+4. Testing & Verification:
+   - Full automated test suite: 293 passed in 11.6s.
+   - Inno Setup installer `LocalAgentAIStation-0.2.0-beta.17-Setup-x64.exe` compiled and verified with code 0.
+
 
 1. Non-Disruptive Silent OTA Updater & Inno Setup Deadlock Elimination (`installer/Station.iss`, `src/app_updates.py`):
    - Eliminated mutual mutex deadlock in Inno Setup: removed synchronous invocation of old uninstaller (`Exec(Uninstaller, ...)`) inside `PrepareToInstall` which deadlocked on `SetupMutex=Local\LocalAgentAIStation.Installer`.

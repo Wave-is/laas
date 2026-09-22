@@ -1,15 +1,19 @@
 # Development handoff
 
-Updated: 2026-09-22. **Release v0.2.0-beta.16: Tested Non-disruptive OTA updater, Inno Setup deadlock elimination, PyInstaller MEI lock fixes, unified dashboard icon buttons, and lazy tray guards.**
+Updated: 2026-09-22. **Release v0.2.0-beta.17: PyInstaller Onedir Distribution (Eliminated %TEMP%\_MEI Cleanup Errors), Locked Sidebar Width, Dashboard 2/3 + 1/3 System Resources Card, and Verified Silent OTA.**
 
 ## Текущая работа
-- **Цель**: Релиз v0.2.0-beta.16: устранение ошибки tray_sources, единый стиль символьных кнопок на дашборде, устранение взаимной блокировки и PyInstaller `_MEI...` ошибки при OTA обновлении, сохранение работающего llama-swap.
-- **Этап**: Сборка инсталлятора, сквозное тестирование OTA на локальном ПК, публикация на GitHub.
-- **Следующий конкретный шаг**: Готово к проверке пользователем.
-- **Критерий завершения**: все 293 теста проходят, инсталлятор v0.2.0-beta.16 собран и протестирован сквозным OTA скриптом (код 0), обновление накатывается без сбоев и не прерывает сервер моделей.
+- **Цель**: Релиз v0.2.0-beta.17: переход на `--onedir` для полного устранения ошибки `Failed to remove temporary directory: %TEMP%\_MEI...`, фиксация ширины боковой панели при показе кнопок обновления, добавление карточки «Ресурсы системы» (CPU, RAM, Disk, Сеть) на дашборд.
+- **Этап**: Сборка инсталлятора, локальная верификация обновления, обновление документации.
+- **Следующий конкретный шаг**: Проверка пользователем.
+- **Критерий завершения**: все 293 теста проходят, инсталлятор v0.2.0-beta.17 собран и протестирован сквозным OTA (код 0), временные папки `_MEI...` больше не создаются, боковая панель не растягивается, блок «Ресурсы системы» отображает актуальные метрики.
 
 Current progress:
+- **PyInstaller `--onedir` Packaging**: Switched from `--onefile` to `--onedir` distribution. Binaries are installed into `{app}` with `_internal\`. Completely eliminated `%TEMP%\_MEI...` temporary folder extraction on application launch, completely preventing Windows file lock and `Failed to remove temporary directory` cleanup errors during exit and OTA updates.
+- **Sidebar Width Fixed**: Locked sidebar width to 215px (`sidebar.pack_propagate(False)`) and adjusted update/restart button labels to `📥 Обновить (v{version})` and `🚀 Перезапустить (v{version})`, preventing sidebar horizontal stretching.
+- **Dashboard Overview Redesign (2/3 + 1/3)**: Resized "Модель и агент" to 2/3 of dashboard width, and added a 1/3 "Ресурсы системы" (System Resources) card displaying CPU load %, RAM usage, Disk space free, and Network endpoint status.
 - **Non-Disruptive Tested OTA In-Place Updates**: Resolved Inno Setup installer mutual deadlock on `SetupMutex` by removing synchronous uninstaller call inside `PrepareToInstall`; removed `taskkill` calls so `llama-swap.exe` / `llama-server.exe` keep serving requests uninterrupted during UI updates.
+
 - **PyInstaller `_MEI...` Cleanup Error Fixed**: Eliminated `Failed to remove temporary directory: %TEMP%\_MEI...` by setting `cwd=child_cwd` and `close_fds=True` in `supervisor.py` and `tempfile.gettempdir()` in `control_center.py` restart calls.
 - **Unified Dashboard Controls**: Converted Model and llama-swap dashboard rows to 44px icon buttons (`▶`, `⏹`, `🔧`) matching the Agent row.
 - **Tray Controls Lazy Initialization Guard**: Added safety checks in `src/ui/tray_controls.py` preventing `AttributeError: '_tkinter.tkapp' object has no attribute 'tray_sources'` when telemetry polls before the settings page is rendered.
