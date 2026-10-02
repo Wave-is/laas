@@ -141,6 +141,26 @@ def test_frontend_buttons_only_stop_owned_and_only_start_available():
     assert frontend_action_state({'status': 'INSTALLED'}, True, busy=True) == {'start': False, 'stop': False}
 
 
+def test_worker_force_allows_emergency_stop_when_busy():
+    from unittest.mock import Mock, MagicMock
+    from src.ui.control_center import ControlCenter
+
+    # Mock ControlCenter worker behavior check
+    called = []
+    center = Mock(spec=ControlCenter)
+    center.busy = True
+    center.busy_label = 'slow action'
+    center.controls = []
+    center.events = MagicMock()
+    center.status_label = MagicMock()
+
+    # Re-bind actual worker method logic
+    ControlCenter.worker(center, lambda: called.append('stopped'), label='Emergency Stop', force=True)
+    import time
+    time.sleep(0.1)
+    assert center.events.put.called
+
+
 def test_windows_command_persists_data_directory_and_handles_spaces(tmp_path, monkeypatch):
     import src.windows_startup as module
     executable = tmp_path / 'Station App/LocalAgentAIStation.exe'

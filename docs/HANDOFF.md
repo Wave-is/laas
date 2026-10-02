@@ -1,12 +1,12 @@
 # Development handoff
 
-Updated: 2026-09-22. **Release v0.2.0-beta.23: Pixel-Perfect Master Dashboard Grid Alignment, Compare-Timestamp File Preservation, and Full Process Tree Cleanup.**
+Updated: 2026-10-02. **Release v0.2.0-beta.24: Unblocked Emergency Stop Controls & Non-Blocking GPU Load Telemetry.**
 
 ## Текущая работа
-- **Цель**: Релиз v0.2.0-beta.23: полный переход дашборда на единый мастер-фрейм сетки с `uniform='dash_col'` и строго симметричными внешними отступами (`padx=(0,5)`, `(5,5)`, `(5,0)`), гарантирующими идеальное выравнивание колонок между верхней строкой (Сервер/Модель/Агент), средней строкой GPU и нижней строкой (Модель и агент 2/3 + Ресурсы системы 1/3).
-- **Этап**: Исправления внедрены, релиз v0.2.0-beta.23 собран и опубликован на GitHub.
-- **Следующий конкретный шаг**: Проверка пользователем в интерфейсе через OTA.
-- **Критерий завершения**: все 293 теста проходят, релиз опубликован, колонки дашборда выровнены пиксель в пиксель.
+- **Цель**: Релиз v0.2.0-beta.24: Гарантия полной отзывчивости GUI и мгновенная выгрузка модели / остановка llama-swap / остановка агентов при 100% нагрузке на GPU.
+- **Этап**: Исправления внедрены, сборка инсталлятора и подготовка релиза v0.2.0-beta.24.
+- **Следующий конкретный шаг**: Публикация релиза на GitHub для получения пользователем через 1-Click OTA обновление.
+- **Критерий завершения**: Все 294 теста проходят, инсталлятор собран, кнопки выгрузки/остановки не блокируются при нагрузке GPU.
 
 Current progress:
 - **Pixel-Perfect Master Dashboard Grid (`control_center.py`)**: All dashboard sections (top stats, GPU cards, bottom cards) now share a single master grid with `uniform='dash_col'` and matching symmetric margins. The right boundary of the left 2/3 cards aligns mathematically and visually with the 2nd column boundary of the top tiles and GPU cards.

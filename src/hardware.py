@@ -27,7 +27,7 @@ def find_nvidia_smi():
             return str(p)
     return shutil.which('nvidia-smi')
 
-def run_smi(*args, timeout=5):
+def run_smi(*args, timeout=2.5):
     executable = find_nvidia_smi()
     if not executable:
         raise FileNotFoundError(tr('nvidia-smi не установлен'))

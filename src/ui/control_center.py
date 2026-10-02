@@ -936,8 +936,8 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         selected = combo.get()
         self.worker(lambda: action(selected), label=label)
 
-    def worker(self, action, callback=None, label=None):
-        if self.busy:
+    def worker(self, action, callback=None, label=None, force=False):
+        if self.busy and not force:
             self.status_label.configure(text=tr('Дождитесь завершения: {action}.', action=self.busy_label), text_color=MUTED)
             return
         self.busy = True
@@ -1203,29 +1203,25 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
             self.gpu_dialog.lift()
         elif getattr(self, 'service_editor', None) and self.service_editor.winfo_exists():
             self.service_editor.lift()
-        elif self.busy:
-            self.status_label.configure(text=tr('Дождитесь завершения текущего действия.'))
         elif action == 'model':
-            if value == 'none':
+            is_unload = value == 'none'
+            if is_unload:
                 self._notify_watchdog_stop()
+            elif self.busy:
+                self.status_label.configure(text=tr('Дождитесь завершения текущего действия.'))
+                return
             else:
                 self.model_combo.set(value)
-            self.worker(lambda: gpu_mode_manager.apply_model_profile_only(value), label=tr('Выгрузка модели') if value == 'none' else tr('Загрузка модели'))
-        elif action == 'runtime':
-            self._select_runtime(value)
-        elif action == 'frontend':
-            self._launch_frontend(value)
+            self.worker(lambda: gpu_mode_manager.apply_model_profile_only(value),
+                        label=tr('Выгрузка модели') if is_unload else tr('Загрузка модели'),
+                        force=is_unload)
         elif action == 'stop_frontend':
-            self.worker(lambda: self.controller.stop_frontend(value))
-        elif action == 'gpu':
-            self._preview_gpu(value)
-        elif action == 'install':
-            self.worker(lambda: self.controller.open_installation_page(value))
-        elif action == 'backend_start':
-            self.worker(gpu_mode_manager.start_backend, label=tr('Запуск сервера моделей'))
+            self.worker(lambda: self.controller.stop_frontend(value), force=True)
         elif action == 'backend_stop':
             self._notify_watchdog_stop()
-            self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей'))
+            self.worker(gpu_mode_manager.stop_backend, label=tr('Остановка сервера моделей'), force=True)
+        elif self.busy:
+            self.status_label.configure(text=tr('Дождитесь завершения текущего действия.'))
         elif action.startswith('service_'):
             self._service_action(action.removeprefix('service_'), value)
         elif action == 'tray_style':

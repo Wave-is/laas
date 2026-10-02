@@ -1,5 +1,21 @@
 # Work log
 
+## 2026-10-02 — Non-Blocking GPU Load Responsiveness & Emergency Stop Unblocking
+
+1. **Unblocked Emergency Stop Controls (`src/ui/control_center.py`, `src/ui/agent_controls.py`)**:
+   - Added `force=True` flag to `ControlCenter.worker` allowing emergency stop actions (Stop Model, Stop llama-swap, Stop Agent, Unload Model) to run immediately without being rejected by `self.busy`.
+   - Prevented `dashboard_model_stop`, `dashboard_server_stop`, `dashboard_agent_stop`, and agent card stop buttons (`⏹`) from becoming disabled when `self.busy` is `True`. Users can now stop or unload model/server/agent at any time even while an operation or inference is in progress.
+   - Allowed tray emergency actions (`backend_stop`, `stop_frontend`, `model`='none') to bypass `busy` lock.
+
+2. **Optimized Subprocess & Network Timeouts Under Heavy GPU Compute (`src/hardware.py`, `src/gpu_details.py`, `src/engines/llama_swap.py`)**:
+   - Reduced `HardwareEngine.run_smi` default timeout from 5s to 2.5s.
+   - Reduced `GpuDetailsCache.run_nvidia_smi` timeout from 15s to 3.0s.
+   - Reduced `LlamaSwapEngine.unload_models` HTTP timeout from 10s to 2.5s for fast fallback to direct process tree stop.
+   - Prevents background telemetry thread stalls from blocking UI responsiveness under 100% GPU compute load.
+
+3. **Validation**:
+   - 294 unit and integration tests passed cleanly (`python -m pytest -q`).
+
 ## 2026-09-22 — Release v0.2.0-beta.20: Per-User LOCALAPPDATA Standardization, Graceful Engine Stop/Restart for OTA, TCC Helper Management
 
 1. Standardized Per-User Installation (`installer/Station.iss`, `src/app_updates.py`):

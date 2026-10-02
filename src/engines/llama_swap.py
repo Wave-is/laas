@@ -53,7 +53,7 @@ class LlamaSwapEngine(BaseEngine):
             return False
     def unload_models(self):
         try:
-            self.request('/api/models/unload', payload={}, timeout=10, method='POST')
+            self.request('/api/models/unload', payload={}, timeout=2.5, method='POST')
             self._active_model = None
             return True
         except Exception as exc:

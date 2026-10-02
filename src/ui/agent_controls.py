@@ -51,19 +51,20 @@ class AgentControls:
         online = bool(info.get('online'))
         loaded = self.model_combo.get() in self.ready_model_ids
         self.dashboard_model_start.configure(state='disabled' if self.busy or loaded else 'normal')
-        self.dashboard_model_stop.configure(state='disabled' if self.busy or not self.ready_model_ids else 'normal')
+        self.dashboard_model_stop.configure(state='disabled' if not self.ready_model_ids else 'normal')
         if hasattr(self, 'dashboard_model_config'):
             self.dashboard_model_config.configure(state='normal' if not self.busy else 'disabled')
         self.dashboard_server_start.configure(state='disabled' if self.busy or online else 'normal')
-        self.dashboard_server_stop.configure(state='disabled' if self.busy or not (online and info.get('owned')) else 'normal')
+        self.dashboard_server_stop.configure(state='disabled' if not (online and info.get('owned')) else 'normal')
         if hasattr(self, 'dashboard_server_config'):
             self.dashboard_server_config.configure(state='normal' if not self.busy else 'disabled')
         fid = self.frontend_combo.get()
         state = self.frontend_states.get(fid, {})
         frontend = self.controller.frontends.get(fid, {})
         actions = frontend_action_state(frontend, state.get('running', False), self.busy, state.get('owned', False))
+        can_stop = state.get('running', False) and state.get('owned', False)
         self.dashboard_agent_start.configure(state='normal' if actions['start'] else 'disabled')
-        self.dashboard_agent_stop.configure(state='normal' if actions['stop'] else 'disabled')
+        self.dashboard_agent_stop.configure(state='normal' if can_stop else 'disabled')
         if hasattr(self, 'dashboard_agent_config'):
             self.dashboard_agent_config.configure(state='normal' if not self.busy else 'disabled')
 
@@ -80,8 +81,9 @@ class AgentControls:
             state = self.frontend_states.get(id, {})
             running = state.get('running', False)
             actions = frontend_action_state(frontend, running, self.busy, state.get('owned', False))
+            can_stop = running and state.get('owned', False)
             start.configure(state='normal' if actions['start'] else 'disabled')
-            stop.configure(state='normal' if actions['stop'] else 'disabled')
+            stop.configure(state='normal' if can_stop else 'disabled')
             if config_btn:
                 config_btn.configure(state='normal' if not self.busy else 'disabled')
             combo.configure(state='disabled' if self.busy else 'readonly')
@@ -108,4 +110,4 @@ class AgentControls:
         self._refresh_tray(rebuild=True)
 
     def _stop_agent_frontend(self, id):
-        self.worker(lambda: self.controller.stop_frontend(id), self._agent_frontend_done, label=tr('Остановка агента'))
+        self.worker(lambda: self.controller.stop_frontend(id), self._agent_frontend_done, label=tr('Остановка агента'), force=True)

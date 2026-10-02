@@ -85,7 +85,7 @@ def parse_nvlink(text):
     return result
 
 
-def run_nvidia_smi(args, timeout=15):
+def run_nvidia_smi(args, timeout=3.0):
     from .hardware import find_nvidia_smi, hidden_options
     exe = find_nvidia_smi()
     if not exe:
