@@ -1,6 +1,22 @@
 # Work log
 
+## 2026-10-03 — Release v0.2.0-beta.25: OTA UAC Elevation for Program Files & Autostart Model Disable Fix
+
+1. **Elevated OTA Updater for Program Files (`src/app_updates.py`)**:
+   - Enhanced `apply_update.ps1` generation logic to detect exit code 5 (Access Denied) or target installations located in `C:\Program Files`.
+   - Added automatic fallback to `Start-Process -FilePath $installer -ArgumentList $installerArgList -Verb RunAs` when UAC elevation is required.
+   - Expanded relaunch candidate paths in `apply_update.ps1` to check `${env:ProgramFiles(x86)}` and `$env:ProgramFiles` in addition to `%LOCALAPPDATA%\Programs`.
+
+2. **Autostart Preference Auto-Save & Model Clearance (`src/ui/startup_controls.py`, `src/ui/control_center.py`)**:
+   - Bound `command=self._save_startup_settings` to autostart checkboxes and model dropdown so startup choices auto-save immediately on toggle/selection.
+   - Updated `_save_startup_settings` to clear `config.set('active_model_profile', 'none')` whenever model autostart is disabled or "Без модели" is selected.
+   - Fixed clean application quit in `ControlCenter.quit_app()` to invoke `self._notify_watchdog_stop()`, ensuring watchdog on subsequent system boots never misidentifies clean exits as crashes needing model recovery.
+
+3. **Validation**:
+   - 294 unit and integration tests passed cleanly (`python -m pytest -q`).
+
 ## 2026-10-02 — Non-Blocking GPU Load Responsiveness & Emergency Stop Unblocking
+
 
 1. **Unblocked Emergency Stop Controls (`src/ui/control_center.py`, `src/ui/agent_controls.py`)**:
    - Added `force=True` flag to `ControlCenter.worker` allowing emergency stop actions (Stop Model, Stop llama-swap, Stop Agent, Unload Model) to run immediately without being rejected by `self.busy`.

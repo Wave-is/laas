@@ -55,7 +55,7 @@ class StartupControls:
                            ('stop_on_error', tr('Останавливать дальнейший запуск при ошибке'))]:
             variable = tk.BooleanVar(value=settings[key])
             self.startup_vars[key] = variable
-            checkbox = ctk.CTkCheckBox(card, text=label, variable=variable)
+            checkbox = ctk.CTkCheckBox(card, text=label, variable=variable, command=self._save_startup_settings)
             checkbox.pack(anchor='w', padx=20, pady=6)
             self.controls.append(checkbox)
         ctk.CTkLabel(card, text=tr('Выберите компоненты ниже и нажмите «Сохранить запуск».'),
@@ -68,6 +68,7 @@ class StartupControls:
         self.controls.append(self.startup_delay)
         ctk.CTkLabel(card, text=tr('Модель (при загрузке автоматически запустится сервер моделей llama-swap)'), anchor='w', text_color=MUTED).pack(fill='x', padx=20)
         self.startup_model = self.combo(self.row(card), list(profile_storage.model_profiles), settings['model_id'], width=560)
+        self.startup_model.configure(command=lambda value: self._save_startup_settings())
         ctk.CTkLabel(card, text=tr('Агенты и интерфейсы'), anchor='w', text_color=MUTED).pack(fill='x', padx=20)
         self.startup_agents_area = self.row(card)
         ctk.CTkLabel(card, text=tr('Локальные службы'), anchor='w', text_color=MUTED).pack(fill='x', padx=20, pady=(12, 0))
@@ -158,6 +159,8 @@ class StartupControls:
             if settings['enabled'] and not startup_steps(settings):
                 raise ValueError(tr('Выберите хотя бы один компонент или выключите автоматический запуск компонентов.'))
             config.set('startup', settings)
+            if settings['model_id'] == 'none' or not settings['enabled']:
+                config.set('active_model_profile', 'none')
             self.startup_summary.configure(text=tr('Сохранено. При следующем запуске: компонентов: {count}, задержка {delay} с.',
                 count=len(startup_steps(settings)), delay=settings['delay_seconds']) if settings['enabled'] else
                 tr('Сохранено. При следующем запуске компоненты не запускаются.'))

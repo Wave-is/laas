@@ -1262,6 +1262,10 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
 
     def quit_app(self):
         try:
+            self._notify_watchdog_stop()
+        except Exception:
+            pass
+        try:
             from ..setup_guard import release_setup_guard
             release_setup_guard()
         except Exception:

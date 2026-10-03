@@ -1,14 +1,17 @@
 # Development handoff
 
-Updated: 2026-10-02. **Release v0.2.0-beta.24: Unblocked Emergency Stop Controls & Non-Blocking GPU Load Telemetry.**
+Updated: 2026-10-03. **Release v0.2.0-beta.25: OTA UAC Elevation for Program Files & Autostart Model Disable Fix.**
 
 ## Текущая работа
-- **Цель**: Релиз v0.2.0-beta.24: Гарантия полной отзывчивости GUI и мгновенная выгрузка модели / остановка llama-swap / остановка агентов при 100% нагрузке на GPU.
-- **Этап**: Исправления внедрены, сборка инсталлятора и подготовка релиза v0.2.0-beta.24.
-- **Следующий конкретный шаг**: Публикация релиза на GitHub для получения пользователем через 1-Click OTA обновление.
-- **Критерий завершения**: Все 294 теста проходят, инсталлятор собран, кнопки выгрузки/остановки не блокируются при нагрузке GPU.
+- **Цель**: Публикация и валидация релиза v0.2.0-beta.25 с исправлением OTA-обновления для защищенных папок и мгновенным автосохранением автозапуска без модели.
+- **Этап**: Сборка дистрибутива, генерация снимка состояния и синхронизация assets на GitHub.
+- **Следующий конкретный шаг**: Выполнить сборку `build_installer.ps1` и загрузить релиз v0.2.0-beta.25.
+- **Критерий завершения**: Загружены 5 дистрибутивов в GitHub Release v0.2.0-beta.25, snapshot содержит новые хэши и статус чистый.
 
 Current progress:
+- **Elevated OTA Updater for Program Files (`src/app_updates.py`)**: Enhanced `apply_update.ps1` generation logic to trigger `-Verb RunAs` when update encounters exit code 5 (Access Denied) or target is in `Program Files`. Decoupled working directory and launcher fallback.
+- **Autostart Preference Auto-Save & Clean Watchdog Exit (`src/ui/startup_controls.py`, `src/ui/control_center.py`)**: Added instant `command=self._save_startup_settings` on autostart checkboxes and model dropdown. Selecting "Без модели" clears `active_model_profile` to `'none'`. Station shutdown (`quit_app`) notifies watchdog so clean exits are never treated as crashed instances requiring model recovery.
+
 - **Pixel-Perfect Master Dashboard Grid (`control_center.py`)**: All dashboard sections (top stats, GPU cards, bottom cards) now share a single master grid with `uniform='dash_col'` and matching symmetric margins. The right boundary of the left 2/3 cards aligns mathematically and visually with the 2nd column boundary of the top tiles and GPU cards.
 - **Compare-Timestamp File Preservation (`Station.iss`)**: Replaced `ignoreversion` with `comparetimestamp` on `_internal` DLLs, dependencies, and engine files. Inno Setup skips identical DLLs, completely preventing `DeleteFile: Access Denied code 5` errors on shared libraries like `MSVCP140.dll`.
 - **Force Process Tree & VRAM Cleanup (`Station.iss`, `app_updates.py`)**: `PrepareToInstall` and `apply_update.ps1` execute `taskkill /F /T` across `LocalAgentAIStation`, `llama-swap`, and `llama-server`. Completely frees all GPU VRAM before installation and eliminates orphan processes.

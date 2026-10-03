@@ -369,7 +369,7 @@ Get-Process -Name 'LocalAgentAIStation','llama-swap','llama-server' -ErrorAction
 }}
 Start-Sleep -Milliseconds 800
 
-# ---- 3. Run installer (no UAC/RunAs needed — per-user LOCALAPPDATA install) ----
+# ---- 3. Run installer (per-user by default; elevates with UAC if target is in Program Files or code 5) ----
 $installer = '{str(self.installer_path)}'
 $installerArgList = @({ps_arg_elems})
 Log "Running installer: $installer $($installerArgList -join ' ')"
@@ -382,13 +382,27 @@ try {{
 }}
 Log "Installer finished with exit code $exitCode"
 
+if ($exitCode -notin @(0, 6)) {{
+    if ($exitCode -eq 5 -or '{target_dir}'.ToLower().Contains('program files')) {{
+        Log 'Installer returned exit code 5 (Elevation Required). Retrying with -Verb RunAs...'
+        try {{
+            $p = Start-Process -FilePath $installer -ArgumentList $installerArgList -Verb RunAs -Wait -PassThru -ErrorAction Stop
+            $exitCode = if ($p) {{ $p.ExitCode }} else {{ -1 }}
+            Log "Elevated installer finished with exit code $exitCode"
+        }} catch {{
+            Log "Elevated installer launch exception: $($_.Exception.Message)"
+        }}
+    }}
+}}
+
 # ---- 4. Launch updated Station (Station will start llama-swap via its own supervisor) ----
-if ($exitCode -in 0, 6) {{
+if ($exitCode -in @(0, 6)) {{
     Start-Sleep -Milliseconds 500
     $targetExe = '{target_exe}'
     $candidates = @(
         $targetExe,
         (Join-Path $env:LOCALAPPDATA 'Programs\\Local Agent AI Station\\LocalAgentAIStation.exe'),
+        (Join-Path ${{env:ProgramFiles(x86)}} 'Local Agent AI Station\\LocalAgentAIStation.exe'),
         (Join-Path $env:ProgramFiles 'Local Agent AI Station\\LocalAgentAIStation.exe'),
         (Join-Path $env:LOCALAPPDATA 'Programs\\LocalAgentAIStation\\LocalAgentAIStation.exe')
     )
