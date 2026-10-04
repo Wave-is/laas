@@ -27,10 +27,10 @@ def main():
     }
 
     body = {
-        'tag_name': 'v0.2.0-beta.24',
+        'tag_name': 'v0.2.0-beta.26',
         'target_commitish': 'main',
-        'name': 'Local Agent AI Station 0.2.0-beta.24',
-        'body': 'Release v0.2.0-beta.24: Non-Blocking GPU Load Telemetry & Emergency Stop Controls Unblocked.\n\n- Stop buttons (Model, Server, Agent) remain active under heavy GPU compute.\n- Emergency stop worker bypasses busy lock.\n- smi and HTTP unload timeouts optimized for fast fallback.',
+        'name': 'Local Agent AI Station 0.2.0-beta.26',
+        'body': 'Release v0.2.0-beta.26: Startup Banner Orphan Fix & Top Action Bar for Autostart Settings.\n\n- Startup Progress Banner Orphan Fix: eliminated duplicate frame instantiation that prevented grid_remove() from hiding the bottom progress bar.\n- Top Action Bar in Autostart Settings: moved "Сохранить запуск" and "Отчёт последнего автозапуска" buttons to the top of the startup settings card for instant accessibility.',
         'draft': False,
         'prerelease': True
     }
@@ -48,7 +48,15 @@ def main():
     upload_base = upload_url_template.split('{')[0]
     release_dir = os.path.join(ROOT, 'dist', 'release')
 
-    for fname in os.listdir(release_dir):
+    target_files = [
+        'LocalAgentAIStation-0.2.0-beta.26-Setup-x64.exe',
+        'LocalAgentAIStation-0.2.0-beta.26-source.zip',
+        'BUILD.json',
+        'TESTING.json',
+        'SHA256SUMS.txt'
+    ]
+
+    for fname in target_files:
         fpath = os.path.join(release_dir, fname)
         if not os.path.isfile(fpath):
             continue
@@ -67,7 +75,9 @@ def main():
             asset_info = json.loads(up_resp.read().decode('utf-8'))
             print(f"Uploaded {fname} successfully! Asset ID: {asset_info['id']}")
 
-    print('ALL ASSETS UPLOADED SUCCESSFULLY!')
+    print('ALL ASSETS UPLOADED SUCCESSFULLY FOR BETA 26!')
+
+
 
 if __name__ == '__main__':
     main()

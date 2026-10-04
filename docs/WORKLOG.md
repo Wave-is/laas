@@ -1,6 +1,21 @@
 # Work log
 
+## 2026-10-04 — Release v0.2.0-beta.26: Startup Banner Orphan Fix & Top Action Bar for Autostart Settings
+
+1. **Startup Progress Banner Orphan Fix (`src/ui/startup_controls.py`)**:
+   - Resolved root cause of persistent bottom banner ("Загрузка модели ... [Отменить запуск]") remaining visible after model initialization finished.
+   - Removed duplicate `self.startup_banner = ctk.CTkFrame(...)` instantiation inside `_build_startup_settings` that was re-assigning the attribute to an un-gridded frame instance, causing `_startup_done`'s `grid_remove()` call to target the wrong instance while leaving the active banner on screen.
+   - Added guards checking `winfo_exists()` to guarantee clean unmapping.
+
+2. **Top Action Bar in Autostart Settings (`src/ui/startup_controls.py`)**:
+   - Repositioned «Сохранить запуск» and «Отчёт последнего автозапуска» buttons to the top of the startup settings card right below the header description.
+   - Users no longer need to scroll down to save startup preferences or inspect startup logs.
+
+3. **Validation**:
+   - 294 unit and integration tests passed cleanly (`python -m pytest -q`).
+
 ## 2026-10-03 — Release v0.2.0-beta.25: OTA UAC Elevation for Program Files & Autostart Model Disable Fix
+
 
 1. **Elevated OTA Updater for Program Files (`src/app_updates.py`)**:
    - Enhanced `apply_update.ps1` generation logic to detect exit code 5 (Access Denied) or target installations located in `C:\Program Files`.

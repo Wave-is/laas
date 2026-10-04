@@ -1,14 +1,17 @@
 # Development handoff
 
-Updated: 2026-10-03. **Release v0.2.0-beta.25: OTA UAC Elevation for Program Files & Autostart Model Disable Fix.**
+Updated: 2026-10-04. **Release v0.2.0-beta.26: Startup Banner Orphan Fix & Top Action Bar for Autostart Settings.**
 
 ## Текущая работа
-- **Цель**: Публикация и валидация релиза v0.2.0-beta.25 с исправлением OTA-обновления для защищенных папок и мгновенным автосохранением автозапуска без модели.
-- **Этап**: Сборка дистрибутива, генерация снимка состояния и синхронизация assets на GitHub.
-- **Следующий конкретный шаг**: Выполнить сборку `build_installer.ps1` и загрузить релиз v0.2.0-beta.25.
-- **Критерий завершения**: Загружены 5 дистрибутивов в GitHub Release v0.2.0-beta.25, snapshot содержит новые хэши и статус чистый.
+- **Цель**: Публикация и валидация релиза v0.2.0-beta.26 с устранённым зависанием баннера автозапуска и переносом кнопки «Сохранить запуск» наверх.
+- **Этап**: Сборка дистрибутива, публикация на GitHub и генерация снимка состояния.
+- **Следующий конкретный шаг**: Собрать инсталлятор `build_installer.ps1` и загрузить релиз v0.2.0-beta.26.
+- **Критерий завершения**: Все 5 ассетов загружены в GitHub Release v0.2.0-beta.26, snapshot чист.
 
 Current progress:
+- **Startup Progress Banner Orphan Fix (`src/ui/startup_controls.py`)**: Removed duplicate frame creation inside `_build_startup_settings` that previously overwrote `self.startup_banner`, causing `grid_remove()` in `_startup_done` to operate on an un-gridded instance while leaving the active banner visible on screen.
+- **Top Action Bar in Autostart Settings (`src/ui/startup_controls.py`)**: Moved «Сохранить запуск» and «Отчёт последнего автозапуска» buttons along with the status summary label to the top of the startup settings card for instant accessibility without scrolling.
+
 - **Elevated OTA Updater for Program Files (`src/app_updates.py`)**: Enhanced `apply_update.ps1` generation logic to trigger `-Verb RunAs` when update encounters exit code 5 (Access Denied) or target is in `Program Files`. Decoupled working directory and launcher fallback.
 - **Autostart Preference Auto-Save & Clean Watchdog Exit (`src/ui/startup_controls.py`, `src/ui/control_center.py`)**: Added instant `command=self._save_startup_settings` on autostart checkboxes and model dropdown. Selecting "Без модели" clears `active_model_profile` to `'none'`. Station shutdown (`quit_app`) notifies watchdog so clean exits are never treated as crashed instances requiring model recovery.
 

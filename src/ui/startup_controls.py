@@ -19,6 +19,8 @@ MUTED, ACCENT, EDGE = '#91a2b4', '#56d6b1', '#28394a'
 
 class StartupControls:
     def _build_startup_banner(self):
+        if hasattr(self, 'startup_banner') and self.startup_banner and self.startup_banner.winfo_exists():
+            return
         self.startup_banner = ctk.CTkFrame(self.body, fg_color=EDGE)
         self.startup_banner_label = ctk.CTkLabel(self.startup_banner, text='', wraplength=680, anchor='w', justify='left')
         self.startup_banner_label.pack(side='left', fill='x', expand=True, padx=12, pady=8)
@@ -33,10 +35,19 @@ class StartupControls:
             self.startup_scheduled = False
             self.startup_pending = False
             self.startup_runner = StartupRunner(self.controller, shared_services, gpu_mode_manager, profile_storage)
-        if not hasattr(self, 'startup_banner'):
+        if not hasattr(self, 'startup_banner') or not self.startup_banner or not self.startup_banner.winfo_exists():
             self._build_startup_banner()
         card = self.card(page, tr('Запуск Station и компонентов'),
             tr('Windows запускает Station при входе в вашу учётную запись. Выбранные ниже компоненты запускаются при каждом запуске Station.'))
+
+        # Top action row for instant visibility at the top of the startup settings card
+        top_row = self.row(card)
+        self.button(top_row, tr('Сохранить запуск'), self._save_startup_settings, True, width=180)
+        self.button(top_row, tr('Отчёт последнего автозапуска'), self._show_startup_result, width=240)
+        self.startup_summary = ctk.CTkLabel(card, text=tr('Изменения компонентов применяются при следующем запуске Station.'),
+            text_color=MUTED, wraplength=770, justify='left', anchor='w')
+        self.startup_summary.pack(fill='x', padx=20, pady=(2, 10))
+
         self.windows_startup = WindowsStartup()
         self.windows_startup_var = tk.BooleanVar(value=False)
         self.windows_startup_check = ctk.CTkCheckBox(card, text=tr('Запускать Station при входе в Windows'),
@@ -78,20 +89,8 @@ class StartupControls:
         ctk.CTkLabel(card, text='\n'.join([tr('Порядок: локальные службы → сервер моделей и модель → агенты. Режимы GPU не меняются.'),
             tr('Удалённые сервисы уже работают отдельно; их автопроверки настраиваются в «Службах».'),
             tr('Если агент ещё не настроен на выбранную модель, один раз запустите его вручную и подтвердите изменения.')]),
-            text_color=MUTED, wraplength=770, justify='left', anchor='w').pack(fill='x', padx=20, pady=(12, 0))
-        row = self.row(card)
-        self.button(row, tr('Сохранить запуск'), self._save_startup_settings, True, width=180)
-        self.button(row, tr('Отчёт последнего автозапуска'), self._show_startup_result, width=240)
-        self.startup_summary = ctk.CTkLabel(card, text=tr('Изменения компонентов применяются при следующем запуске Station.'),
-            text_color=MUTED, wraplength=770, justify='left', anchor='w')
-        self.startup_summary.pack(fill='x', padx=20, pady=(0, 14))
-        # Always reachable while the settings page is scrolled or Station starts minimized.
-        self.startup_banner = ctk.CTkFrame(self.body, fg_color=EDGE)
-        self.startup_banner_label = ctk.CTkLabel(self.startup_banner, text='', wraplength=680, anchor='w', justify='left')
-        self.startup_banner_label.pack(side='left', fill='x', expand=True, padx=12, pady=8)
-        self.startup_cancel_button = ctk.CTkButton(self.startup_banner, text=tr('Отменить запуск'), width=145,
-            command=self._cancel_startup)
-        self.startup_cancel_button.pack(side='right', padx=12, pady=8)
+            text_color=MUTED, wraplength=770, justify='left', anchor='w').pack(fill='x', padx=20, pady=(12, 14))
+
 
     def _windows_startup_loaded(self, state):
         self.windows_startup_var.set(state['enabled'])
