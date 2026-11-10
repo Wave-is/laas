@@ -109,6 +109,15 @@ def runtime_dir():
         if exe and Path(exe).is_file():
             parent = Path(exe).parent
             return parent.parent if parent.name.lower() in ('llama-swap', 'llama.cpp', 'bin') else parent
+    # Fallback to installed or known local engine folders
+    candidates = [
+        Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs/Local Agent AI Station/engine',
+        Path(os.environ.get('ProgramFiles', '')) / 'Local Agent AI Station/engine',
+        Path('D:/AI/QWEN_LOCAL_STACK_2026'),
+    ]
+    for cand in candidates:
+        if cand.is_dir() and ((cand / 'llama-swap').is_dir() or (cand / 'llama-swap.exe').is_file()):
+            return cand
     return None
 
 

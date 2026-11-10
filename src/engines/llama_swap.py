@@ -42,7 +42,7 @@ class LlamaSwapEngine(BaseEngine):
         try:
             response = self.request('/v1/chat/completions', {'model': model_id,
                 'messages': [{'role': 'user', 'content': 'Reply OK.'}], 'max_tokens': 8,
-                'temperature': 0, 'chat_template_kwargs': {'enable_thinking': False}}, timeout=timeout)
+                'temperature': 0, 'stream': False, 'chat_template_kwargs': {'enable_thinking': False}}, timeout=timeout)
             if not response.get('choices') or not response['choices'][0].get('message', {}).get('content'):
                 raise ValueError(tr('Сервер моделей не вернул текстовый ответ'))
             self._active_model = model_id

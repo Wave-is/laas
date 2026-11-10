@@ -29,7 +29,18 @@
    - Guarded `self.status_label` and `self.gpu_combo` in `_gpu_completed` with `hasattr` and `winfo_exists` to prevent `AttributeError` from crashing the UI event queue when switching GPU profiles.
    - Added automatic `grid_forget()` cleanup for the autostart banner when model initialization completes or startup is finished/cancelled, ensuring "Отменить запуск" never remains orphaned on screen.
 
-7. **Validation**:
+7. **Tray Click Starvation & Telemetry Queue Clogging Fix (`src/ui/control_center.py`, `src/ui/tray_controls.py`)**:
+   - Resolved root cause of «Tray action queue is busy: page / backend_stop / model»: `_poll` now only enqueues telemetry if `self.events.qsize() < 2`, guaranteeing that telemetry never clogs the queue and permanently reserving 28+ slots for user clicks, model switches, and emergency stops.
+   - Enhanced `_enqueue_tray` and `call_in_ui` to pop the oldest item if the queue is full under heavy workloads, guaranteeing reliable delivery of user clicks without dropping them.
+
+8. **Automatic Installed Engine Discovery (`src/model_server.py`)**:
+   - Added automatic detection fallbacks for `%LOCALAPPDATA%\Programs\Local Agent AI Station\engine`, `%ProgramFiles%\Local Agent AI Station\engine`, and `D:\AI\QWEN_LOCAL_STACK_2026` when `runtime_dir` is unset in configuration.
+   - Instantly resolves `llama-swap.exe`, `llama-server.exe`, and CUDA 13 cuBLAS runtime (`cublas64_13.dll`).
+
+9. **Llama-swap Chat Stream Flag (`src/engines/llama_swap.py`)**:
+   - Explicitly set `'stream': False` for model switch verification prompts, preventing empty-body stream parsing warnings in `service-llama-swap.log`.
+
+10. **Validation**:
    - All 295 unit and integration tests passed cleanly (`python -m pytest -q`).
 
 1. **Startup Progress Banner Orphan Fix (`src/ui/startup_controls.py`)**:
