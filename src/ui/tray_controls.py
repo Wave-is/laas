@@ -54,7 +54,15 @@ class TrayControls:
         try:
             self.events.put_nowait(('tray_action', (action, value), None))
         except queue.Full:
-            logging.getLogger(__name__).warning('Tray action queue is busy: %s', action)
+            # Under load, drop the oldest event (e.g. stale telemetry) to prioritize user interaction
+            try:
+                self.events.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self.events.put_nowait(('tray_action', (action, value), None))
+            except queue.Full:
+                logging.getLogger(__name__).warning('Tray action queue is busy: %s', action)
 
     def _tray_menu(self):
         import pystray

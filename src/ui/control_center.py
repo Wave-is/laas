@@ -971,7 +971,8 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
                         backend_info['loading'] = [r['model'] for r in rows if r.get('state') != 'ready']
                     except Exception:
                         pass
-                if not self.events.full():
+                # Only enqueue telemetry if the queue is not backed up, reserving space for user clicks
+                if self.events.qsize() < 2:
                     processes = self.controller.running_executables()
                     frontend_running = {id: self.controller.frontend_status(id, processes)
                                         for id in list(self.controller.frontends)}
@@ -1294,7 +1295,14 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         try:
             self.events.put_nowait(('call', function, None))
         except queue.Full:
-            logging.getLogger(__name__).warning('UI event queue is full; call dropped')
+            try:
+                self.events.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self.events.put_nowait(('call', function, None))
+            except queue.Full:
+                logging.getLogger(__name__).warning('UI event queue is full; call dropped')
 
     def _notify_watchdog_stop(self):
         """Tell watchdog a server stop is intentional so it does not auto-restart."""
