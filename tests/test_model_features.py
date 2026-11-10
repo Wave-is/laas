@@ -64,3 +64,25 @@ def test_dialog_signatures():
     sig = inspect.signature(MoveDialog.__init__)
     assert 'on_done' in sig.parameters
     assert sig.parameters['on_done'].default is None
+
+
+def test_strata_provider_model_backend():
+    from src.model_backend import build_model_entry
+    from src.profiles_schema import ModelProfile
+    from src.hardware_topology import GpuDeviceInfo
+
+    model = ModelProfile(
+        id='flash-next',
+        name='Flash-Next Strata',
+        weights_path='fake.gguf',
+        provider_type='strata',
+        startup_key='C:/AI/Strata/strata.json',
+        backend='cuda'
+    )
+    dev = GpuDeviceInfo(index=0, name='A5000', uuid='GPU-123', vram_total_mib=24576, vram_free_mib=24000)
+    entry = build_model_entry(model, [dev], executable='nonexistent.exe')
+    assert 'strata' in entry['cmd']
+    assert 'CUDA_VISIBLE_DEVICES=GPU-123' in entry['env']
+    assert entry['proxy'] == 'http://127.0.0.1:${PORT}'
+    assert model.backend_model_id == 'flash-next'
+

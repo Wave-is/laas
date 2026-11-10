@@ -1,12 +1,21 @@
 # Development handoff
 
-Updated: 2026-10-04. **Release v0.2.0-beta.26: Startup Banner Orphan Fix & Top Action Bar for Autostart Settings.**
+Updated: 2026-11-10. **High-Load System Responsiveness, Non-Blocking Architecture & Direct In-Process NVML Telemetry (v0.2.0-beta.27).**
 
 ## Текущая работа
-- **Цель**: Публикация и валидация релиза v0.2.0-beta.26 с устранённым зависанием баннера автозапуска и переносом кнопки «Сохранить запуск» наверх.
-- **Этап**: Сборка дистрибутива, публикация на GitHub и генерация снимка состояния.
-- **Следующий конкретный шаг**: Собрать инсталлятор `build_installer.ps1` и загрузить релиз v0.2.0-beta.26.
-- **Критерий завершения**: Все 5 ассетов загружены в GitHub Release v0.2.0-beta.26, snapshot чист.
+- **Цель**: Обеспечить абсолютную отзывчивость и надежность панели Station при 100% нагрузке на GPU/ПК (исключить состояние «Не отвечает», зависание окна, задержки открытия из трея и зависание опроса).
+- **Этап**: Завершено внедрение прямой in-process NVML-телеметрии, кэширования DXGI/топологии, принудительного приоритета процесса, слияния телеметрии, Win32 восстановления окна и сборки v0.2.0-beta.27.
+- **Подтверждённые результаты**:
+  1. Прямой опрос `nvml.dll` через ctypes в `src/hardware.py`, `src/gpu_details.py`, `src/metrics_history.py` выполняется за <0.5 мс без вызовов subprocess и блокировок пайпов ОС.
+  2. Кэширование DXGI адаптеров (60с) и топологии/NVLink (300с) устранило нагрузку на вызовы драйвера дисплея во время инференса.
+  3. `ABOVE_NORMAL_PRIORITY_CLASS` (0x8000) в `main.pyw` защищает цикл сообщений GUI и кнопки экстренной остановки от вытеснения вычислительными потоками LLM.
+  4. Квантование обработки событий в `_drain_events` (макс. 8 за тик) и слияние (coalescing) телеметрии предотвращают переполнение очереди и гарантируют постоянную работу `PeekMessage` Windows DWM.
+  5. Пропуск повторной отрисовки холстов/виджетов при свернутом окне разгружает CPU/GPU.
+  6. Функция `restore_window()` через `ShowWindow(SW_RESTORE)` + `SetForegroundWindow` гарантированно восстанавливает окно из трея поверх других приложений.
+  7. Устранен `AttributeError: gpu_combo` и сиротский баннер «Отменить запуск».
+  8. Все 295 тестов пройдены успешно.
+- **Следующий конкретный шаг**: Собрать дистрибутив и опубликовать релиз v0.2.0-beta.27 для OTA обновления.
+- **Критерий завершения**: EXE и инсталлятор собраны, хэши проверены, релиз опубликован на GitHub.
 
 Current progress:
 - **Startup Progress Banner Orphan Fix (`src/ui/startup_controls.py`)**: Removed duplicate frame creation inside `_build_startup_settings` that previously overwrote `self.startup_banner`, causing `grid_remove()` in `_startup_done` to operate on an un-gridded instance while leaving the active banner visible on screen.

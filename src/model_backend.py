@@ -39,6 +39,15 @@ def tensor_split(model, devices):
     return ','.join(f'{v/minimum:.4f}' for v in capacities)
 
 def build_model_entry(model, devices, executable):
+    if getattr(model, 'provider_type', 'llama_cpp') == 'strata':
+        config_path = getattr(model, 'startup_key', '') or 'C:/AI/Strata/strata-flash-next-c.json'
+        command = f'python C:/AI/Strata/serve/server.py --engine strata --config {config_path} --port ${{PORT}}'
+        entry = {'cmd': command, 'proxy': 'http://127.0.0.1:${PORT}', 'name': model.name}
+        if model.backend == 'cuda' and devices:
+            entry['env'] = ['CUDA_VISIBLE_DEVICES=' + ','.join(d.uuid for d in devices)]
+        elif model.backend == 'cpu':
+            entry['env'] = ['CUDA_VISIBLE_DEVICES=']
+        return entry
     if not executable or not Path(executable).is_file():
         raise ValueError(tr('Не найден llama-server.exe (llama.cpp). Укажите папку движка в «Настройки → Папки и сервер моделей».'))
     weights, mmproj = resolve_model_file(model.weights_path), resolve_model_file(model.mmproj_path)
@@ -83,7 +92,7 @@ def compile_swap(profiles, topology, hardware_profile, executable, path=None):
     target = Path(path or data_dir() / 'backend/llama-swap.yaml')
     models, skipped = {}, {}
     for model in profiles:
-        if model.id == 'none' or model.provider_type != 'llama_cpp' or model.status == 'disabled':
+        if model.id == 'none' or model.status == 'disabled' or model.provider_type not in ('llama_cpp', 'strata'):
             continue
         evaluation = compatibility_evaluator.evaluate(model, topology, hardware_profile)
         if evaluation.can_run:

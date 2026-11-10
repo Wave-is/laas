@@ -36,8 +36,8 @@ def get_default_station_presets():
         StationPreset(id='super-ai', name=tr('Супер ИИ'), gpu_profile_id='gpu-all-tcc', is_builtin=True,
             description=tr('Совместимые GPU в вычислительном режиме. Агент и модель выбираются независимо.')),
         StationPreset(id='game-ai', name=tr('Игры + ИИ'), gpu_profile_id='gpu-first-wddm-rest-tcc',
-            model_profile_id='qwen3.8-27b-single-tcc', is_builtin=True,
-            description=tr('Первая GPU для игр в WDDM, вторая GPU в TCC для модели Qwen 3.8 27B [256K].')),
+            model_profile_id='qwen3.8-flash-next-hybrid', is_builtin=True,
+            description=tr('Первая GPU для игр в WDDM, вторая GPU в TCC для модели Flash-Next [128K].')),
     ]
 
 class ProfileStorage:

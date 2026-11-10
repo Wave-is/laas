@@ -198,7 +198,8 @@ class StartupControls:
             self._startup_done({'Success': False, 'Message': tr('Автозапуск отменён до запуска компонентов.'), 'Steps': []})
 
     def _startup_done(self, result):
-        self.startup_banner.grid_remove()
+        if hasattr(self, 'startup_banner') and self.startup_banner and self.startup_banner.winfo_exists():
+            self.startup_banner.grid_forget()
         if hasattr(self, 'startup_summary'):
             self.startup_summary.configure(text=result['Message'])
         self.status_label.configure(text=result['Message'][:400], text_color=ACCENT if result['Success'] else '#f8ad88')

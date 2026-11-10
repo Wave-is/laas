@@ -92,6 +92,16 @@ def main():
     if sys.platform == 'win32':
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('LocalAgent.AIStation.3')
+        try:
+            kernel32 = ctypes.windll.kernel32
+            kernel32.GetCurrentProcess.restype = ctypes.c_void_p
+            kernel32.SetPriorityClass.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+            handle = kernel32.GetCurrentProcess()
+            # ABOVE_NORMAL_PRIORITY_CLASS = 0x00008000 ensures Station's UI and emergency
+            # stop controls remain responsive even when GPU/CPU compute loads saturate the PC.
+            kernel32.SetPriorityClass(handle, 0x00008000)
+        except Exception as exc:
+            logging.warning('Could not elevate process priority: %s', exc)
     app = ControlCenter(start_minimized=args.minimized, no_tray=args.no_tray, skip_startup=args.no_startup)
     instance.listen(lambda: app.events.put(('show', None, None)))
     def report_callback_exception(kind, value, tb):

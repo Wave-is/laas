@@ -992,14 +992,51 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
                     self.events.put(('poll_error', str(exc), None))
             self.stop_event.wait(max(2, config.get('poll_interval_sec', 3)))
 
-    def _drain_events(self):
+    def restore_window(self, page_name=None):
+        """Reliably restore the window from tray or minimized state, bringing it to foreground."""
         try:
-            while True:
-                kind, value, callback = self.events.get_nowait()
-                if kind == 'result':
+            if self.state() in ('iconic', 'withdrawn'):
+                self.state('normal')
+            self.deiconify()
+        except Exception:
+            pass
+
+        if sys.platform == 'win32':
+            try:
+                import ctypes
+                hwnd = self.winfo_id()
+                root_hwnd = ctypes.windll.user32.GetAncestor(hwnd, 2) or hwnd
+                # SW_RESTORE = 9
+                ctypes.windll.user32.ShowWindow(root_hwnd, 9)
+                ctypes.windll.user32.SetForegroundWindow(root_hwnd)
+            except Exception:
+                pass
+
+        try:
+            self.lift()
+            self.focus_force()
+        except Exception:
+            pass
+
+        if page_name:
+            self.show_page(page_name)
+
+    def _drain_events(self):
+        latest_telemetry = None
+        try:
+            processed = 0
+            while processed < 8:
+                try:
+                    kind, value, callback = self.events.get_nowait()
+                except queue.Empty:
+                    break
+                processed += 1
+                if kind == 'telemetry':
+                    latest_telemetry = value
+                elif kind == 'result':
                     self.busy = False
-                    for control in self.controls:
-                        if control.winfo_exists():
+                    for control in getattr(self, 'controls', ()):
+                        if hasattr(control, 'winfo_exists') and control.winfo_exists():
                             control.configure(state='normal')
                     if callback:
                         self.status_label.configure(text=result_message(value)[:400] if value.get('Message') else '',
@@ -1013,12 +1050,10 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
                     value()
                 elif kind == 'startup_progress':
                     self.startup_banner_label.configure(text=value)
-                elif kind == 'telemetry':
-                    self._update_telemetry(*value)
                 elif kind == 'poll_error' and not self.busy:
                     self.status_label.configure(text=value[:150], text_color='#f8ad88')
                 elif kind == 'show':
-                    self.deiconify(); self.lift()
+                    self.restore_window()
                 elif kind == 'quit':
                     self.quit_app()
                     return
@@ -1027,10 +1062,11 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
                     if self.stop_event.is_set():
                         return
                 elif kind == 'tray_error':
-                    self.deiconify()
+                    self.restore_window()
                     self.status_label.configure(text=tr('Трей недоступен: {error}', error=value[:120]), text_color='#f8ad88')
-        except queue.Empty:
-            pass
+
+            if latest_telemetry is not None:
+                self._update_telemetry(*latest_telemetry)
         except Exception as exc:
             self.busy = False
             logging.getLogger(__name__).exception('UI event failed')
@@ -1049,12 +1085,31 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
         self._refresh_agent_launch_states()
         self.ready_model_ids = {m.id for m in profile_storage.model_profiles.values() if m.backend_model_id in running}
         self.ready_model_names = [m.name for id, m in profile_storage.model_profiles.items() if id in self.ready_model_ids]
-        self._update_hardware(top)
+
+        # Hide auto-start banner if startup completed/cancelled
+        if not getattr(self, 'startup_pending', False) and hasattr(self, 'startup_banner') and self.startup_banner.winfo_exists():
+            if self.ready_model_ids or getattr(self, 'startup_scheduled', False):
+                self.startup_banner.grid_forget()
+
         for hook in self.telemetry_hooks:
             try:
                 hook(top, backend_info or {}, running)
             except Exception:
                 logging.getLogger(__name__).exception('Telemetry hook failed')
+
+        signature = tuple((d.uuid, d.driver_mode) for d in top.devices)
+        changed = signature != self.tray_signature
+        if changed:
+            self._update_tray_sources()
+            self.tray_signature = signature
+        self._preview_tray_preferences()
+        self._refresh_tray(rebuild=changed)
+
+        # Skip heavy Canvas/Card/Widget redraws when window is minimized or hidden in tray
+        if self.state() in ('withdrawn', 'iconic') or not self.winfo_viewable():
+            return
+
+        self._update_hardware(top)
         self.combination_label.configure(text=(tr('Модель запущена: {url}, id: {ids}', url=model_server.api_url(), ids=', '.join(running)) if running else
             tr('Сервер моделей работает ({url}), модель не загружена. Выберите модель и нажмите «Загрузить модель».', url=model_server.api_url()) if backend else
             tr('Выберите модель и нажмите «Загрузить модель».')))
@@ -1191,7 +1246,7 @@ class ControlCenter(ModelsPage, HardwarePage, ClusterPage, MonitoringPage, LogsP
 
     def _dispatch_tray(self, action, value=None):
         if action == 'page':
-            self.deiconify(); self.lift(); self.show_page(value)
+            self.restore_window(page_name=value)
         elif action == 'logs':
             from ..paths import logs_dir
             ld = logs_dir()

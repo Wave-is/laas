@@ -132,7 +132,7 @@ class ModelProfile:
 
     @property
     def backend_model_id(self):
-        return self.id if self.provider_type == 'llama_cpp' else (self.startup_key or self.id)
+        return self.id if self.provider_type in ('llama_cpp', 'strata') else (self.startup_key or self.id)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> 'ModelProfile':

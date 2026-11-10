@@ -135,9 +135,11 @@ class GpuControls:
         warnings = result.get('Warnings', [])
         if warnings:
             message += '. ' + '; '.join(warnings)
-        self.status_label.configure(text=message[:400],
-            text_color='#56d6b1' if result.get('Success') and not warnings else '#f8bd80')
-        self.gpu_combo.set(config.get('active_gpu_profile'))
+        if hasattr(self, 'status_label') and getattr(self.status_label, 'winfo_exists', lambda: False)():
+            self.status_label.configure(text=message[:400],
+                text_color='#56d6b1' if result.get('Success') and not warnings else '#f8bd80')
+        if hasattr(self, 'gpu_combo') and getattr(self.gpu_combo, 'winfo_exists', lambda: False)():
+            self.gpu_combo.set(config.get('active_gpu_profile'))
         self._refresh_tray(rebuild=True)
         # A no-op from the hidden tray needs feedback without opening the dashboard.
         if self.state() == 'withdrawn':

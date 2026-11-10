@@ -322,14 +322,48 @@ def _http_get(url, timeout=HTTP_TIMEOUT):
 
 
 def _run_smi_extras():
+    try:
+        from .hardware import hardware
+        if hardware.is_available and hardware.nvml:
+            nv = hardware.nvml
+            import ctypes
+            count = ctypes.c_uint()
+            if nv.nvmlDeviceGetCount_v2(ctypes.byref(count)) == 0:
+                result = {}
+                for i in range(count.value):
+                    dev = ctypes.c_void_p()
+                    if nv.nvmlDeviceGetHandleByIndex_v2(i, ctypes.byref(dev)) != 0:
+                        continue
+                    uuid_b = ctypes.create_string_buffer(64)
+                    nv.nvmlDeviceGetUUID(dev, uuid_b, 64)
+                    uuid_str = uuid_b.value.decode('utf-8', errors='replace').strip()
+
+                    power = ctypes.c_uint()
+                    p_val = round(power.value / 1000.0, 2) if hasattr(nv, 'nvmlDeviceGetPowerUsage') and nv.nvmlDeviceGetPowerUsage(dev, ctypes.byref(power)) == 0 else None
+
+                    limit = ctypes.c_uint()
+                    lim_val = round(limit.value / 1000.0, 2) if hasattr(nv, 'nvmlDeviceGetEnforcedPowerLimit') and nv.nvmlDeviceGetEnforcedPowerLimit(dev, ctypes.byref(limit)) == 0 else None
+
+                    fan = ctypes.c_uint()
+                    fan_val = float(fan.value) if hasattr(nv, 'nvmlDeviceGetFanSpeed') and nv.nvmlDeviceGetFanSpeed(dev, ctypes.byref(fan)) == 0 else None
+
+                    result[uuid_str] = {'power': p_val, 'power_limit': lim_val, 'fan': fan_val}
+                if result:
+                    return result
+    except Exception:
+        pass
+
     from .hardware import find_nvidia_smi, hidden_options
     import subprocess
     executable = find_nvidia_smi()
     if not executable:
         return {}
-    result = subprocess.run([executable, '--query-gpu=uuid,power.draw,power.limit,fan.speed', '--format=csv,noheader,nounits'],
-                            capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5, **hidden_options())
-    return parse_smi_extras(result.stdout) if result.returncode == 0 else {}
+    try:
+        result = subprocess.run([executable, '--query-gpu=uuid,power.draw,power.limit,fan.speed', '--format=csv,noheader,nounits'],
+                                capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5, **hidden_options())
+        return parse_smi_extras(result.stdout) if result.returncode == 0 else {}
+    except Exception:
+        return {}
 
 
 class MetricsSampler:

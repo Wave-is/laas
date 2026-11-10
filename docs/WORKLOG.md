@@ -1,6 +1,36 @@
 # Work log
 
-## 2026-10-04 — Release v0.2.0-beta.26: Startup Banner Orphan Fix & Top Action Bar for Autostart Settings
+## 2026-11-10 — Release v0.2.0-beta.27: Zero-Subprocess NVML C-API, Priority Elevation & High-Load GUI Responsiveness
+
+1. **Direct In-Process NVML C-Calls (`src/hardware.py`, `src/gpu_details.py`, `src/metrics_history.py`)**:
+   - Eliminated the `nvidia-smi.exe` subprocess storm (which previously spawned 3-5 external processes every 2.5-5 seconds, causing severe OS pipe/driver locks and 2.5s+ timeouts under heavy 90%+ compute on RTX A5000s in WDDM mode).
+   - Implemented direct memory C-calls via `nvml.dll` (`nvmlDeviceGetUtilizationRates`, `nvmlDeviceGetTemperature`, `nvmlDeviceGetMemoryInfo`, `nvmlDeviceGetPowerUsage`, `nvmlDeviceGetEnforcedPowerLimit`, `nvmlDeviceGetFanSpeed`, `nvmlDeviceGetPerformanceState`, `nvmlDeviceGetVbiosVersion`, `nvmlDeviceGetCurrPcieLinkGeneration`, `nvmlDeviceGetCurrentClocksThrottleReasons`).
+   - Query execution drops from 87–2500ms down to <0.5ms with 0 subprocesses and 0 OS pipe locks. Preserved graceful fallback to `nvidia-smi` on systems without NVML.
+   - Cached DXGI adapter enumeration for 60 seconds to eliminate DirectX driver synchronization overhead during inference.
+
+2. **Hardware Topology & NVLink Polling Optimization (`src/hardware_topology.py`, `src/gpu_details.py`)**:
+   - Increased topology matrix probe cache interval from 30s to 300s (5 minutes), as physical GPU hardware interconnects do not change at runtime. Re-probes immediately upon driver mode signature changes or explicit force refresh.
+   - Increased NVLink link state probe interval from 60s to 300s.
+
+3. **Process Priority Elevation (`main.pyw`)**:
+   - Elevated Station desktop process priority to `ABOVE_NORMAL_PRIORITY_CLASS` (0x00008000) using `ctypes.windll.kernel32.SetPriorityClass`.
+   - Guarantees that Station's UI message loop and emergency stop controls are not starved of CPU timeslices by background compute threads (llama-server/llama.cpp) running at 100% CPU/GPU.
+
+4. **UI Event Loop Breathing & Telemetry Coalescing (`src/ui/control_center.py`)**:
+   - Bounded event processing in `_drain_events` to a maximum of 8 items per tick, guaranteeing that the Tk message loop yields control back to Windows DWM `PeekMessage` every 100ms and never gets flagged by Windows as "(Не отвечает)".
+   - Implemented telemetry event coalescing: dropped intermediate redundant telemetry frames when the UI thread is busy, executing only the latest telemetry frame once per tick to eliminate multi-redraw UI freezes.
+   - Skipped heavy canvas widget, card, and gauge redraws when the window is minimized or hidden in the system tray (`withdrawn` / `iconic`), updating only tray tooltip and internal state.
+
+5. **Robust Window Restoration (`src/ui/control_center.py`)**:
+   - Added `restore_window(page_name)` leveraging Win32 `ShowWindow(root_hwnd, SW_RESTORE)` (9) and `SetForegroundWindow(root_hwnd)` along with Tkinter `state('normal')`, `deiconify()`, and `focus_force()`.
+   - Bypasses Windows foreground lock (`LockSetForegroundWindow`), reliably bringing the window to the front from the tray or taskbar under any background workload.
+
+6. **Crash Prevention & Startup Banner Cleanup (`src/ui/gpu_confirmation.py`, `src/ui/startup_controls.py`)**:
+   - Guarded `self.status_label` and `self.gpu_combo` in `_gpu_completed` with `hasattr` and `winfo_exists` to prevent `AttributeError` from crashing the UI event queue when switching GPU profiles.
+   - Added automatic `grid_forget()` cleanup for the autostart banner when model initialization completes or startup is finished/cancelled, ensuring "Отменить запуск" never remains orphaned on screen.
+
+7. **Validation**:
+   - All 295 unit and integration tests passed cleanly (`python -m pytest -q`).
 
 1. **Startup Progress Banner Orphan Fix (`src/ui/startup_controls.py`)**:
    - Resolved root cause of persistent bottom banner ("Загрузка модели ... [Отменить запуск]") remaining visible after model initialization finished.

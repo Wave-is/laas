@@ -88,7 +88,7 @@ class TopologyDiscoveryEngine:
         devices = [GpuDeviceInfo(**{k: v for k, v in row.items() if k in GpuDeviceInfo.__dataclass_fields__}) for row in rows]
         top = HardwareTopology(devices=devices, discovery_error=hardware.last_error)
         signature = tuple((d.uuid, d.driver_mode) for d in devices)
-        if force or signature != self._signature or time.monotonic() - self._probe_at > 30:
+        if force or signature != self._signature or time.monotonic() - self._probe_at > 300:
             self._signature = signature
             self._probe_at = time.monotonic()
             probes = {}

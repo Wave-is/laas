@@ -4,11 +4,12 @@ Read-only ``nvidia-smi`` queries, cached: the poll thread calls :meth:`GpuDetail
 every few seconds, the query itself runs at most every ``interval`` seconds (NVLink less often).
 Unknown or unsupported values are ``None``.
 """
+import ctypes
 import re
 import subprocess
 import threading
 import time
-from .hardware import find_nvidia_smi
+from .hardware import find_nvidia_smi, hardware, nvmlUtilization_t, nvmlMemory_t
 
 FIELDS = ('index', 'uuid', 'name', 'driver_version', 'vbios_version', 'pstate', 'temperature.gpu', 'utilization.gpu',
           'memory.used', 'memory.total', 'power.draw', 'power.limit', 'fan.speed',
@@ -97,8 +98,111 @@ def run_nvidia_smi(args, timeout=3.0):
     return done.stdout
 
 
+def query_via_nvml():
+    """Query detailed GPU metrics directly through in-process NVML C-API (microseconds, zero subprocesses)."""
+    if not hardware.is_available or not hardware.nvml:
+        return None
+    nv = hardware.nvml
+    count = ctypes.c_uint()
+    if nv.nvmlDeviceGetCount_v2(ctypes.byref(count)) != 0:
+        return None
+    drv_buf = ctypes.create_string_buffer(64)
+    driver_version = drv_buf.value.decode('utf-8', errors='replace').strip() if hasattr(nv, 'nvmlSystemGetDriverVersion') and nv.nvmlSystemGetDriverVersion(drv_buf, 64) == 0 else ''
+
+    result = {}
+    for i in range(count.value):
+        dev = ctypes.c_void_p()
+        if nv.nvmlDeviceGetHandleByIndex_v2(i, ctypes.byref(dev)) != 0:
+            continue
+        uuid_b = ctypes.create_string_buffer(64)
+        nv.nvmlDeviceGetUUID(dev, uuid_b, 64)
+        uuid_str = uuid_b.value.decode('utf-8', errors='replace').strip()
+
+        name_b = ctypes.create_string_buffer(64)
+        nv.nvmlDeviceGetName(dev, name_b, 64)
+        name_str = name_b.value.decode('utf-8', errors='replace').strip()
+
+        vbios_b = ctypes.create_string_buffer(64)
+        vbios_str = vbios_b.value.decode('utf-8', errors='replace').strip() if hasattr(nv, 'nvmlDeviceGetVbiosVersion') and nv.nvmlDeviceGetVbiosVersion(dev, vbios_b, 64) == 0 else None
+
+        pstate_val = ctypes.c_int()
+        pstate_str = f'P{pstate_val.value}' if hasattr(nv, 'nvmlDeviceGetPerformanceState') and nv.nvmlDeviceGetPerformanceState(dev, ctypes.byref(pstate_val)) == 0 else None
+
+        temp = ctypes.c_uint()
+        temp_val = float(temp.value) if hasattr(nv, 'nvmlDeviceGetTemperature') and nv.nvmlDeviceGetTemperature(dev, 0, ctypes.byref(temp)) == 0 else None
+
+        util = nvmlUtilization_t()
+        gpu_util = float(util.gpu) if hasattr(nv, 'nvmlDeviceGetUtilizationRates') and nv.nvmlDeviceGetUtilizationRates(dev, ctypes.byref(util)) == 0 else None
+
+        mem = nvmlMemory_t()
+        mem_used, mem_total = None, None
+        if hasattr(nv, 'nvmlDeviceGetMemoryInfo') and nv.nvmlDeviceGetMemoryInfo(dev, ctypes.byref(mem)) == 0:
+            mem_used = round(float(mem.used) / (1024 * 1024), 2)
+            mem_total = round(float(mem.total) / (1024 * 1024), 2)
+
+        power = ctypes.c_uint()
+        power_draw = round(power.value / 1000.0, 2) if hasattr(nv, 'nvmlDeviceGetPowerUsage') and nv.nvmlDeviceGetPowerUsage(dev, ctypes.byref(power)) == 0 else None
+
+        limit = ctypes.c_uint()
+        power_limit = round(limit.value / 1000.0, 2) if hasattr(nv, 'nvmlDeviceGetEnforcedPowerLimit') and nv.nvmlDeviceGetEnforcedPowerLimit(dev, ctypes.byref(limit)) == 0 else None
+
+        fan = ctypes.c_uint()
+        fan_speed = float(fan.value) if hasattr(nv, 'nvmlDeviceGetFanSpeed') and nv.nvmlDeviceGetFanSpeed(dev, ctypes.byref(fan)) == 0 else None
+
+        gen_curr = ctypes.c_uint()
+        pcie_gen_curr = int(gen_curr.value) if hasattr(nv, 'nvmlDeviceGetCurrPcieLinkGeneration') and nv.nvmlDeviceGetCurrPcieLinkGeneration(dev, ctypes.byref(gen_curr)) == 0 else None
+
+        gen_max = ctypes.c_uint()
+        pcie_gen_max = int(gen_max.value) if hasattr(nv, 'nvmlDeviceGetMaxPcieLinkGeneration') and nv.nvmlDeviceGetMaxPcieLinkGeneration(dev, ctypes.byref(gen_max)) == 0 else None
+
+        w_curr = ctypes.c_uint()
+        pcie_w_curr = int(w_curr.value) if hasattr(nv, 'nvmlDeviceGetCurrPcieLinkWidth') and nv.nvmlDeviceGetCurrPcieLinkWidth(dev, ctypes.byref(w_curr)) == 0 else None
+
+        w_max = ctypes.c_uint()
+        pcie_w_max = int(w_max.value) if hasattr(nv, 'nvmlDeviceGetMaxPcieLinkWidth') and nv.nvmlDeviceGetMaxPcieLinkWidth(dev, ctypes.byref(w_max)) == 0 else None
+
+        mode, pending = ctypes.c_int(), ctypes.c_int()
+        if hasattr(nv, 'nvmlDeviceGetDriverModel') and nv.nvmlDeviceGetDriverModel(dev, ctypes.byref(mode), ctypes.byref(pending)) == 0:
+            drv_mode = 'WDDM' if mode.value == 0 else 'TCC' if mode.value == 1 else 'UNKNOWN'
+            pending_mode = 'WDDM' if pending.value == 0 else 'TCC' if pending.value == 1 else 'UNKNOWN'
+        else:
+            drv_mode, pending_mode = None, None
+
+        throttle = ctypes.c_ulonglong()
+        if hasattr(nv, 'nvmlDeviceGetCurrentClocksThrottleReasons') and nv.nvmlDeviceGetCurrentClocksThrottleReasons(dev, ctypes.byref(throttle)) == 0:
+            throttle_mask = hex(throttle.value)
+        else:
+            throttle_mask = None
+
+        row = {
+            'index': i,
+            'uuid': uuid_str,
+            'name': name_str,
+            'driver_version': driver_version,
+            'vbios_version': vbios_str,
+            'pstate': pstate_str,
+            'temperature.gpu': temp_val,
+            'utilization.gpu': gpu_util,
+            'memory.used': mem_used,
+            'memory.total': mem_total,
+            'power.draw': power_draw,
+            'power.limit': power_limit,
+            'fan.speed': fan_speed,
+            'pcie.link.gen.current': pcie_gen_curr,
+            'pcie.link.gen.max': pcie_gen_max,
+            'pcie.link.width.current': pcie_w_curr,
+            'pcie.link.width.max': pcie_w_max,
+            'clocks_throttle_reasons.active': throttle_mask,
+            'driver_model.current': drv_mode,
+            'driver_model.pending': pending_mode,
+            'throttle': throttle_reasons(throttle_mask),
+        }
+        result[uuid_str] = row
+    return result
+
+
 class GpuDetailsCache:
-    def __init__(self, runner=run_nvidia_smi, clock=time.monotonic, interval=5.0, nvlink_interval=60.0):
+    def __init__(self, runner=run_nvidia_smi, clock=time.monotonic, interval=5.0, nvlink_interval=300.0):
         self.runner = runner
         self.clock = clock
         self.interval = interval
@@ -143,6 +247,13 @@ class GpuDetailsCache:
         return True
 
     def _query(self):
+        if self.runner is run_nvidia_smi:
+            try:
+                res = query_via_nvml()
+                if res is not None:
+                    return res
+            except Exception:
+                pass
         try:
             return parse_query(self.runner(['--query-gpu=' + ','.join(self.fields), '--format=csv,noheader,nounits']), self.fields)
         except RuntimeError as exc:
