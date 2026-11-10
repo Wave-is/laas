@@ -1,5 +1,24 @@
 # Work log
 
+## 2026-11-10 — Release v0.2.0-beta.28: Tray Starvation Fix, Engine Auto-Discovery & OTA Elevation
+
+1. **Tray Click Starvation & Telemetry Queue Clogging Fix (`src/ui/control_center.py`, `src/ui/tray_controls.py`)**:
+   - Resolved root cause of «Tray action queue is busy: page / backend_stop / model» observed in logs: `_poll` now only enqueues telemetry if `self.events.qsize() < 2`, guaranteeing that telemetry never clogs the queue and permanently reserving 28+ slots for user clicks, model switches, and emergency stops.
+   - Enhanced `_enqueue_tray` and `call_in_ui` to pop the oldest item if the queue is full under heavy workloads, guaranteeing reliable delivery of user clicks without dropping them.
+
+2. **Automatic Installed Engine Discovery (`src/model_server.py`)**:
+   - Added automatic detection fallbacks for `%LOCALAPPDATA%\Programs\Local Agent AI Station\engine`, `%ProgramFiles%\Local Agent AI Station\engine`, and `D:\AI\QWEN_LOCAL_STACK_2026` when `runtime_dir` is unset in configuration.
+   - Instantly resolves `llama-swap.exe`, `llama-server.exe`, and CUDA 13 cuBLAS runtime (`cublas64_13.dll`).
+
+3. **Llama-swap Chat Stream Flag (`src/engines/llama_swap.py`)**:
+   - Explicitly set `'stream': False` for model switch verification prompts, preventing empty-body stream parsing warnings in `service-llama-swap.log`.
+
+4. **Automatic Update Check Enabled (`station.yaml`)**:
+   - Switched `app_update_check: true` so Station automatically checks for new releases on startup and displays the OTA update notification.
+
+5. **Validation**:
+   - All 295 unit and integration tests passed cleanly (`python -m pytest -q`).
+
 ## 2026-11-10 — Release v0.2.0-beta.27: Zero-Subprocess NVML C-API, Priority Elevation & High-Load GUI Responsiveness
 
 1. **Direct In-Process NVML C-Calls (`src/hardware.py`, `src/gpu_details.py`, `src/metrics_history.py`)**:
